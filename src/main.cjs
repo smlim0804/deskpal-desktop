@@ -2,6 +2,11 @@ const { app, BrowserWindow, Menu, ipcMain, screen, shell, dialog } = require("el
 const fs = require("fs");
 const path = require("path");
 
+if (process.platform === "linux") {
+  // X11 gives Electron reliable transparent-window click-through on Ubuntu 22.04.
+  app.commandLine.appendSwitch("ozone-platform", "x11");
+}
+
 const gotSingleInstanceLock = app.requestSingleInstanceLock();
 
 if (!gotSingleInstanceLock) {
@@ -388,6 +393,15 @@ function updateOverlayBounds() {
   overlayWindow.setBounds(display.bounds);
 }
 
+function applyOverlayMousePassthrough(ignore) {
+  if (!overlayWindow || overlayWindow.isDestroyed()) return;
+  if (process.platform === "linux") {
+    overlayWindow.setIgnoreMouseEvents(ignore);
+    return;
+  }
+  overlayWindow.setIgnoreMouseEvents(ignore, { forward: true });
+}
+
 function createOverlayWindow() {
   const display = screen.getPrimaryDisplay();
   overlayWindow = new BrowserWindow({
@@ -414,7 +428,7 @@ function createOverlayWindow() {
 
   overlayWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   overlayWindow.setAlwaysOnTop(true, "screen-saver");
-  overlayWindow.setIgnoreMouseEvents(true, { forward: true });
+  applyOverlayMousePassthrough(true);
   overlayWindow.loadFile(path.join(__dirname, "overlay.html"));
 
   overlayWindow.on("closed", () => {
@@ -478,7 +492,7 @@ function setOverlayClickThrough(ignore) {
   const next = !!ignore;
   if (next === ignoringMouse) return;
   ignoringMouse = next;
-  overlayWindow.setIgnoreMouseEvents(next, { forward: true });
+  applyOverlayMousePassthrough(next);
 }
 
 function startCursorWatch() {
