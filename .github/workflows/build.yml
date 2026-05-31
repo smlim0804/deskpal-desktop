@@ -58,6 +58,10 @@ jobs:
       - name: Archive
         run: npm run archive:${{ matrix.archive }}
 
+      - name: Package Ubuntu deb
+        if: matrix.archive == 'linux'
+        run: npm run package:deb
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:

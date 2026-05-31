@@ -20,12 +20,20 @@ npm run package:win
 npm run package:linux
 ```
 
+Ubuntu installer:
+
+```bash
+cd /Users/limsungmin/Desktop/codex_product/busypet_desktop
+npm run release:ubuntu
+```
+
 Outputs:
 
 ```text
 dist/BusyPet Desktop-darwin-arm64/BusyPet Desktop.app
 dist/BusyPet Desktop-win32-x64/BusyPet Desktop.exe
 dist/BusyPet Desktop-linux-x64/busypet-desktop
+release/BusyPet-Desktop-Ubuntu-x64.deb
 ```
 
 On this Mac:
@@ -39,6 +47,21 @@ Ubuntu/Linux:
 ```bash
 chmod +x "dist/BusyPet Desktop-linux-x64/busypet-desktop"
 "dist/BusyPet Desktop-linux-x64/busypet-desktop"
+```
+
+Ubuntu 22.04 easiest install:
+
+1. Download `BusyPet-Desktop-Ubuntu-x64.deb`.
+2. Double-click it.
+3. Press Install.
+4. Open `BusyPet Desktop` from Activities.
+
+Terminal install:
+
+```bash
+cd ~/Downloads
+sudo apt install ./BusyPet-Desktop-Ubuntu-x64.deb
+busypet-desktop
 ```
 
 Windows:
