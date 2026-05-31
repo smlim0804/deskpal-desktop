@@ -26,11 +26,19 @@ const TARGETS = {
     executable: "busypet-desktop",
     sourceExecutable: "electron",
   },
+  "linux-arm64": {
+    platform: "linux",
+    arch: "arm64",
+    outName: `${APP_NAME}-linux-arm64`,
+    executable: "busypet-desktop",
+    sourceExecutable: "electron",
+  },
 };
 
 function targetFromArg(arg) {
   if (arg === "win" || arg === "windows") return "win32-x64";
   if (arg === "linux" || arg === "ubuntu") return "linux-x64";
+  if (arg === "linux-arm" || arg === "ubuntu-arm" || arg === "ubuntu-arm64") return "linux-arm64";
   return arg;
 }
 
@@ -39,7 +47,9 @@ function selectedTargets() {
   const targets = args.length ? args : ["linux-x64"];
   if (targets.includes("all")) return Object.keys(TARGETS);
   for (const target of targets) {
-    if (!TARGETS[target]) throw new Error(`Unknown target "${target}". Use win32-x64, linux-x64, win, linux, ubuntu, or all.`);
+    if (!TARGETS[target]) {
+      throw new Error(`Unknown target "${target}". Use win32-x64, linux-x64, linux-arm64, win, linux, ubuntu, ubuntu-arm64, or all.`);
+    }
   }
   return targets;
 }

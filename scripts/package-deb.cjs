@@ -6,14 +6,15 @@ const ROOT = path.resolve(__dirname, "..");
 const PACKAGE_JSON = require("../package.json");
 const DIST_DIR = path.join(ROOT, "dist");
 const RELEASE_DIR = path.join(ROOT, "release");
-const SOURCE_DIR = path.join(DIST_DIR, "BusyPet Desktop-linux-x64");
-const PACKAGE_ROOT = path.join(DIST_DIR, "deb", "busypet-desktop");
+const TARGET_ARCH = architectureFromArg(process.argv[2]);
+const SOURCE_DIR = path.join(DIST_DIR, `BusyPet Desktop-linux-${TARGET_ARCH.releaseSuffix}`);
+const PACKAGE_ROOT = path.join(DIST_DIR, "deb", `busypet-desktop-${TARGET_ARCH.debArch}`);
 const INSTALL_DIR = path.join(PACKAGE_ROOT, "opt", "busypet-desktop");
 const DESKTOP_DIR = path.join(PACKAGE_ROOT, "usr", "share", "applications");
 const ICON_DIR = path.join(PACKAGE_ROOT, "usr", "share", "icons", "hicolor", "scalable", "apps");
 const BIN_DIR = path.join(PACKAGE_ROOT, "usr", "bin");
 const DEBIAN_DIR = path.join(PACKAGE_ROOT, "DEBIAN");
-const OUTPUT = path.join(RELEASE_DIR, "BusyPet-Desktop-Ubuntu-x64.deb");
+const OUTPUT = path.join(RELEASE_DIR, `BusyPet-Desktop-Ubuntu-${TARGET_ARCH.releaseSuffix}.deb`);
 
 const DESKTOP_FILE = [
   "[Desktop Entry]",
@@ -42,6 +43,17 @@ const ICON_SVG = `<?xml version="1.0" encoding="UTF-8"?>
 </svg>
 `;
 
+function architectureFromArg(arg = "x64") {
+  const normalized = (arg || "x64").toLowerCase();
+  if (["x64", "amd64", "linux", "ubuntu"].includes(normalized)) {
+    return { debArch: "amd64", releaseSuffix: "x64", packageScript: "npm run package:linux" };
+  }
+  if (["arm64", "aarch64", "linux-arm64", "ubuntu-arm64", "linux-arm", "ubuntu-arm"].includes(normalized)) {
+    return { debArch: "arm64", releaseSuffix: "arm64", packageScript: "npm run package:linux:arm64" };
+  }
+  throw new Error("Use one of: x64, amd64, arm64, aarch64, ubuntu, or ubuntu-arm64.");
+}
+
 function ensureLinuxHost() {
   if (process.platform !== "linux") {
     throw new Error("Ubuntu .deb packages must be built on Linux. GitHub Actions will build this automatically.");
@@ -58,7 +70,7 @@ function ensureDpkgDeb() {
 
 function ensureSourceDist() {
   if (!fs.existsSync(path.join(SOURCE_DIR, "busypet-desktop"))) {
-    throw new Error("Missing Linux app folder. Run npm run package:linux before npm run package:deb.");
+    throw new Error(`Missing Linux app folder for ${TARGET_ARCH.debArch}. Run ${TARGET_ARCH.packageScript} before npm run package:deb.`);
   }
 }
 
@@ -93,7 +105,7 @@ function writeControlFile() {
     `Version: ${PACKAGE_JSON.version}`,
     "Section: utils",
     "Priority: optional",
-    "Architecture: amd64",
+    `Architecture: ${TARGET_ARCH.debArch}`,
     "Maintainer: smlim0804 <smlim0804@users.noreply.github.com>",
     "Depends: libgtk-3-0, libnss3, libxss1, libgbm1, libasound2 | libasound2t64, libatk-bridge2.0-0",
     "Description: Desktop pixel companions",
@@ -128,7 +140,7 @@ function buildDeb() {
   ensureDir(RELEASE_DIR);
   fs.rmSync(OUTPUT, { force: true });
   execFileSync("dpkg-deb", ["--build", "--root-owner-group", PACKAGE_ROOT, OUTPUT], { stdio: "inherit" });
-  console.log(`Wrote Ubuntu installer: ${path.relative(ROOT, OUTPUT)}`);
+  console.log(`Wrote Ubuntu ${TARGET_ARCH.debArch} installer: ${path.relative(ROOT, OUTPUT)}`);
 }
 
 function main() {

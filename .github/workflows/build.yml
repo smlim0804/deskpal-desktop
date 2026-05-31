@@ -24,17 +24,26 @@ jobs:
             os: macos-14
             script: package:mac
             archive: mac
+            debArch: ""
             artifact: "BusyPet Desktop-macOS"
           - name: Windows x64
             os: windows-latest
             script: package:win
             archive: win
+            debArch: ""
             artifact: "BusyPet Desktop-win32-x64"
           - name: Ubuntu x64
             os: ubuntu-latest
             script: package:linux
             archive: linux
+            debArch: x64
             artifact: "BusyPet Desktop-linux-x64"
+          - name: Ubuntu arm64
+            os: ubuntu-latest
+            script: package:linux:arm64
+            archive: linux:arm64
+            debArch: arm64
+            artifact: "BusyPet Desktop-linux-arm64"
 
     steps:
       - name: Checkout
@@ -59,8 +68,8 @@ jobs:
         run: npm run archive:${{ matrix.archive }}
 
       - name: Package Ubuntu deb
-        if: matrix.archive == 'linux'
-        run: npm run package:deb
+        if: matrix.debArch != ''
+        run: npm run package:deb -- ${{ matrix.debArch }}
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

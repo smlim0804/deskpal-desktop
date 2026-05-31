@@ -22,12 +22,17 @@ const TARGETS = {
     output: "BusyPet-Desktop-Ubuntu-x64.tar.gz",
     archive: archiveTarGz,
   },
+  "linux-arm64": {
+    folder: "BusyPet Desktop-linux-arm64",
+    output: "BusyPet-Desktop-Ubuntu-arm64.tar.gz",
+    archive: archiveTarGz,
+  },
 };
 
 function selectedTarget() {
   const arg = process.argv[2] || "";
-  const normalized = arg === "windows" ? "win" : arg === "ubuntu" ? "linux" : arg;
-  if (!TARGETS[normalized]) throw new Error("Use one of: mac, win, linux, windows, ubuntu.");
+  const normalized = arg === "windows" ? "win" : arg === "ubuntu" ? "linux" : arg === "ubuntu-arm64" ? "linux-arm64" : arg;
+  if (!TARGETS[normalized]) throw new Error("Use one of: mac, win, linux, linux-arm64, windows, ubuntu, ubuntu-arm64.");
   return normalized;
 }
 

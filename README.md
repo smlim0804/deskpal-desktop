@@ -18,6 +18,7 @@ npm run check
 npm run package:mac
 npm run package:win
 npm run package:linux
+npm run package:linux:arm64
 ```
 
 Ubuntu installer:
@@ -25,6 +26,7 @@ Ubuntu installer:
 ```bash
 cd /Users/limsungmin/Desktop/codex_product/busypet_desktop
 npm run release:ubuntu
+npm run release:ubuntu:arm64
 ```
 
 Outputs:
@@ -33,7 +35,9 @@ Outputs:
 dist/BusyPet Desktop-darwin-arm64/BusyPet Desktop.app
 dist/BusyPet Desktop-win32-x64/BusyPet Desktop.exe
 dist/BusyPet Desktop-linux-x64/busypet-desktop
+dist/BusyPet Desktop-linux-arm64/busypet-desktop
 release/BusyPet-Desktop-Ubuntu-x64.deb
+release/BusyPet-Desktop-Ubuntu-arm64.deb
 ```
 
 On this Mac:
@@ -51,18 +55,23 @@ chmod +x "dist/BusyPet Desktop-linux-x64/busypet-desktop"
 
 Ubuntu 22.04 easiest install:
 
-1. Download `BusyPet-Desktop-Ubuntu-x64.deb`.
-2. Double-click it.
-3. Press Install.
-4. Open `BusyPet Desktop` from Activities.
+1. Check the Ubuntu CPU type with `dpkg --print-architecture`.
+2. Download `BusyPet-Desktop-Ubuntu-x64.deb` for `amd64`, or `BusyPet-Desktop-Ubuntu-arm64.deb` for `arm64`.
+   UTM on Apple Silicon Macs is usually `arm64`.
+3. Double-click it.
+4. Press Install.
+5. Open `BusyPet Desktop` from Activities.
 
 Terminal install:
 
 ```bash
 cd ~/Downloads
-sudo apt install ./BusyPet-Desktop-Ubuntu-x64.deb
+sudo apt update
+sudo apt install ./BusyPet-Desktop-Ubuntu-arm64.deb
 busypet-desktop
 ```
+
+Use `BusyPet-Desktop-Ubuntu-x64.deb` instead if `dpkg --print-architecture` prints `amd64`.
 
 Windows:
 
