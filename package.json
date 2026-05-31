@@ -12,7 +12,12 @@
     "package:win": "node scripts/package-platform.cjs win32-x64",
     "package:linux": "node scripts/package-platform.cjs linux-x64",
     "package:ubuntu": "npm run package:linux",
-    "package:all": "npm run check && npm run package:mac && npm run package:win && npm run package:linux"
+    "package:all": "npm run check && npm run package:mac && npm run package:win && npm run package:linux",
+    "archive:mac": "node scripts/archive-build.cjs mac",
+    "archive:win": "node scripts/archive-build.cjs win",
+    "archive:linux": "node scripts/archive-build.cjs linux",
+    "archive:all": "npm run archive:mac && npm run archive:win && npm run archive:linux",
+    "release:local": "npm run package:all && npm run archive:all"
   },
   "keywords": [
     "desktop",

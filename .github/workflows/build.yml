@@ -23,14 +23,17 @@ jobs:
           - name: macOS arm64
             os: macos-14
             script: package:mac
+            archive: mac
             artifact: "BusyPet Desktop-macOS"
           - name: Windows x64
             os: windows-latest
             script: package:win
+            archive: win
             artifact: "BusyPet Desktop-win32-x64"
           - name: Ubuntu x64
             os: ubuntu-latest
             script: package:linux
+            archive: linux
             artifact: "BusyPet Desktop-linux-x64"
 
     steps:
@@ -52,11 +55,12 @@ jobs:
       - name: Package
         run: npm run ${{ matrix.script }}
 
+      - name: Archive
+        run: npm run archive:${{ matrix.archive }}
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact }}
-          path: |
-            dist/BusyPet Desktop-darwin-*
-            dist/${{ matrix.artifact }}
+          path: release/*
           if-no-files-found: error
