@@ -34,6 +34,12 @@ function setPlist(key, value) {
   execFileSync("/usr/libexec/PlistBuddy", ["-c", `Set :${key} ${value}`, PLIST]);
 }
 
+function signApp() {
+  execFileSync("xattr", ["-cr", DEST_APP], { stdio: "inherit" });
+  execFileSync("codesign", ["--force", "--deep", "--sign", "-", "--timestamp=none", DEST_APP], { stdio: "inherit" });
+  execFileSync("codesign", ["--verify", "--deep", "--verbose=2", DEST_APP], { stdio: "inherit" });
+}
+
 if (!fs.existsSync(ELECTRON_APP) || !fs.existsSync(ELECTRON_ICU)) {
   if (!fs.existsSync(ELECTRON_INSTALL)) {
     throw new Error(`Electron runtime not found at ${ELECTRON_APP}. Run npm install first.`);
@@ -63,5 +69,6 @@ setPlist("CFBundleExecutable", APP_NAME);
 setPlist("CFBundleName", APP_NAME);
 setPlist("CFBundleDisplayName", APP_NAME);
 setPlist("CFBundleIdentifier", "com.busypet.desktop");
+signApp();
 
 console.log(`Wrote new app to: ${path.relative(ROOT, OUT_DIR)}`);
