@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>BusyPet Settings</title>
+    <link rel="stylesheet" href="./settings.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <h1>BusyPet</h1>
+        <p data-i18n="subtitle">Desktop pixel companions</p>
+      </div>
+      <div class="top-actions">
+        <button id="languageButton" class="icon-button" type="button" title="Language">🌐</button>
+        <button id="quitApp" class="icon-button" type="button" title="Close settings">x</button>
+        <div id="languagePopover" class="language-popover" hidden>
+          <label class="field">
+            <span data-i18n="language">Language</span>
+            <select id="languageSelect">
+              <option value="en">English</option>
+              <option value="ko">한국어</option>
+            </select>
+          </label>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <nav class="section-tabs" aria-label="Settings sections">
+        <button class="tab-button active" type="button" data-tab="characters">
+          <span class="tab-icon">◆</span>
+          <span data-i18n="tabCharacters">Characters</span>
+        </button>
+        <button class="tab-button" type="button" data-tab="custom">
+          <span class="tab-icon">■</span>
+          <span data-i18n="tabCustom">Custom</span>
+        </button>
+        <button class="tab-button" type="button" data-tab="links">
+          <span class="tab-icon">↗</span>
+          <span data-i18n="tabLinks">Links</span>
+        </button>
+      </nav>
+
+      <section class="panel compact" data-tab-panel="characters">
+        <label class="switch-row">
+          <span data-i18n="companions">Companions</span>
+          <input id="enabled" type="checkbox" />
+        </label>
+        <label class="field full">
+          <span>FPS <strong id="fpsValue">16</strong></span>
+          <input id="fps" type="range" min="10" max="60" step="1" />
+        </label>
+        <label class="field full">
+          <span data-i18n="effectQuality">Effect quality</span>
+          <select id="performanceMode">
+            <option value="saver">Saver</option>
+            <option value="balanced">Balanced</option>
+            <option value="smooth">Smooth</option>
+          </select>
+        </label>
+      </section>
+
+      <section class="panel" data-tab-panel="characters">
+        <div class="section-head">
+          <h2><span class="section-icon">◆</span><span data-i18n="characters">Characters</span></h2>
+          <span data-i18n="characterHint">Per-character settings</span>
+        </div>
+        <div id="slotList" class="slot-list"></div>
+      </section>
+
+      <section class="panel custom-panel" data-tab-panel="custom" hidden>
+        <div class="section-head">
+          <h2><span class="section-icon">■</span><span data-i18n="pixelMaker">Pixel Maker</span></h2>
+          <span data-i18n="customHint">Custom sprite + effect point</span>
+        </div>
+        <div class="custom-toolbar">
+          <select id="customSelect"></select>
+          <input id="customName" type="text" maxlength="32" placeholder="Custom name" />
+          <button id="addCustom" class="mini-button add-custom-button" type="button" title="Add custom">+</button>
+        </div>
+        <div class="custom-image-toolbar">
+          <button id="customImagePick" class="pick-button" type="button">+ Image</button>
+          <button id="customImageClear" class="remove-button" type="button">− Img</button>
+          <span id="customImageStatus">Dot Grid</span>
+        </div>
+        <div class="paint-toolbar">
+          <input id="paintColor" type="color" value="#42d7c5" title="Paint color" />
+          <button id="paintBrush" class="tool-button active" type="button">■ Draw</button>
+          <button id="paintErase" class="tool-button" type="button">◇ Erase</button>
+          <button id="setEffectPoint" class="tool-button" type="button">↓ Point</button>
+          <button id="clearCustom" class="tool-button danger" type="button">× Clear</button>
+        </div>
+        <div id="pixelGrid" class="pixel-grid" aria-label="Custom pixel grid"></div>
+        <div class="effect-controls">
+          <label class="field">
+            <span data-i18n="effectDirection">Effect direction</span>
+            <select id="effectDirection">
+              <option value="down">Y+ Down</option>
+              <option value="up">Y- Up</option>
+              <option value="left">X- Left</option>
+              <option value="right">X+ Right</option>
+            </select>
+          </label>
+          <button id="testEffect" class="primary-button" type="button">▶ Test</button>
+        </div>
+        <canvas id="effectTestCanvas" class="effect-test" width="330" height="104" aria-label="Effect direction preview"></canvas>
+      </section>
+
+      <section class="panel" data-tab-panel="links" hidden>
+        <div class="section-head">
+          <h2><span class="section-icon">↗</span><span data-i18n="shortcuts">Shortcuts</span></h2>
+          <button id="addShortcut" class="mini-button" type="button">+</button>
+        </div>
+        <label class="field full shortcut-display-field">
+          <span data-i18n="shortcutDisplay">Shortcut display</span>
+          <select id="shortcutDisplayMode">
+            <option value="both">Image + Name</option>
+            <option value="image">Image Only</option>
+            <option value="name">Name Only</option>
+          </select>
+        </label>
+        <div id="shortcutList" class="shortcut-list"></div>
+      </section>
+
+      <footer class="footer-actions">
+        <button id="resetSettings" class="danger-button" type="button">↺ Reset</button>
+        <button id="programExit" class="danger-button exit-button" type="button">⏻ Exit</button>
+        <button id="openOverlaySettings" class="primary-button" type="button">✓ Apply</button>
+      </footer>
+    </main>
+
+    <script type="module" src="./settings.js"></script>
+  </body>
+</html>
