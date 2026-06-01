@@ -121,7 +121,7 @@ main {
   top: 77px;
   z-index: 4;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
   padding: 0 0 2px;
   background: var(--bg);
@@ -284,6 +284,44 @@ input[type="checkbox"]:checked::after {
 input[type="checkbox"]:focus-visible {
   outline: 3px solid rgba(66, 215, 197, 0.45);
   outline-offset: 2px;
+}
+
+.ai-panel {
+  display: grid;
+  gap: 10px;
+}
+
+.ai-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.ai-status,
+.ai-help {
+  min-height: 34px;
+  padding: 8px;
+  border: 2px solid var(--line);
+  background: #fffdf6;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 900;
+  line-height: 1.35;
+  white-space: pre-wrap;
+}
+
+.ai-status[data-tone="ok"] {
+  background: #dffaf6;
+  color: #106b58;
+}
+
+.ai-status[data-tone="bad"] {
+  background: #ffe0e0;
+  color: #a43232;
+}
+
+.ai-help {
+  background: #f7f1df;
 }
 
 input[type="checkbox"]:hover {

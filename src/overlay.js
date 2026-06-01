@@ -59,6 +59,10 @@ const PANEL_I18N = {
     settings: "Settings",
     roam: "Roam",
     stay: "Stay",
+    aiPlaceholder: "Talk to this character",
+    aiSend: "Send",
+    aiThinking: "Thinking...",
+    aiDisabled: "Enable AI in Settings",
   },
   ko: {
     note: "바로가기와 움직임 설정.",
@@ -66,6 +70,10 @@ const PANEL_I18N = {
     settings: "설정",
     roam: "움직임",
     stay: "멈춤",
+    aiPlaceholder: "캐릭터에게 말 걸기",
+    aiSend: "전송",
+    aiThinking: "생각 중...",
+    aiDisabled: "설정에서 AI를 켜줘",
   },
 };
 
@@ -867,6 +875,76 @@ function hasCustomShortcutImage(shortcut) {
   return !!String(shortcut?.imagePath || "").trim();
 }
 
+function appendChatMessage(history, role, text) {
+  const message = document.createElement("div");
+  const classes = ["chat-message"];
+  for (const token of String(role || "").split(/\s+/)) {
+    if (token === "pet") classes.push("from-pet");
+    else if (token === "user") classes.push("from-user");
+    else if (token === "error") classes.push("from-error");
+    else if (token) classes.push(token);
+  }
+  message.className = classes.join(" ");
+  message.textContent = text;
+  history.appendChild(message);
+  history.scrollTop = history.scrollHeight;
+  positionPanel();
+}
+
+function createAiChat(character, pet) {
+  const wrap = document.createElement("form");
+  wrap.className = "ai-chat";
+
+  const history = document.createElement("div");
+  history.className = "chat-history";
+  appendChatMessage(history, "pet", settings?.ai?.enabled ? `${character.name}: ...` : panelText("aiDisabled"));
+
+  const input = document.createElement("input");
+  input.type = "text";
+  input.maxLength = 800;
+  input.placeholder = panelText("aiPlaceholder");
+  input.disabled = !settings?.ai?.enabled;
+
+  const send = document.createElement("button");
+  send.className = "pixel-button";
+  send.type = "submit";
+  send.textContent = panelText("aiSend");
+  send.disabled = !settings?.ai?.enabled;
+
+  wrap.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const text = input.value.trim();
+    if (!text || send.disabled) return;
+    appendChatMessage(history, "user", text);
+    input.value = "";
+    send.disabled = true;
+    send.textContent = "...";
+    appendChatMessage(history, "pet pending", panelText("aiThinking"));
+    const pending = history.querySelector(".chat-message.pending:last-child");
+    let result = null;
+    try {
+      result = await api.chatWithAi({
+        characterId: pet.characterId,
+        characterName: character.name,
+        message: text,
+      });
+    } catch (error) {
+      result = { ok: false, error: String(error?.message || error || "AI error") };
+    }
+    if (pending) pending.remove();
+    appendChatMessage(history, result?.ok ? "pet" : "error", result?.ok ? result.text : result?.error || "AI error");
+    send.disabled = false;
+    send.textContent = panelText("aiSend");
+    input.focus();
+  });
+
+  const row = document.createElement("div");
+  row.className = "chat-row";
+  row.append(input, send);
+  wrap.append(history, row);
+  return wrap;
+}
+
 function closePanel() {
   if (activePet) {
     activePet.pausedByPanel = false;
@@ -934,6 +1012,7 @@ function openPanel(pet) {
     grid.appendChild(button);
   }
   panel.appendChild(grid);
+  panel.appendChild(createAiChat(character, pet));
 
   const actions = document.createElement("div");
   actions.className = "panel-actions";
@@ -953,7 +1032,7 @@ function positionPanel() {
   if (!activePet || panel.hidden) return;
   const size = getPetSize(activePet);
   const { w, h } = viewport();
-  const rectW = 320;
+  const rectW = panel.offsetWidth || 320;
   const rectH = panel.offsetHeight || 112;
   let x = activePet.x + size / 2 - rectW / 2;
   let y = activePet.y - rectH - 4;

@@ -1,5 +1,7 @@
 const { app, BrowserWindow, Menu, ipcMain, screen, shell, dialog } = require("electron");
+const { execFile } = require("child_process");
 const fs = require("fs");
+const os = require("os");
 const path = require("path");
 
 if (process.platform === "linux") {
@@ -67,6 +69,12 @@ const DEFAULT_SETTINGS = Object.freeze({
   performanceMode: "saver",
   shortcutDisplayMode: "both",
   fps: 16,
+  ai: {
+    enabled: false,
+    provider: "codex",
+    model: "",
+    maxWords: 60,
+  },
   customCharacters: [defaultCustomCharacter(0)],
   slots: [
     { character: "ufo", enabled: true, behavior: { ...DEFAULT_BEHAVIOR, effectMode: "normal", speedMultiplier: 1.0 } },
@@ -99,6 +107,17 @@ function clamp(value, min, max, fallback) {
   const n = Number(value);
   if (!Number.isFinite(n)) return fallback;
   return Math.min(max, Math.max(min, n));
+}
+
+function normalizeAiSettings(source) {
+  const src = source && typeof source === "object" ? source : {};
+  const fallback = DEFAULT_SETTINGS.ai;
+  return {
+    enabled: src.enabled === true,
+    provider: ["codex", "claude", "ollama"].includes(src.provider) ? src.provider : fallback.provider,
+    model: String(src.model || "").trim().slice(0, 80),
+    maxWords: Math.round(clamp(src.maxWords, 12, 160, fallback.maxWords)),
+  };
 }
 
 function getSettingsPath() {
@@ -310,7 +329,6 @@ function normalizeSettings(source) {
     slots: Array.isArray(src.slots) ? src.slots.slice(0, MAX_SLOTS) : clone(DEFAULT_SETTINGS.slots),
     shortcuts: Array.isArray(src.shortcuts) ? src.shortcuts : clone(DEFAULT_SETTINGS.shortcuts),
   };
-  delete next.ai;
   delete next.aquariumVersion;
   delete next.aquariumScene;
   delete next.aquariumDensity;
@@ -332,6 +350,7 @@ function normalizeSettings(source) {
   next.showGround = false;
   next.characterSetVersion = DEFAULT_SETTINGS.characterSetVersion;
   next.language = ["en", "ko"].includes(src.language) ? src.language : DEFAULT_SETTINGS.language;
+  next.ai = normalizeAiSettings(src.ai);
   if (!next.customCharacters.length) next.customCharacters = clone(DEFAULT_SETTINGS.customCharacters);
   next.customCharacters = next.customCharacters
     .slice(0, CUSTOM_CHARACTER_LIMIT)
@@ -558,6 +577,249 @@ function buildMenu() {
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
 
+const AI_PROVIDER_LABELS = Object.freeze({
+  codex: "Codex CLI",
+  claude: "Claude Code CLI",
+  ollama: "Ollama",
+});
+
+function commandNames(base) {
+  if (process.platform !== "win32") return [base];
+  return [`${base}.cmd`, `${base}.exe`, `${base}.bat`, base];
+}
+
+function pathCandidates(provider) {
+  const home = app.getPath("home");
+  const bases = {
+    codex: commandNames("codex"),
+    claude: commandNames("claude"),
+    ollama: commandNames("ollama"),
+  }[provider];
+  if (!bases) return [];
+
+  const directories = [
+    ...String(process.env.PATH || "")
+      .split(path.delimiter)
+      .filter(Boolean),
+    path.join(home, ".npm-global", "bin"),
+    path.join(home, ".local", "bin"),
+    path.join(home, ".bun", "bin"),
+    path.join(home, ".volta", "bin"),
+    path.join(home, "bin"),
+    "/opt/homebrew/bin",
+    "/usr/local/bin",
+    "/usr/bin",
+    "/bin",
+  ];
+
+  if (process.platform === "win32") {
+    directories.push(
+      process.env.LOCALAPPDATA ? path.join(process.env.LOCALAPPDATA, "Programs") : "",
+      process.env.APPDATA ? path.join(process.env.APPDATA, "npm") : "",
+      process.env.ProgramFiles ? path.join(process.env.ProgramFiles, "Ollama") : "",
+    );
+  }
+
+  const candidates = [];
+  for (const dir of directories.filter(Boolean)) {
+    for (const base of bases) candidates.push(path.join(dir, base));
+  }
+  for (const base of bases) candidates.push(base);
+  return [...new Set(candidates)];
+}
+
+function runCommand(command, args = [], options = {}) {
+  return new Promise((resolve) => {
+    execFile(
+      command,
+      args,
+      {
+        cwd: options.cwd || app.getPath("userData"),
+        env: process.env,
+        timeout: options.timeout || 12000,
+        maxBuffer: options.maxBuffer || 1024 * 1024 * 4,
+        windowsHide: true,
+        shell: process.platform === "win32" && /\.(cmd|bat)$/i.test(command),
+      },
+      (error, stdout = "", stderr = "") => {
+        resolve({
+          ok: !error,
+          code: error?.code ?? 0,
+          stdout: String(stdout || ""),
+          stderr: String(stderr || ""),
+          error: error ? String(error.message || error) : "",
+        });
+      },
+    );
+  });
+}
+
+async function resolveCli(provider) {
+  const candidates = pathCandidates(provider);
+  for (const candidate of candidates) {
+    const isBareCommand = !candidate.includes(path.sep) && !candidate.includes("/");
+    if (!isBareCommand) {
+      try {
+        const stat = fs.statSync(candidate);
+        if (!stat.isFile()) continue;
+      } catch {
+        continue;
+      }
+    }
+    const versionArgs = provider === "ollama" ? ["--version"] : ["--version"];
+    const result = await runCommand(candidate, versionArgs, { timeout: 5000, maxBuffer: 256 * 1024 });
+    if (result.ok || /version|codex|claude|ollama/i.test(result.stdout + result.stderr)) {
+      return { ok: true, provider, label: AI_PROVIDER_LABELS[provider], command: candidate };
+    }
+  }
+  return { ok: false, provider, label: AI_PROVIDER_LABELS[provider], error: `${AI_PROVIDER_LABELS[provider]} not found` };
+}
+
+async function getAiStatus(provider) {
+  const cli = await resolveCli(provider);
+  if (!cli.ok) return { ...cli, connected: false };
+
+  if (provider === "codex") {
+    const status = await runCommand(cli.command, ["login", "status"], { timeout: 10000, maxBuffer: 512 * 1024 });
+    return {
+      ...cli,
+      connected: status.ok,
+      detail: (status.stdout || status.stderr || "").trim(),
+      error: status.ok ? "" : "Run `codex` in a terminal and sign in first.",
+    };
+  }
+
+  if (provider === "claude") {
+    const status = await runCommand(cli.command, ["--version"], { timeout: 10000, maxBuffer: 512 * 1024 });
+    return {
+      ...cli,
+      connected: status.ok,
+      detail: (status.stdout || status.stderr || "").trim(),
+      error: status.ok ? "" : "Install Claude Code CLI, then run `claude` in a terminal and sign in first.",
+    };
+  }
+
+  const status = await runCommand(cli.command, ["list"], { timeout: 10000, maxBuffer: 1024 * 1024 });
+  return {
+    ...cli,
+    connected: status.ok,
+    detail: (status.stdout || status.stderr || "").trim(),
+    error: status.ok ? "" : "Start Ollama and install a model first.",
+  };
+}
+
+function stripAnsi(value) {
+  return String(value || "").replace(/\u001b\[[0-9;?]*[ -/]*[@-~]/g, "");
+}
+
+function cleanAiText(value) {
+  const text = stripAnsi(value)
+    .replace(/\r/g, "")
+    .split("\n")
+    .map((line) => line.trimEnd())
+    .join("\n")
+    .trim();
+  return text.slice(0, 2200);
+}
+
+function buildCharacterPrompt(payload) {
+  const character = String(payload?.characterName || "BusyPet").trim().slice(0, 40) || "BusyPet";
+  const userText = String(payload?.message || "").trim().slice(0, 800);
+  const maxWords = Math.round(clamp(settings.ai?.maxWords, 12, 160, DEFAULT_SETTINGS.ai.maxWords));
+  const languageHint = settings.language === "ko" ? "Korean" : "the user's language";
+  return [
+    `You are ${character}, a cute pixel desktop companion in BusyPet.`,
+    `Reply in ${languageHint}.`,
+    `Keep the reply under ${maxWords} words.`,
+    "Stay in character, be friendly, and do not mention command-line tools.",
+    "Do not ask to run commands or modify files.",
+    "",
+    `User: ${userText}`,
+  ].join("\n");
+}
+
+async function chatWithCodex(command, prompt) {
+  const outputPath = path.join(
+    os.tmpdir(),
+    `busypet-codex-${process.pid}-${Date.now()}-${Math.round(Math.random() * 1e6)}.txt`,
+  );
+  const args = [
+    "--ask-for-approval",
+    "never",
+    "exec",
+    "--skip-git-repo-check",
+    "--ephemeral",
+    "--ignore-rules",
+    "--sandbox",
+    "read-only",
+    "--color",
+    "never",
+    "-C",
+    app.getPath("userData"),
+    "-o",
+    outputPath,
+  ];
+  if (settings.ai?.model) args.push("--model", settings.ai.model);
+  args.push(prompt);
+  const result = await runCommand(command, args, { timeout: 90000, maxBuffer: 1024 * 1024 * 8 });
+  let answer = "";
+  try {
+    answer = fs.readFileSync(outputPath, "utf8");
+  } catch {
+    answer = result.stdout || result.stderr;
+  } finally {
+    fs.rmSync(outputPath, { force: true });
+  }
+  return { ok: result.ok || !!answer.trim(), text: cleanAiText(answer), raw: result };
+}
+
+async function chatWithClaude(command, prompt) {
+  const args = [
+    "-p",
+    prompt,
+    "--output-format",
+    "text",
+    "--max-turns",
+    "1",
+    "--disallowedTools",
+    "Bash,Read,Edit,Write,NotebookEdit,WebFetch,WebSearch",
+  ];
+  if (settings.ai?.model) args.push("--model", settings.ai.model);
+  const result = await runCommand(command, args, { timeout: 90000, maxBuffer: 1024 * 1024 * 8 });
+  return { ok: result.ok, text: cleanAiText(result.stdout || result.stderr), raw: result };
+}
+
+async function chatWithOllama(command, prompt) {
+  const model = settings.ai?.model || "llama3.2";
+  const result = await runCommand(command, ["run", model, prompt], { timeout: 90000, maxBuffer: 1024 * 1024 * 8 });
+  return { ok: result.ok, text: cleanAiText(result.stdout || result.stderr), raw: result };
+}
+
+async function runAiChat(payload) {
+  const ai = normalizeAiSettings(settings.ai);
+  if (!ai.enabled) return { ok: false, error: "AI is disabled in Settings." };
+  const message = String(payload?.message || "").trim();
+  if (!message) return { ok: false, error: "Type a message first." };
+
+  const status = await getAiStatus(ai.provider);
+  if (!status.ok || !status.connected) {
+    return { ok: false, provider: ai.provider, error: status.error || `${status.label} is not connected.` };
+  }
+
+  const prompt = buildCharacterPrompt(payload);
+  const chat =
+    ai.provider === "claude"
+      ? await chatWithClaude(status.command, prompt)
+      : ai.provider === "ollama"
+        ? await chatWithOllama(status.command, prompt)
+        : await chatWithCodex(status.command, prompt);
+
+  if (!chat.ok || !chat.text) {
+    return { ok: false, provider: ai.provider, error: cleanAiText(chat.raw?.stderr || chat.raw?.error) || "AI did not answer." };
+  }
+  return { ok: true, provider: ai.provider, text: chat.text };
+}
+
 ipcMain.handle("settings:get", () => settings);
 
 ipcMain.handle("settings:update", (_event, patch) => {
@@ -573,6 +835,26 @@ ipcMain.handle("settings:reset", () => {
   broadcastSettings();
   return settings;
 });
+
+ipcMain.handle("ai:detect", async (_event, provider) => {
+  const safeProvider = ["codex", "claude", "ollama"].includes(provider) ? provider : settings.ai?.provider || "codex";
+  return getAiStatus(safeProvider);
+});
+
+ipcMain.handle("ai:test", async (_event, provider) => {
+  const previous = settings.ai;
+  settings.ai = normalizeAiSettings({ ...settings.ai, enabled: true, provider });
+  try {
+    return await runAiChat({
+      characterName: "BusyPet",
+      message: settings.language === "ko" ? "짧게 연결 테스트 인사해줘." : "Say a short connection test greeting.",
+    });
+  } finally {
+    settings.ai = previous;
+  }
+});
+
+ipcMain.handle("ai:chat", async (_event, payload) => runAiChat(payload));
 
 ipcMain.handle("shortcut:open", async (_event, shortcut) => {
   const safeShortcut = normalizeShortcut(shortcut);

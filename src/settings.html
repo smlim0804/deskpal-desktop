@@ -41,6 +41,10 @@
           <span class="tab-icon">↗</span>
           <span data-i18n="tabLinks">Links</span>
         </button>
+        <button class="tab-button" type="button" data-tab="ai">
+          <span class="tab-icon">✦</span>
+          <span data-i18n="tabAI">AI</span>
+        </button>
       </nav>
 
       <section class="panel compact" data-tab-panel="characters">
@@ -122,6 +126,39 @@
           </select>
         </label>
         <div id="shortcutList" class="shortcut-list"></div>
+      </section>
+
+      <section class="panel ai-panel" data-tab-panel="ai" hidden>
+        <div class="section-head">
+          <h2><span class="section-icon">✦</span><span data-i18n="aiTitle">AI CLI</span></h2>
+          <span data-i18n="aiHint">Use your own logged-in CLI</span>
+        </div>
+        <label class="switch-row">
+          <span data-i18n="aiChat">Character chat</span>
+          <input id="aiEnabled" type="checkbox" />
+        </label>
+        <label class="field full">
+          <span data-i18n="aiProvider">Provider</span>
+          <select id="aiProvider">
+            <option value="codex">Codex CLI</option>
+            <option value="claude">Claude Code CLI</option>
+            <option value="ollama">Ollama</option>
+          </select>
+        </label>
+        <label class="field full">
+          <span data-i18n="aiModel">Model optional</span>
+          <input id="aiModel" type="text" maxlength="80" placeholder="default" />
+        </label>
+        <label class="field full">
+          <span><span data-i18n="aiMaxWords">Max words</span> <strong id="aiMaxWordsValue">60</strong></span>
+          <input id="aiMaxWords" type="range" min="12" max="160" step="4" />
+        </label>
+        <div class="ai-actions">
+          <button id="aiDetect" class="mini-button" type="button">Detect</button>
+          <button id="aiTest" class="primary-button" type="button">Test</button>
+        </div>
+        <div id="aiStatus" class="ai-status">AI is off.</div>
+        <div id="aiInstallHelp" class="ai-help"></div>
       </section>
 
       <footer class="footer-actions">

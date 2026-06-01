@@ -115,7 +115,8 @@ The app opens two windows:
 - Rainbow, glow, spark, bubble, and pixel trails
 - Click a character to open website or local app shortcuts
 - Shortcut image picker and global display modes: image + name, image only, or name only
-- No AI chat, API key, or local model dependency
+- Optional bring-your-own AI chat through a logged-in local CLI: Codex CLI, Claude Code CLI, or Ollama
+- No API key is stored inside BusyPet
 
 ## Files
 
@@ -138,3 +139,11 @@ Shortcuts support two target types:
   macOS supports `.app` inside `/Applications`, `/System/Applications`, or `~/Applications`.
   Windows supports `.exe` or `.lnk` inside Program Files, AppData, or the Start Menu.
   Linux supports `.desktop` files or executables inside `/usr`, `/opt`, `~/.local/share/applications`, or `~/bin`.
+
+AI chat is optional and uses the user's own local login:
+
+- Codex CLI: install with `npm install -g @openai/codex`, then run `codex` and sign in.
+- Claude Code CLI: install with `npm install -g @anthropic-ai/claude-code`, then run `claude` and sign in.
+- Ollama: install Ollama, run `ollama pull llama3.2`, then keep `ollama serve` running.
+
+In BusyPet Settings, open `AI`, choose the provider, press `Detect`, turn on `Character chat`, and click a character to chat. BusyPet only calls the local CLI process; it does not collect or save provider passwords, OAuth tokens, API keys, or chat credentials.
