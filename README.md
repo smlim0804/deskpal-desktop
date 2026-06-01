@@ -46,6 +46,19 @@ On this Mac:
 open "/Users/limsungmin/Desktop/codex_product/busypet_desktop/dist/BusyPet Desktop-darwin-arm64/BusyPet Desktop.app"
 ```
 
+macOS downloaded release:
+
+- A normal double-click install requires Apple Developer ID signing and notarization.
+- GitHub Actions will notarize the app automatically when these repository secrets are configured:
+  `APPLE_CERTIFICATE_BASE64`, `APPLE_CERTIFICATE_PASSWORD`, `MACOS_KEYCHAIN_PASSWORD`,
+  `MACOS_CODESIGN_IDENTITY`, `APPLE_ID`, `APPLE_TEAM_ID`, and `APPLE_APP_PASSWORD`.
+- For local testing of an unsigned download only:
+
+```bash
+xattr -dr com.apple.quarantine "/Applications/BusyPet Desktop.app"
+open "/Applications/BusyPet Desktop.app"
+```
+
 Ubuntu/Linux:
 
 ```bash

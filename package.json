@@ -7,7 +7,7 @@
   "scripts": {
     "start": "electron .",
     "dev": "electron .",
-    "check": "node --check src/main.cjs && node --check src/preload.cjs && node --check src/overlay.js && node --check src/settings.js && node --check src/characters.js && node --check scripts/package-deb.cjs",
+    "check": "node --check src/main.cjs && node --check src/preload.cjs && node --check src/overlay.js && node --check src/settings.js && node --check src/characters.js && node --check scripts/package-mac.cjs && node --check scripts/package-deb.cjs",
     "package:mac": "node scripts/package-mac.cjs",
     "package:win": "node scripts/package-platform.cjs win32-x64",
     "package:linux": "node scripts/package-platform.cjs linux-x64",

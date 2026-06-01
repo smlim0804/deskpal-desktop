@@ -25,6 +25,8 @@ const MACOS_DIR = path.join(DEST_APP, "Contents", "MacOS");
 const ELECTRON_BIN = path.join(MACOS_DIR, "Electron");
 const APP_BIN = path.join(MACOS_DIR, APP_NAME);
 const PLIST = path.join(DEST_APP, "Contents", "Info.plist");
+const ENTITLEMENTS = path.join(ROOT, "build", "entitlements.mac.plist");
+const NOTARY_PASSWORD = process.env.APPLE_APP_PASSWORD || process.env.APPLE_APP_SPECIFIC_PASSWORD || "";
 
 function copyFile(fileName) {
   fs.copyFileSync(path.join(ROOT, fileName), path.join(APP_DIR, fileName));
@@ -34,10 +36,84 @@ function setPlist(key, value) {
   execFileSync("/usr/libexec/PlistBuddy", ["-c", `Set :${key} ${value}`, PLIST]);
 }
 
+function findDeveloperIdIdentity() {
+  const configuredIdentity = process.env.MACOS_CODESIGN_IDENTITY || process.env.APPLE_SIGNING_IDENTITY || "";
+  if (configuredIdentity) return configuredIdentity;
+
+  try {
+    const identities = execFileSync("security", ["find-identity", "-v", "-p", "codesigning"], { encoding: "utf8" });
+    const match = identities.match(/"([^"]*Developer ID Application:[^"]+)"/);
+    if (match) return match[1];
+  } catch {
+    // No keychain identity is fine for local unsigned builds.
+  }
+
+  return "-";
+}
+
+function notarizationReady(identity) {
+  return identity !== "-" && process.env.APPLE_ID && process.env.APPLE_TEAM_ID && NOTARY_PASSWORD;
+}
+
 function signApp() {
+  const identity = findDeveloperIdIdentity();
+  const realSigning = identity !== "-";
+  const codesignArgs = ["--force", "--deep", "--sign", identity];
+
+  if (realSigning) {
+    codesignArgs.push("--options", "runtime", "--timestamp", "--entitlements", ENTITLEMENTS);
+  } else {
+    codesignArgs.push("--timestamp=none");
+  }
+
+  codesignArgs.push(DEST_APP);
+
   execFileSync("xattr", ["-cr", DEST_APP], { stdio: "inherit" });
-  execFileSync("codesign", ["--force", "--deep", "--sign", "-", "--timestamp=none", DEST_APP], { stdio: "inherit" });
+  execFileSync("codesign", codesignArgs, { stdio: "inherit" });
   execFileSync("codesign", ["--verify", "--deep", "--verbose=2", DEST_APP], { stdio: "inherit" });
+
+  if (notarizationReady(identity)) {
+    notarizeApp();
+    return;
+  }
+
+  if (realSigning) {
+    console.warn("Signed with a Developer ID certificate, but notarization secrets are missing. Downloaded macOS builds may still be blocked by Gatekeeper.");
+    return;
+  }
+
+  console.warn("Signed with an ad-hoc identity. This is fine for local testing, but downloaded macOS builds need Apple Developer ID signing and notarization.");
+}
+
+function notarizeApp() {
+  const notaryZip = path.join(OUT_DIR, `${APP_NAME}-notary.zip`);
+
+  fs.rmSync(notaryZip, { force: true });
+  execFileSync("ditto", ["-c", "-k", "--keepParent", `${APP_NAME}.app`, notaryZip], {
+    cwd: OUT_DIR,
+    stdio: "inherit",
+  });
+
+  execFileSync(
+    "xcrun",
+    [
+      "notarytool",
+      "submit",
+      notaryZip,
+      "--apple-id",
+      process.env.APPLE_ID,
+      "--team-id",
+      process.env.APPLE_TEAM_ID,
+      "--password",
+      NOTARY_PASSWORD,
+      "--wait",
+    ],
+    { stdio: "inherit" },
+  );
+  execFileSync("xcrun", ["stapler", "staple", DEST_APP], { stdio: "inherit" });
+  execFileSync("xcrun", ["stapler", "validate", DEST_APP], { stdio: "inherit" });
+  execFileSync("spctl", ["--assess", "--type", "exec", "--verbose=2", DEST_APP], { stdio: "inherit" });
+  fs.rmSync(notaryZip, { force: true });
 }
 
 if (!fs.existsSync(ELECTRON_APP) || !fs.existsSync(ELECTRON_ICU)) {
