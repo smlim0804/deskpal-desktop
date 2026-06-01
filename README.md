@@ -116,6 +116,7 @@ The app opens two windows:
 - Click a character to open website or local app shortcuts
 - Shortcut image picker and global display modes: image + name, image only, or name only
 - Optional bring-your-own AI chat through a logged-in local CLI: Codex CLI, Claude Code CLI, or Ollama
+- AI chat image attachment, optional screen awareness, automatic character thoughts, and Freedom mode movement
 - No API key is stored inside BusyPet
 
 ## Files
@@ -146,4 +147,6 @@ AI chat is optional and uses the user's own local login:
 - Claude Code CLI: install with `npm install -g @anthropic-ai/claude-code`, then run `claude` and sign in.
 - Ollama: install Ollama, run `ollama pull llama3.2`, then keep `ollama serve` running.
 
-In BusyPet Settings, open `AI`, choose the provider, press `Detect`, turn on `Character chat`, and click a character to chat. BusyPet only calls the local CLI process; it does not collect or save provider passwords, OAuth tokens, API keys, or chat credentials.
+In BusyPet Settings, open `AI`, choose the provider, press `Connect`, then click a character to chat. `Connect` enables character chat after the CLI is detected. Turn on `Freedom` if characters should keep moving while chatting, `Screen awareness` if they may use a temporary screenshot of the current display, and `Auto thoughts` if they should occasionally speak by themselves. BusyPet only calls the local CLI process; it does not collect or save provider passwords, OAuth tokens, API keys, or chat credentials.
+
+The macOS/Linux app icon is generated from `build/icon.svg` with `npm run icons`; packaging scripts run this automatically so the app no longer uses the default Electron mark.

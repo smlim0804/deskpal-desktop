@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" shape-rendering="crispEdges">
+  <defs>
+    <linearGradient id="bg" x1="8" x2="56" y1="4" y2="60" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#111827"/>
+      <stop offset="0.62" stop-color="#1d5ed8"/>
+      <stop offset="1" stop-color="#0f9f8f"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="15" fill="url(#bg)"/>
+  <rect x="39" y="7" width="15" height="15" rx="7" fill="#3a87ff" opacity=".45"/>
+  <rect x="8" y="42" width="17" height="17" rx="8" fill="#0f9f8f" opacity=".52"/>
+  <rect x="15" y="29" width="34" height="7" fill="#06111f"/>
+  <rect x="18" y="25" width="28" height="10" fill="#8ee8f2"/>
+  <rect x="13" y="32" width="38" height="7" fill="#8ee8f2"/>
+  <rect x="19" y="38" width="26" height="3" fill="#79d8e4"/>
+  <rect x="24" y="21" width="16" height="6" fill="#3a87ff"/>
+  <rect x="27" y="17" width="10" height="5" fill="#a7f3ff"/>
+  <rect x="29" y="25" width="6" height="6" fill="#f7fbff"/>
+  <rect x="21" y="41" width="5" height="5" fill="#f4bd28"/>
+  <rect x="38" y="41" width="5" height="5" fill="#f4bd28"/>
+  <rect x="30" y="40" width="4" height="8" fill="#ef5da8"/>
+  <rect x="19" y="51" width="26" height="3" fill="#9fd7ff"/>
+  <rect x="11" y="47" width="4" height="4" fill="#ffffff" opacity=".86"/>
+  <rect x="49" y="19" width="3" height="3" fill="#ffffff" opacity=".78"/>
+  <rect x="52" y="23" width="2" height="2" fill="#ffffff" opacity=".7"/>
+</svg>

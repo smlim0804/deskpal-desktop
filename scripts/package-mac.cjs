@@ -1,11 +1,15 @@
 const fs = require("fs");
+const os = require("os");
 const path = require("path");
 const { execFileSync } = require("child_process");
 
 const ROOT = path.resolve(__dirname, "..");
 const APP_NAME = "BusyPet Desktop";
 const ARCH = process.env.BUSYPET_ARCH || process.arch;
-const OUT_DIR = path.join(ROOT, "dist", `${APP_NAME}-darwin-${ARCH}`);
+const FINAL_OUT_DIR = path.join(ROOT, "dist", `${APP_NAME}-darwin-${ARCH}`);
+const FINAL_DEST_APP = path.join(FINAL_OUT_DIR, `${APP_NAME}.app`);
+const BUILD_ROOT = fs.mkdtempSync(path.join(os.tmpdir(), "busypet-mac-"));
+const OUT_DIR = path.join(BUILD_ROOT, `${APP_NAME}-darwin-${ARCH}`);
 const DEST_APP = path.join(OUT_DIR, `${APP_NAME}.app`);
 const ELECTRON_APP = path.join(ROOT, "node_modules", "electron", "dist", "Electron.app");
 const ELECTRON_INSTALL = path.join(ROOT, "node_modules", "electron", "install.js");
@@ -27,13 +31,34 @@ const APP_BIN = path.join(MACOS_DIR, APP_NAME);
 const PLIST = path.join(DEST_APP, "Contents", "Info.plist");
 const ENTITLEMENTS = path.join(ROOT, "build", "entitlements.mac.plist");
 const NOTARY_PASSWORD = process.env.APPLE_APP_PASSWORD || process.env.APPLE_APP_SPECIFIC_PASSWORD || "";
+const ICON_ICNS = path.join(ROOT, "build", "icon.icns");
+
+process.on("exit", () => {
+  fs.rmSync(BUILD_ROOT, { recursive: true, force: true });
+});
 
 function copyFile(fileName) {
   fs.copyFileSync(path.join(ROOT, fileName), path.join(APP_DIR, fileName));
 }
 
+function removeDir(dir) {
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    try {
+      fs.rmSync(dir, { recursive: true, force: true, maxRetries: 3, retryDelay: 300 });
+      return;
+    } catch (error) {
+      if (error?.code !== "ENOTEMPTY" || attempt === 3) throw error;
+      execFileSync("sleep", ["0.4"]);
+    }
+  }
+}
+
 function setPlist(key, value) {
-  execFileSync("/usr/libexec/PlistBuddy", ["-c", `Set :${key} ${value}`, PLIST]);
+  try {
+    execFileSync("/usr/libexec/PlistBuddy", ["-c", `Set :${key} ${value}`, PLIST]);
+  } catch {
+    execFileSync("/usr/libexec/PlistBuddy", ["-c", `Add :${key} string ${value}`, PLIST]);
+  }
 }
 
 function findDeveloperIdIdentity() {
@@ -55,6 +80,30 @@ function notarizationReady(identity) {
   return identity !== "-" && process.env.APPLE_ID && process.env.APPLE_TEAM_ID && NOTARY_PASSWORD;
 }
 
+function clearMacMetadata(target) {
+  const attrs = ["com.apple.FinderInfo", "com.apple.fileprovider.fpfs#P"];
+
+  try {
+    execFileSync("dot_clean", ["-m", target], { stdio: "ignore" });
+  } catch {
+    // dot_clean is macOS-only and optional for local packaging.
+  }
+
+  try {
+    execFileSync("xattr", ["-cr", target], { stdio: "ignore" });
+  } catch {
+    // Best effort only. Codesign below will fail loudly if metadata remains invalid.
+  }
+
+  for (const attr of attrs) {
+    try {
+      execFileSync("xattr", ["-dr", attr, target], { stdio: "ignore" });
+    } catch {
+      // Attribute may not exist on every machine.
+    }
+  }
+}
+
 function signApp() {
   const identity = findDeveloperIdIdentity();
   const realSigning = identity !== "-";
@@ -68,7 +117,7 @@ function signApp() {
 
   codesignArgs.push(DEST_APP);
 
-  execFileSync("xattr", ["-cr", DEST_APP], { stdio: "inherit" });
+  clearMacMetadata(DEST_APP);
   execFileSync("codesign", codesignArgs, { stdio: "inherit" });
   execFileSync("codesign", ["--verify", "--deep", "--verbose=2", DEST_APP], { stdio: "inherit" });
 
@@ -127,16 +176,19 @@ if (!fs.existsSync(ELECTRON_ICU)) {
   throw new Error("Electron runtime is incomplete. Delete node_modules/electron/dist and run npm install.");
 }
 
-fs.rmSync(OUT_DIR, { recursive: true, force: true });
+execFileSync(process.execPath, [path.join(ROOT, "scripts", "generate-icon.cjs")], { stdio: "inherit" });
+
+removeDir(OUT_DIR);
 fs.mkdirSync(OUT_DIR, { recursive: true });
 execFileSync("ditto", [ELECTRON_APP, DEST_APP]);
 
-fs.rmSync(APP_DIR, { recursive: true, force: true });
+removeDir(APP_DIR);
 fs.mkdirSync(APP_DIR, { recursive: true });
 copyFile("package.json");
 copyFile("README.md");
 copyFile("SECURITY.md");
 fs.cpSync(path.join(ROOT, "src"), path.join(APP_DIR, "src"), { recursive: true });
+fs.cpSync(path.join(ROOT, "build"), path.join(APP_DIR, "build"), { recursive: true });
 const docsDir = path.join(ROOT, "docs");
 if (fs.existsSync(docsDir)) fs.cpSync(docsDir, path.join(APP_DIR, "docs"), { recursive: true });
 
@@ -145,6 +197,15 @@ setPlist("CFBundleExecutable", APP_NAME);
 setPlist("CFBundleName", APP_NAME);
 setPlist("CFBundleDisplayName", APP_NAME);
 setPlist("CFBundleIdentifier", "com.busypet.desktop");
+if (fs.existsSync(ICON_ICNS)) {
+  fs.copyFileSync(ICON_ICNS, path.join(RESOURCES_DIR, "BusyPet.icns"));
+  setPlist("CFBundleIconFile", "BusyPet");
+}
 signApp();
 
-console.log(`Wrote new app to: ${path.relative(ROOT, OUT_DIR)}`);
+removeDir(FINAL_OUT_DIR);
+fs.mkdirSync(FINAL_OUT_DIR, { recursive: true });
+execFileSync("ditto", [DEST_APP, FINAL_DEST_APP]);
+execFileSync("codesign", ["--verify", "--deep", "--verbose=2", FINAL_DEST_APP], { stdio: "inherit" });
+
+console.log(`Wrote new app to: ${path.relative(ROOT, FINAL_OUT_DIR)}`);

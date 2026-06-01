@@ -29,19 +29,7 @@ const DESKTOP_FILE = [
   "",
 ].join("\n");
 
-const ICON_SVG = `<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" shape-rendering="crispEdges">
-  <rect width="64" height="64" rx="12" fill="#14161f"/>
-  <rect x="18" y="25" width="28" height="10" fill="#48c7d9"/>
-  <rect x="14" y="29" width="36" height="8" fill="#89e8f2"/>
-  <rect x="22" y="19" width="20" height="8" fill="#3456a5"/>
-  <rect x="26" y="15" width="12" height="4" fill="#8bf2ff"/>
-  <rect x="21" y="37" width="6" height="4" fill="#f6c445"/>
-  <rect x="37" y="37" width="6" height="4" fill="#f6c445"/>
-  <rect x="30" y="36" width="4" height="8" fill="#ff5a70"/>
-  <rect x="20" y="47" width="24" height="3" fill="#48c7d9"/>
-</svg>
-`;
+const ICON_SVG = fs.readFileSync(path.join(ROOT, "build", "icon.svg"), "utf8");
 
 function architectureFromArg(arg = "x64") {
   const normalized = (arg || "x64").toLowerCase();

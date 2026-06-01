@@ -3,6 +3,10 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' file: data: https:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'"
+    />
     <title>BusyPet Settings</title>
     <link rel="stylesheet" href="./settings.css" />
   </head>
@@ -84,6 +88,15 @@
           <input id="customName" type="text" maxlength="32" placeholder="Custom name" />
           <button id="addCustom" class="mini-button add-custom-button" type="button" title="Add custom">+</button>
         </div>
+        <label class="field full custom-concept-field">
+          <span data-i18n="customConcept">AI concept</span>
+          <textarea
+            id="customConcept"
+            maxlength="420"
+            rows="3"
+            placeholder="Friendly tiny wizard who speaks softly and loves debugging."
+          ></textarea>
+        </label>
         <div class="custom-image-toolbar">
           <button id="customImagePick" class="pick-button" type="button">+ Image</button>
           <button id="customImageClear" class="remove-button" type="button">− Img</button>
@@ -137,6 +150,18 @@
           <span data-i18n="aiChat">Character chat</span>
           <input id="aiEnabled" type="checkbox" />
         </label>
+        <label class="switch-row">
+          <span data-i18n="aiFreedom">Freedom</span>
+          <input id="aiFreedom" type="checkbox" />
+        </label>
+        <label class="switch-row">
+          <span data-i18n="aiScreen">Screen awareness</span>
+          <input id="aiScreenAwareness" type="checkbox" />
+        </label>
+        <label class="switch-row">
+          <span data-i18n="aiAutoSpeak">Auto thoughts</span>
+          <input id="aiAutoSpeak" type="checkbox" />
+        </label>
         <label class="field full">
           <span data-i18n="aiProvider">Provider</span>
           <select id="aiProvider">
@@ -154,7 +179,7 @@
           <input id="aiMaxWords" type="range" min="12" max="160" step="4" />
         </label>
         <div class="ai-actions">
-          <button id="aiDetect" class="mini-button" type="button">Detect</button>
+          <button id="aiDetect" class="mini-button" type="button">Connect</button>
           <button id="aiTest" class="primary-button" type="button">Test</button>
         </div>
         <div id="aiStatus" class="ai-status">AI is off.</div>

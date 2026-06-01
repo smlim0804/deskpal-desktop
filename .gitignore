@@ -3,6 +3,7 @@
 dist/
 release/
 node_modules/
+build/icon.iconset/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*

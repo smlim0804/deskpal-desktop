@@ -2,6 +2,7 @@ const fs = require("fs");
 const https = require("https");
 const os = require("os");
 const path = require("path");
+const { execFileSync } = require("child_process");
 const extractZip = require("extract-zip");
 
 const ROOT = path.resolve(__dirname, "..");
@@ -70,6 +71,7 @@ function copyApp(appDir) {
   copyFile("README.md", appDir);
   copyFile("SECURITY.md", appDir);
   fs.cpSync(path.join(ROOT, "src"), path.join(appDir, "src"), { recursive: true });
+  fs.cpSync(path.join(ROOT, "build"), path.join(appDir, "build"), { recursive: true });
   const docsDir = path.join(ROOT, "docs");
   if (fs.existsSync(docsDir)) fs.cpSync(docsDir, path.join(appDir, "docs"), { recursive: true });
 }
@@ -141,6 +143,22 @@ function renameExecutable(outDir, target) {
   if (target.platform === "linux") fs.chmodSync(to, 0o755);
 }
 
+async function applyWindowsIcon(outDir, target) {
+  if (target.platform !== "win32") return;
+  if (process.platform !== "win32") {
+    console.warn("Skipping Windows .exe icon rewrite on this host. GitHub Actions Windows builds will apply it.");
+    return;
+  }
+  const { rcedit } = require("rcedit");
+  await rcedit(path.join(outDir, target.executable), {
+    icon: path.join(ROOT, "build", "icon.ico"),
+    "file-version": require("../package.json").version,
+    "product-version": require("../package.json").version,
+    "product-name": APP_NAME,
+    "file-description": APP_NAME,
+  });
+}
+
 function writeLinuxDesktopFile(outDir) {
   const desktopFile = [
     "[Desktop Entry]",
@@ -161,12 +179,14 @@ async function packageTarget(targetName) {
   const outDir = path.join(DIST_DIR, target.outName);
   const appDir = path.join(outDir, "resources", "app");
   const zipPath = await ensureElectronZip(target);
+  execFileSync(process.execPath, [path.join(ROOT, "scripts", "generate-icon.cjs")], { stdio: "inherit" });
 
   fs.rmSync(outDir, { recursive: true, force: true });
   ensureDir(outDir);
   await extractZip(zipPath, { dir: outDir });
   copyApp(appDir);
   renameExecutable(outDir, target);
+  await applyWindowsIcon(outDir, target);
   if (target.platform === "linux") writeLinuxDesktopFile(outDir);
 
   console.log(`Wrote ${targetName}: ${path.relative(ROOT, outDir)}`);

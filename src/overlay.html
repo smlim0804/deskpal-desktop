@@ -3,6 +3,10 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' file: data: https:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'"
+    />
     <title>BusyPet Overlay</title>
     <link rel="stylesheet" href="./overlay.css" />
   </head>
@@ -12,6 +16,7 @@
       <div id="ground" aria-hidden="true"></div>
       <canvas id="effects-canvas" aria-hidden="true"></canvas>
       <section id="pet-panel" class="pet-panel interactive" hidden></section>
+      <section id="quick-chat" class="quick-chat interactive" hidden></section>
     </main>
     <script type="module" src="./overlay.js"></script>
   </body>
