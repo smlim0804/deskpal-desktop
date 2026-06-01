@@ -33,7 +33,6 @@ const ground = document.getElementById("ground");
 const effectsCanvas = document.getElementById("effects-canvas");
 const effectsCtx = effectsCanvas?.getContext("2d", { alpha: true }) || null;
 const panel = document.getElementById("pet-panel");
-const quickChat = document.getElementById("quick-chat");
 
 let settings = null;
 let pets = [];
@@ -57,18 +56,12 @@ let animationFrameId = null;
 let aquariumSignature = "";
 let autoTalkBusy = false;
 let nextAutoTalkAt = 0;
-let quickChatSlotIndex = 0;
-let quickChatBusy = false;
-let quickChatCloseTimer = null;
 let panelPinned = false;
 let panelDrag = null;
 let panelResize = null;
 let panelManual = null;
 const spriteImageCache = new Map();
-const CHAT_HISTORY_KEY = "busypet.chatHistory.v1";
-const CHAT_HISTORY_LIMIT = 48;
 const FLOATING_BUBBLE_HIDE_MS = 460;
-const QUICK_CHAT_HIDE_MS = 280;
 const PANEL_DRAG_BLOCK_SELECTOR = [
   "button",
   "input",
@@ -78,7 +71,6 @@ const PANEL_DRAG_BLOCK_SELECTOR = [
   "[role='button']",
   ".panel-resize",
   ".shortcut-grid",
-  ".ai-chat",
   ".panel-actions",
 ].join(",");
 
@@ -96,16 +88,7 @@ const PANEL_I18N = {
     settings: "Settings",
     roam: "Roam",
     stay: "Stay",
-    aiPlaceholder: "Talk to this character",
-    aiSend: "Send",
-    aiThinking: "Thinking...",
-    aiDisabled: "Say hi. Local character chat works even when AI is off.",
-    aiAttach: "Image",
-    aiClearImage: "Remove image",
     movementApplied: "Movement updated.",
-    quickTitle: "Talk to a character",
-    quickPlaceholder: "Message BusyPet",
-    quickHint: "⌘⇧Y",
   },
   ko: {
     note: "바로가기와 움직임 설정.",
@@ -113,16 +96,7 @@ const PANEL_I18N = {
     settings: "설정",
     roam: "움직임",
     stay: "멈춤",
-    aiPlaceholder: "캐릭터에게 말 걸기",
-    aiSend: "전송",
-    aiThinking: "생각 중...",
-    aiDisabled: "말 걸어봐. AI가 꺼져도 캐릭터가 맥락에 맞춰 짧게 대답해.",
-    aiAttach: "사진",
-    aiClearImage: "사진 제거",
     movementApplied: "움직임 반영했어.",
-    quickTitle: "캐릭터와 대화",
-    quickPlaceholder: "BusyPet에게 메시지",
-    quickHint: "⌘⇧Y",
   },
 };
 
@@ -207,106 +181,6 @@ const LOCAL_CHARACTER_STYLES = Object.freeze({
   custom: { ko: "네 커스텀 친구로서,", en: "As your custom pal:" },
 });
 
-const AI_CONNECT_LINES = Object.freeze({
-  ufo: {
-    ko: "삐빅, 통신 코어가 아직 비어 있어. 설정 메뉴에서 AI를 연결해주면 제대로 대화할게.",
-    en: "Beep. My comms core is empty. Connect AI in Settings and I can really talk.",
-  },
-  car: {
-    ko: "네비게이션 AI가 꺼져 있어. 설정에서 AI를 연결해주면 제대로 달리면서 대답할게.",
-    en: "My navigation AI is off. Connect AI in Settings and I can answer properly.",
-  },
-  slime: {
-    ko: "말랑한 귀는 열려 있는데 생각 엔진이 아직 없어. 설정에서 AI를 연결해줘.",
-    en: "My soft ears are open, but my thinking engine is missing. Connect AI in Settings.",
-  },
-  comet: {
-    ko: "별꼬리는 준비됐는데 생각 궤도가 비어 있어. 설정에서 AI를 연결해주면 반짝 대답할게.",
-    en: "My tail is ready, but the thought orbit is empty. Connect AI in Settings.",
-  },
-  star: {
-    ko: "별빛은 켜졌지만 지성 코어는 아직 꺼져 있어. 설정에서 AI를 연결해줘.",
-    en: "My light is on, but my mind core is off. Connect AI in Settings.",
-  },
-  rocket: {
-    ko: "연료는 있는데 관제 AI가 연결 안 됐어. 설정 메뉴에서 AI를 연결해주면 바로 응답 발사할게.",
-    en: "Fuel is ready, but mission AI is not connected. Connect AI in Settings.",
-  },
-  saturn: {
-    ko: "고리는 돌고 있지만 생각 위성이 아직 없어. 설정에서 AI를 연결해줘.",
-    en: "My rings are orbiting, but my thought satellite is missing. Connect AI in Settings.",
-  },
-  gem: {
-    ko: "반짝임은 준비됐고 판단 코어만 비어 있어. 설정에서 AI를 연결해줘.",
-    en: "The shine is ready; the judgment core is empty. Connect AI in Settings.",
-  },
-  donut: {
-    ko: "달콤한 마음은 있는데 똑똑한 크림이 아직 없어. 설정에서 AI를 연결해줘.",
-    en: "Sweetness is here, but the smart filling is missing. Connect AI in Settings.",
-  },
-  skull: {
-    ko: "으스스한 껍데기는 켜졌는데 두뇌가 비어 있어. 설정에서 AI를 연결해줘.",
-    en: "Spooky shell online, brain missing. Connect AI in Settings.",
-  },
-  eyeball: {
-    ko: "눈은 뜨고 있지만 생각 렌즈가 아직 없어. 설정에서 AI를 연결해줘.",
-    en: "Eye open, thinking lens missing. Connect AI in Settings.",
-  },
-  energyball: {
-    ko: "파직, 에너지는 있는데 지능 회로가 아직 연결 안 됐어. 설정에서 AI를 연결해줘.",
-    en: "Zap. Energy is here, intelligence circuit is not. Connect AI in Settings.",
-  },
-  bug: {
-    ko: "사사삭, 정찰은 가능하지만 판단용 AI 더듬이가 없어. 설정에서 AI를 연결해줘.",
-    en: "Skitter. I can scout, but my AI antenna is missing. Connect AI in Settings.",
-  },
-  tank: {
-    ko: "차체는 든든한데 작전 AI가 비어 있어. 설정에서 AI를 연결해주면 명령을 더 잘 이해할게.",
-    en: "Armor ready, tactical AI empty. Connect AI in Settings and I will understand better.",
-  },
-  custom: {
-    ko: "내 컨셉은 준비됐어. 설정에서 AI를 연결해주면 네가 정한 성격대로 말할게.",
-    en: "My concept is ready. Connect AI in Settings and I will speak with your custom personality.",
-  },
-});
-
-const LOCAL_INTENT_REPLIES = Object.freeze({
-  ko: {
-    empty: ["한 문장만 더 던져줘. 내가 핵심을 잡아서 짧게 받아줄게."],
-    thanks: ["나도 고마워. 지금 흐름은 기억해두고 다음 말에 이어서 반응할게."],
-    greeting: ["안녕. 그냥 랜덤으로 떠드는 대신, 네가 말한 내용에 맞춰 대답해볼게."],
-    input: ["입력 문제로 들려. 한글 조합, 포커스, 전송 타이밍이 서로 부딪히는지 먼저 보는 게 맞아."],
-    performance: ["성능 문제로 들려. 효과 수, 프레임 제한, 움직임 계산을 나눠서 줄이면 체감이 바로 좋아질 수 있어."],
-    bug: ["버그 얘기로 이해했어. 방금 한 행동, 기대한 동작, 실제 결과를 순서대로 보면 원인을 빨리 좁힐 수 있어."],
-    design: ["디자인 요청으로 들려. 예쁘게만 바꾸기보다 시선 흐름, 버튼 위치, 여백을 같이 맞추는 게 좋아."],
-    shortcut: ["바로가기 쪽이면 이름, 링크나 앱 경로, 아이콘 표시 방식을 따로 보면 덜 꼬여."],
-    ai: ["AI 연결 얘기라면 내장 AI처럼 보이게 할 수는 있지만, 실제 지능은 로컬 모델이나 사용자의 API 연결이 필요해."],
-    code: ["구현 얘기로 들려. 상태 저장, 이벤트 처리, 렌더 갱신이 어디서 엇갈리는지 나눠서 보는 게 좋아."],
-    conversation: ["대화 품질 얘기로 이해했어. 캐릭터성은 살리되, 네 문장의 의도를 먼저 따라가는 쪽이 더 자연스러워."],
-    how: ["방법을 묻는 걸로 이해했어. 지금은 큰 설명보다 첫 단계, 확인할 것, 다음 수정 순서로 보면 돼."],
-    request: ["수정 요청으로 이해했어. 원하는 결과를 먼저 고정하고, 기존 기능이 깨지지 않게 작은 단위로 바꾸는 게 좋아."],
-    stop: ["멈춤으로 이해했어. 움직임은 줄이고 네 입력을 우선 듣는 상태로 있는 게 맞아."],
-    default: ["말의 핵심은 잡았어. 지금은 네가 원하는 결과와 현재 어긋난 지점을 나눠서 생각하면 더 잘 맞출 수 있어."],
-  },
-  en: {
-    empty: ["Give me one more sentence and I will respond to the actual point."],
-    thanks: ["Thanks too. I will keep the thread and respond from here."],
-    greeting: ["Hi. I will answer the point instead of throwing random flavor text."],
-    input: ["That sounds like an input issue. Composition, focus, and submit timing are the first things to check."],
-    performance: ["That sounds like performance. Effects count, FPS limits, and movement calculations should be tuned separately."],
-    bug: ["I read that as a bug. Last action, expected behavior, and actual result will narrow it down quickly."],
-    design: ["That is a design request. Layout rhythm, button placement, and spacing matter as much as the style."],
-    shortcut: ["For shortcuts, separate the name, URL or app path, and icon display mode so the state stays clean."],
-    ai: ["For AI, it can feel built in, but real intelligence still needs a local model or the user's API connection."],
-    code: ["That sounds implementation-related. State, events, and render updates are the first places to inspect."],
-    conversation: ["I read that as conversation quality. Personality should stay, but the reply should follow your intent first."],
-    how: ["I read that as a how-to question. Start with the first step, what to verify, and the next change."],
-    request: ["I read that as a change request. Lock the desired result first, then patch it in small safe steps."],
-    stop: ["I read that as pause or stay. I should slow down and prioritize your input."],
-    default: ["I get the main point. The useful split is desired result versus what currently feels off."],
-  },
-});
-
 function panelText(key) {
   const language = ["en", "ko"].includes(settings?.language) ? settings.language : "en";
   return PANEL_I18N[language]?.[key] || PANEL_I18N.en[key] || key;
@@ -314,10 +188,6 @@ function panelText(key) {
 
 function currentLanguage() {
   return settings?.language === "ko" ? "ko" : "en";
-}
-
-function wait(ms) {
-  return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
 function localLinesFor(characterId) {
@@ -333,41 +203,6 @@ function pickLocalLine(characterId) {
 function localStyleFor(characterId) {
   const key = LOCAL_CHARACTER_STYLES[characterId] ? characterId : customCharacterFor(characterId) ? "custom" : "star";
   return LOCAL_CHARACTER_STYLES[key]?.[currentLanguage()] || LOCAL_CHARACTER_STYLES.star.en;
-}
-
-function detectLocalIntent(message) {
-  const clean = String(message || "").trim();
-  const lower = clean.toLowerCase();
-  if (!clean) return "empty";
-  if (/고마|ㄳ|thank/.test(lower)) return "thanks";
-  if (/안녕|하이|hello|hi\b/.test(lower)) return "greeting";
-  if (/한글|입력|타자|키보드|복붙|붙여넣|안쳐|안 쳐|ime|keyboard|typing|paste|composition/.test(lower)) return "input";
-  if (/렉|느려|버벅|프레임|fps|최적|무거|lag|slow|stutter|performance|frame/.test(lower)) return "performance";
-  if (/디자인|색|여백|아이콘|픽셀|예쁘|ui|ux|design|layout|icon|spacing/.test(lower)) return "design";
-  if (/바로가기|링크|url|사이트|앱|경로|shortcut|link|site|path/.test(lower)) return "shortcut";
-  if (/ai|지피티|gpt|클로드|claude|ollama|api|모델|model/.test(lower)) return "ai";
-  if (/코드|함수|파일|스크립트|빌드|패키|깃허브|github|electron|cli|code|function|build|package/.test(lower)) return "code";
-  if (/말이|말 안|안통|대답|엉뚱|랜덤|이해|conversation|reply|random|context/.test(lower)) return "conversation";
-  if (/버그|오류|에러|안돼|안되|안됨|문제|고장|이상|failed|fail|broken|error|bug/.test(lower)) return "bug";
-  if (/어케|어떻게|왜|뭐야|가능|방법|how|why|can\b|possible/.test(lower)) return "how";
-  if (/해줘|바꿔|수정|고쳐|넣어|빼|없애|만들|추가|삭제|remove|add|fix|change|make|update/.test(lower)) return "request";
-  if (/멈|가만|정지|stop|stay|pause/.test(lower)) return "stop";
-  return "default";
-}
-
-function localCharacterReply(character, message) {
-  const clean = String(message || "").trim();
-  const language = currentLanguage();
-  const intent = detectLocalIntent(clean);
-  const replies = LOCAL_INTENT_REPLIES[language]?.[intent] || LOCAL_INTENT_REPLIES.en.default;
-  const reply = replies[Math.floor(Math.random() * replies.length)] || replies[0];
-  return `${localStyleFor(character.id)} ${reply}`;
-}
-
-function aiConnectReply(character) {
-  const key = AI_CONNECT_LINES[character?.id] ? character.id : customCharacterFor(character?.id) ? "custom" : "star";
-  const language = currentLanguage();
-  return AI_CONNECT_LINES[key]?.[language] || AI_CONNECT_LINES.star.en;
 }
 
 function parseLocalMovementCommand(text) {
@@ -524,147 +359,6 @@ function createMovementCommand() {
     avoid: false,
     changed: false,
   };
-}
-
-function normalizedNumber(value, fallback, min, max) {
-  const number = Number(value);
-  return Number.isFinite(number) ? clamp(number, min, max) : fallback;
-}
-
-function normalizeAiMovementAction(value) {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
-  const type = String(value.type || "").trim().toLowerCase();
-  if (type === "motion") {
-    const dx = normalizedNumber(value.dx, 0, -1, 1);
-    const dy = normalizedNumber(value.dy, 0, -1, 1);
-    const spin = normalizedNumber(value.spin, 0, -3, 3);
-    if (Math.hypot(dx, dy) < 0.05 && Math.abs(spin) < 0.05 && !Number.isFinite(Number(value.speed))) return null;
-    return {
-      type: "motion",
-      dx,
-      dy,
-      distance: normalizedNumber(value.distance, 220, 0, 520),
-      speed: Number.isFinite(Number(value.speed)) ? normalizedNumber(value.speed, 1, 0.35, 2.5) : null,
-      spin,
-      holdMs: Math.round(normalizedNumber(value.holdMs, 2600, 600, 8000)),
-    };
-  }
-  if (type === "speed") {
-    const factor = Number(value.factor);
-    if (Number.isFinite(factor)) return { type: "speed", factor: normalizedNumber(factor, 1, 0.25, 4) };
-    const speed = Number(value.value);
-    return Number.isFinite(speed) ? { type: "speed", value: normalizedNumber(speed, 1, 0.35, 2.5) } : null;
-  }
-  if (type === "mode") {
-    const movement = String(value.movement || "").trim().toLowerCase();
-    const mouse = String(value.mouse || "").trim().toLowerCase();
-    const action = { type: "mode" };
-    if (["free", "stay"].includes(movement)) action.movement = movement;
-    if (["follow", "avoid", "ignore"].includes(mouse)) action.mouse = mouse;
-    return action.movement || action.mouse ? action : null;
-  }
-  return null;
-}
-
-function aiActionToMovementCommand(action) {
-  const command = createMovementCommand();
-  if (!action) return null;
-  if (action.type === "motion") {
-    if (Math.hypot(action.dx, action.dy) >= 0.05 && action.distance > 0) {
-      command.target = { x: action.dx, y: action.dy };
-      command.distance = action.distance;
-    }
-    if (Number.isFinite(action.speed)) command.speed = action.speed;
-    if (Number.isFinite(action.spin) && Math.abs(action.spin) >= 0.05) command.spin = action.spin * 34;
-    command.aiHoldMs = action.holdMs;
-    command.changed = true;
-  } else if (action.type === "speed") {
-    if (Number.isFinite(action.factor)) command.speedFactor = action.factor;
-    else command.speed = action.value;
-    command.changed = true;
-  } else if (action.type === "mode") {
-    if (action.movement === "stay") command.stop = true;
-    else if (action.movement === "free") command.roam = true;
-    if (action.mouse) command.mouseMode = action.mouse;
-    command.changed = true;
-  }
-  return command.changed ? command : null;
-}
-
-function applyAiActionResult(pet, character, result) {
-  if (!result?.ok) return result;
-  const visibleText = String(result.text || "").trim();
-  const resultAction = normalizeAiMovementAction(result.action);
-  const action = resultAction;
-  if (!action) {
-    return { ...result, text: visibleText || movementCommandReply(character, createMovementCommand()) };
-  }
-  const command = aiActionToMovementCommand(action);
-  const applied = command ? applyMovementAction(pet, command, character, { source: "ai" }) : null;
-  return {
-    ...result,
-    actionApplied: !!applied,
-    text: visibleText || applied?.reply || movementCommandReply(character, command || createMovementCommand()),
-  };
-}
-
-async function answerAsCharacter(pet, character, payload) {
-  if (settings?.ai?.enabled) {
-    try {
-      const result = await api.chatWithAi(payload);
-      if (result?.ok) return result;
-    } catch {
-      // Below, ask the user to connect AI instead of pretending to be intelligent.
-    }
-  }
-  await wait(rand(220, 420));
-  return { ok: true, provider: "needs-ai", text: aiConnectReply(character) };
-}
-
-function loadChatStore() {
-  try {
-    const parsed = JSON.parse(window.localStorage.getItem(CHAT_HISTORY_KEY) || "{}");
-    return parsed && typeof parsed === "object" ? parsed : {};
-  } catch {
-    return {};
-  }
-}
-
-function saveChatStore(store) {
-  try {
-    window.localStorage.setItem(CHAT_HISTORY_KEY, JSON.stringify(store));
-  } catch {
-    /* storage may be unavailable */
-  }
-}
-
-function historyKey(characterId) {
-  return String(characterId || DEFAULT_CHARACTER);
-}
-
-function getChatHistory(characterId) {
-  const store = loadChatStore();
-  const list = Array.isArray(store[historyKey(characterId)]) ? store[historyKey(characterId)] : [];
-  return list.filter((item) => item && item.role && typeof item.text === "string").slice(-CHAT_HISTORY_LIMIT);
-}
-
-function pushChatHistory(characterId, role, text) {
-  const clean = String(text || "").trim();
-  if (!clean) return;
-  const store = loadChatStore();
-  const key = historyKey(characterId);
-  const list = Array.isArray(store[key]) ? store[key] : [];
-  list.push({ role, text: clean.slice(0, 1600), at: Date.now() });
-  store[key] = list.slice(-CHAT_HISTORY_LIMIT);
-  saveChatStore(store);
-}
-
-function petForSlot(slotIndex) {
-  return pets.find((pet) => pet.slotIndex === slotIndex && pet.enabled) || pets.find((pet) => pet.enabled) || null;
-}
-
-function petForCharacter(characterId) {
-  return pets.find((pet) => pet.enabled && pet.characterId === characterId) || pets.find((pet) => pet.enabled) || null;
 }
 
 function clamp(value, min, max) {
@@ -1747,223 +1441,6 @@ function hasCustomShortcutImage(shortcut) {
   return !!String(shortcut?.imagePath || "").trim();
 }
 
-function appendChatMessage(history, role, text) {
-  const message = document.createElement("div");
-  const classes = ["chat-message"];
-  for (const token of String(role || "").split(/\s+/)) {
-    if (token === "pet") classes.push("from-pet");
-    else if (token === "user") classes.push("from-user");
-    else if (token === "error") classes.push("from-error");
-    else if (token) classes.push(token);
-  }
-  message.className = classes.join(" ");
-  message.textContent = text;
-  history.appendChild(message);
-  history.scrollTop = history.scrollHeight;
-  positionPanel();
-}
-
-function renderChatHistory(history, character) {
-  const entries = getChatHistory(character.id);
-  if (!entries.length) {
-    appendChatMessage(history, "pet", panelText("aiDisabled"));
-    return;
-  }
-  for (const item of entries) {
-    appendChatMessage(history, item.role === "user" ? "user" : item.role === "error" ? "error" : "pet", item.text);
-  }
-}
-
-function slowPetForReply(pet) {
-  if (!pet) return () => {};
-  pet.replySlowUntil = performance.now() + 16000;
-  return () => {
-    pet.replySlowUntil = Math.max(performance.now() + 3000, pet.replySlowUntil || 0);
-  };
-}
-
-function movementStateForPet(pet) {
-  if (!pet) return {};
-  const { w, h } = viewport();
-  const behavior = effectiveBehaviorForPet(pet) || {};
-  const now = performance.now();
-  return {
-    viewport: { width: Math.round(w), height: Math.round(h) },
-    position: { x: Math.round(pet.x), y: Math.round(pet.y) },
-    target: { x: Math.round(pet.targetX), y: Math.round(pet.targetY) },
-    velocity: { x: Number(pet.vx.toFixed(2)), y: Number(pet.vy.toFixed(2)) },
-    behavior: {
-      movementStyle: behavior.movementStyle || "free",
-      mouseMode: behavior.mouseMode || "avoid",
-      areaPreset: behavior.areaPreset || "all",
-      speedMultiplier: Number(Number(behavior.speedMultiplier || 1).toFixed(2)),
-    },
-    panelPaused: pet.pausedByPanel === true,
-    aiControlled: now < (pet.aiControlledUntil || 0),
-  };
-}
-
-function showThinking(pet) {
-  if (!pet?.el || !stage) return () => {};
-  const old = pet.thinkingEl;
-  if (old) hidePetBubble(pet, old, "thinkingEl", { immediate: true });
-  pet.el.classList.add("pet-talking");
-  const bubble = document.createElement("div");
-  bubble.className = "pet-thinking pet-floating-bubble";
-  bubble.innerHTML = "<i></i><i></i><i></i>";
-  stage.appendChild(bubble);
-  pet.thinkingEl = bubble;
-  positionPetBubble(pet, bubble);
-  window.requestAnimationFrame(() => bubble.classList.add("is-visible"));
-  pet.replySlowUntil = performance.now() + 16000;
-  return () => {
-    hidePetBubble(pet, bubble, "thinkingEl");
-    pet.replySlowUntil = Math.max(performance.now() + 3500, pet.replySlowUntil || 0);
-  };
-}
-
-function createAiChat(character, pet) {
-  const wrap = document.createElement("form");
-  wrap.className = "ai-chat";
-  let attachedImagePath = "";
-  wrap.addEventListener("pointerdown", (event) => {
-    event.stopPropagation();
-    api.setClickThrough(false);
-  });
-
-  const history = document.createElement("div");
-  history.className = "chat-history";
-  renderChatHistory(history, character);
-
-  const input = document.createElement("input");
-  input.type = "text";
-  input.maxLength = 800;
-  input.placeholder = panelText("aiPlaceholder");
-  input.autocomplete = "off";
-  input.spellcheck = false;
-  input.setAttribute("enterkeyhint", "send");
-  let composing = false;
-  input.addEventListener("compositionstart", () => {
-    composing = true;
-  });
-  input.addEventListener("compositionend", () => {
-    composing = false;
-  });
-  input.addEventListener("keydown", (event) => {
-    if (event.key === "Enter" && (event.isComposing || composing)) {
-      event.preventDefault();
-      event.stopPropagation();
-    }
-  });
-  input.addEventListener("pointerdown", (event) => {
-    event.stopPropagation();
-    api.setClickThrough(false);
-    window.requestAnimationFrame(() => input.focus());
-  });
-
-  const send = document.createElement("button");
-  send.className = "pixel-button";
-  send.type = "submit";
-  send.textContent = panelText("aiSend");
-  send.addEventListener("pointerdown", (event) => event.stopPropagation());
-
-  const attach = document.createElement("button");
-  attach.className = "chat-attach";
-  attach.type = "button";
-  attach.textContent = panelText("aiAttach");
-  attach.addEventListener("pointerdown", (event) => event.stopPropagation());
-
-  const preview = document.createElement("div");
-  preview.className = "chat-attachment";
-  preview.hidden = true;
-
-  function renderAttachment() {
-    preview.innerHTML = "";
-    preview.hidden = !attachedImagePath;
-    if (!attachedImagePath) return;
-    const image = document.createElement("img");
-    image.alt = "";
-    image.src = fileUrlFromPath(attachedImagePath);
-    const name = document.createElement("span");
-    name.textContent = fileNameFromPath(attachedImagePath);
-    const clear = document.createElement("button");
-    clear.type = "button";
-    clear.textContent = "×";
-    clear.title = panelText("aiClearImage");
-    clear.addEventListener("click", () => {
-      attachedImagePath = "";
-      renderAttachment();
-      input.focus();
-    });
-    preview.append(image, name, clear);
-    positionPanel();
-  }
-
-  attach.addEventListener("click", async () => {
-    const result = await api.pickChatImage();
-    if (!result?.ok) return;
-    attachedImagePath = result.imagePath;
-    renderAttachment();
-  });
-
-  wrap.addEventListener("submit", async (event) => {
-    event.preventDefault();
-    if (event.isComposing || composing) return;
-    const text = input.value.trim();
-    if (!text || send.disabled) return;
-    const movementCommand = settings?.ai?.enabled ? null : applyMovementCommand(pet, text, character);
-    appendChatMessage(history, "user", text);
-    pushChatHistory(character.id, "user", text);
-    const imagePaths = attachedImagePath ? [attachedImagePath] : [];
-    attachedImagePath = "";
-    renderAttachment();
-    input.value = "";
-    send.disabled = true;
-    send.textContent = "...";
-    const stopThinking = movementCommand ? () => {} : showThinking(pet);
-    const keepSlow = movementCommand ? () => {} : slowPetForReply(pet);
-    if (!movementCommand) appendChatMessage(history, "pet pending", panelText("aiThinking"));
-    const pending = movementCommand ? null : history.querySelector(".chat-message.pending:last-child");
-    let result = null;
-    try {
-      result = movementCommand
-        ? { ok: true, provider: "command", text: movementCommand.reply }
-        : await answerAsCharacter(pet, character, {
-            characterId: pet.characterId,
-            characterName: character.name,
-            customConcept: character.concept || "",
-            message: text,
-            imagePaths,
-            includeScreen: settings?.ai?.screenAwareness === true,
-            movementState: movementStateForPet(pet),
-          });
-      result = applyAiActionResult(pet, character, result);
-    } catch (error) {
-      result = { ok: false, error: String(error?.message || error || "AI error") };
-    }
-    if (pending) pending.remove();
-    stopThinking();
-    keepSlow();
-    if (result?.actionApplied) pet.replySlowUntil = 0;
-    const replyText = result?.ok ? result.text : result?.error || "AI error";
-    appendChatMessage(history, result?.ok ? "pet" : "error", replyText);
-    pushChatHistory(character.id, result?.ok ? "pet" : "error", replyText);
-    if (result?.ok) showPetThought(pet, replyText);
-    send.disabled = false;
-    send.textContent = panelText("aiSend");
-    input.focus();
-  });
-
-  const row = document.createElement("div");
-  row.className = "chat-row";
-  row.append(input, attach, send);
-  wrap.append(history, preview, row);
-  window.requestAnimationFrame(() => {
-    if (!input.disabled && !panel.hidden) input.focus();
-  });
-  return wrap;
-}
-
 function applyMovementCommand(pet, text, character = characterFor(pet?.characterId)) {
   if (!pet) return null;
   const command = parseLocalMovementCommand(text);
@@ -2174,176 +1651,15 @@ function positionPetBubbles() {
   }
 }
 
-function enabledCharacterChoices() {
-  return pets
-    .filter((pet) => pet.enabled)
-    .map((pet) => {
-      const character = characterFor(pet.characterId);
-      return { slotIndex: pet.slotIndex, id: character.id, name: character.name };
-    });
-}
-
-function closeQuickChat() {
-  if (!quickChat || quickChat.hidden) return;
-  window.clearTimeout(quickChatCloseTimer);
-  quickChat.classList.remove("is-visible");
-  quickChat.classList.add("is-hiding");
-  if (!activePet || panel.hidden) api.setClickThrough(true);
-  quickChatCloseTimer = window.setTimeout(() => {
-    quickChat.hidden = true;
-    quickChat.innerHTML = "";
-    quickChat.classList.remove("is-hiding", "is-visible");
-  }, QUICK_CHAT_HIDE_MS);
-}
-
-function openQuickChat() {
-  if (!quickChat) return;
-  window.clearTimeout(quickChatCloseTimer);
-  const choices = enabledCharacterChoices();
-  if (!choices.length) {
-    quickChat.hidden = true;
-    quickChat.innerHTML = "";
-    quickChat.classList.remove("is-hiding", "is-visible");
-    api.setClickThrough(true);
-    lastInteractive = false;
-    return;
-  }
-  api.setClickThrough(false);
-  lastInteractive = true;
-  if (!choices.some((choice) => choice.slotIndex === quickChatSlotIndex)) quickChatSlotIndex = choices[0].slotIndex;
-  quickChat.innerHTML = "";
-
-  const form = document.createElement("form");
-  form.className = "quick-chat__form";
-
-  const select = document.createElement("select");
-  select.setAttribute("aria-label", "Character");
-  for (const choice of choices) {
-    const option = document.createElement("option");
-    option.value = String(choice.slotIndex);
-    option.textContent = choice.name;
-    option.selected = choice.slotIndex === quickChatSlotIndex;
-    select.appendChild(option);
-  }
-
-  const input = document.createElement("input");
-  input.type = "text";
-  input.maxLength = 800;
-  input.placeholder = panelText("quickPlaceholder");
-  input.autocomplete = "off";
-  input.spellcheck = false;
-  input.setAttribute("enterkeyhint", "send");
-  let composing = false;
-  input.addEventListener("compositionstart", () => {
-    composing = true;
-  });
-  input.addEventListener("compositionend", () => {
-    composing = false;
-  });
-  input.addEventListener("keydown", (event) => {
-    if (event.key === "Enter" && (event.isComposing || composing)) {
-      event.preventDefault();
-      event.stopPropagation();
-    }
-  });
-
-  const send = document.createElement("button");
-  send.type = "submit";
-  send.textContent = panelText("aiSend");
-  send.disabled = quickChatBusy;
-  form.append(select, input, send);
-
-  select.addEventListener("change", () => {
-    quickChatSlotIndex = Number(select.value) || 0;
-  });
-
-  form.addEventListener("submit", async (event) => {
-    event.preventDefault();
-    if (event.isComposing || composing) return;
-    const text = input.value.trim();
-    const targetPet = petForSlot(Number(select.value) || 0);
-    if (!text || !targetPet || quickChatBusy) return;
-    quickChatBusy = true;
-    input.value = "";
-    send.disabled = true;
-    const targetCharacter = characterFor(targetPet.characterId);
-    const movementCommand = settings?.ai?.enabled ? null : applyMovementCommand(targetPet, text, targetCharacter);
-    pushChatHistory(targetCharacter.id, "user", text);
-    const stopThinking = movementCommand ? () => {} : showThinking(targetPet);
-    const keepSlow = movementCommand ? () => {} : slowPetForReply(targetPet);
-    let result = null;
-    try {
-      result = movementCommand
-        ? { ok: true, provider: "command", text: movementCommand.reply }
-        : await answerAsCharacter(targetPet, targetCharacter, {
-            characterId: targetPet.characterId,
-            characterName: targetCharacter.name,
-            customConcept: targetCharacter.concept || "",
-            message: text,
-            includeScreen: settings?.ai?.screenAwareness === true,
-            movementState: movementStateForPet(targetPet),
-          });
-      result = applyAiActionResult(targetPet, targetCharacter, result);
-    } catch (error) {
-      result = { ok: false, error: String(error?.message || error || "AI error") };
-    }
-    stopThinking();
-    keepSlow();
-    if (result?.actionApplied) targetPet.replySlowUntil = 0;
-    const reply = result?.ok ? result.text : result?.error || "AI error";
-    pushChatHistory(targetCharacter.id, result?.ok ? "pet" : "error", reply);
-    showPetThought(targetPet, reply);
-    quickChatBusy = false;
-    send.disabled = false;
-    window.requestAnimationFrame(() => input.focus());
-  });
-
-  quickChat.append(form);
-  quickChat.hidden = false;
-  quickChat.classList.remove("is-hiding");
-  window.requestAnimationFrame(() => {
-    quickChat.classList.add("is-visible");
-    input.focus();
-  });
-}
-
-function toggleQuickChat() {
-  if (!quickChat || quickChat.hidden) openQuickChat();
-  else closeQuickChat();
-}
-
 async function maybeAutoTalk(now) {
-  const ai = settings?.ai;
   if (autoTalkBusy || now < nextAutoTalkAt) return;
   const candidates = pets.filter((pet) => pet.enabled && !pet.dragging);
   if (!candidates.length) return;
   autoTalkBusy = true;
   nextAutoTalkAt = now + rand(16000, 30000);
   const pet = candidates[Math.floor(Math.random() * candidates.length)];
-  const character = characterFor(pet.characterId);
-  if (!ai?.enabled || !ai?.autoSpeak) {
-    showPetThought(pet, pickLocalLine(pet.characterId), { durationMs: 4000 });
-    autoTalkBusy = false;
-    return;
-  }
-  const stopThinking = showThinking(pet);
-  try {
-    const result = await answerAsCharacter(pet, character, {
-      characterId: pet.characterId,
-      characterName: character.name,
-      customConcept: character.concept || "",
-      message: "Look at the current screen and say one very short spontaneous thought as this character.",
-      includeScreen: ai.screenAwareness === true,
-      movementState: movementStateForPet(pet),
-      auto: true,
-    });
-    const cleanResult = applyAiActionResult(pet, character, result);
-    if (cleanResult?.actionApplied) pet.replySlowUntil = 0;
-    if (cleanResult?.ok) showPetThought(pet, cleanResult.text, { durationMs: 4000 });
-  } finally {
-    stopThinking();
-    autoTalkBusy = false;
-  }
+  showPetThought(pet, pickLocalLine(pet.characterId), { durationMs: 4000 });
+  autoTalkBusy = false;
 }
 
 function closePanel(force = false) {
@@ -2451,7 +1767,6 @@ function openPanel(pet) {
     grid.appendChild(button);
   }
   panel.appendChild(grid);
-  panel.appendChild(createAiChat(character, pet));
 
   const actions = document.createElement("div");
   actions.className = "panel-actions";
@@ -2618,7 +1933,6 @@ function syncPets() {
       openPanel(pet);
     }
   }
-  if (quickChat && !quickChat.hidden) openQuickChat();
   syncGround();
   syncAquarium();
   if (activePet && !activePet.enabled) {
@@ -2631,13 +1945,11 @@ function handleCursorPoint(point) {
   trackMouse(point.x, point.y);
   const target = document.elementFromPoint(point.x, point.y);
   const panelOpen = activePet && !panel.hidden;
-  const quickOpen = quickChat && !quickChat.hidden;
   const overInteractive = !!target?.closest(".interactive");
-  const overQuickChat = !!target?.closest(".quick-chat");
   const interactive = panelOpen || overInteractive;
   if (interactive !== lastInteractive) {
     lastInteractive = interactive;
-    api.setClickThrough(!interactive, { preserveFocus: quickOpen && !overQuickChat });
+    api.setClickThrough(!interactive);
   }
 }
 
@@ -2778,7 +2090,6 @@ async function init() {
   });
   api.onCursorPoint(handleCursorPoint);
   api.onAreaPickStart(startAreaPicker);
-  api.onQuickChatToggle(toggleQuickChat);
   api.setClickThrough(true);
   lastTick = performance.now();
   scheduleTick();
@@ -2794,10 +2105,5 @@ window.addEventListener("resize", () => {
   }
 });
 
-window.addEventListener("keydown", (event) => {
-  if (event.key === "Escape" && quickChat && !quickChat.hidden) {
-    closeQuickChat();
-  }
-});
 
 init();

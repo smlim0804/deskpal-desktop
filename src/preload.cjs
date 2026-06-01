@@ -11,16 +11,11 @@ contextBridge.exposeInMainWorld("busyPet", {
   pickAppShortcut: () => ipcRenderer.invoke("app:pick"),
   pickShortcutImage: () => ipcRenderer.invoke("image:pick"),
   pickSpriteImage: () => ipcRenderer.invoke("sprite-image:pick"),
-  pickChatImage: () => ipcRenderer.invoke("chat-image:pick"),
-  detectAiProvider: (provider) => ipcRenderer.invoke("ai:detect", provider),
-  testAiProvider: (provider) => ipcRenderer.invoke("ai:test", provider),
-  chatWithAi: (payload) => ipcRenderer.invoke("ai:chat", payload),
   setClickThrough: (ignore, options = {}) =>
     ipcRenderer.send("overlay:click-through", {
       ignore: !!ignore,
       preserveFocus: options?.preserveFocus === true,
     }),
-  toggleQuickChat: () => ipcRenderer.send("quick-chat:toggle"),
   openSettings: () => ipcRenderer.send("settings:show"),
   closeSettings: () => ipcRenderer.send("settings:hide"),
   quit: () => ipcRenderer.send("app:quit"),
@@ -38,10 +33,5 @@ contextBridge.exposeInMainWorld("busyPet", {
     const listener = (_event, payload) => callback(payload);
     ipcRenderer.on("area:pick-start", listener);
     return () => ipcRenderer.removeListener("area:pick-start", listener);
-  },
-  onQuickChatToggle: (callback) => {
-    const listener = () => callback();
-    ipcRenderer.on("quick-chat:toggle", listener);
-    return () => ipcRenderer.removeListener("quick-chat:toggle", listener);
   },
 });

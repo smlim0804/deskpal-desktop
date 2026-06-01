@@ -115,9 +115,7 @@ The app opens two windows:
 - Rainbow, glow, spark, bubble, and pixel trails
 - Click a character to open website or local app shortcuts
 - Shortcut image picker and global display modes: image + name, image only, or name only
-- Optional bring-your-own AI chat through a logged-in local CLI: Codex CLI, Claude Code CLI, or Ollama
-- AI chat image attachment, optional screen awareness, automatic character thoughts, and Freedom mode movement
-- No API key is stored inside BusyPet
+- No cloud AI, no chat prompt, no API key, and no token usage in the default app
 
 ## Files
 
@@ -141,12 +139,6 @@ Shortcuts support two target types:
   Windows supports `.exe` or `.lnk` inside Program Files, AppData, or the Start Menu.
   Linux supports `.desktop` files or executables inside `/usr`, `/opt`, `~/.local/share/applications`, or `~/bin`.
 
-AI chat is optional and uses the user's own local login:
-
-- Codex CLI: install with `npm install -g @openai/codex`, then run `codex` and sign in.
-- Claude Code CLI: install with `npm install -g @anthropic-ai/claude-code`, then run `claude` and sign in.
-- Ollama: install Ollama, run `ollama pull llama3.2`, then keep `ollama serve` running.
-
-In BusyPet Settings, open `AI`, choose the provider, press `Connect`, then click a character to chat. `Connect` enables character chat after the CLI is detected. Turn on `Freedom` if characters should keep moving while chatting, `Screen awareness` if they may use a temporary screenshot of the current display, and `Auto thoughts` if they should occasionally speak by themselves. BusyPet only calls the local CLI process; it does not collect or save provider passwords, OAuth tokens, API keys, or chat credentials.
+The main branch is token-safe by default: there is no AI provider setup, no chat box, and no screen-sharing prompt. The old AI-enabled snapshot is preserved on the `ai-enabled-archive` branch.
 
 The macOS/Linux app icon is generated from `build/icon.svg` with `npm run icons`; packaging scripts run this automatically so the app no longer uses the default Electron mark.

@@ -1,6 +1,6 @@
 {
   "name": "busypet-desktop",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "description": "Desktop pixel companions inspired by BusyPet.",
   "type": "module",
   "main": "src/main.cjs",
@@ -8,7 +8,7 @@
     "start": "node node_modules/electron/cli.js .",
     "dev": "node node_modules/electron/cli.js .",
     "icons": "node scripts/generate-icon.cjs",
-    "check": "node --check src/main.cjs && node --check src/preload.cjs && node --check src/overlay.js && node --check src/settings.js && node --check src/characters.js && node --check scripts/generate-icon.cjs && node --check scripts/package-mac.cjs && node --check scripts/package-platform.cjs && node --check scripts/package-deb.cjs && node --check scripts/verify-ai-motion.cjs && node --check scripts/verify-ai-drive-sim.cjs && node --check scripts/verify-bubble-position.cjs && node --check scripts/verify-cli-path-env.cjs && node scripts/verify-ai-motion.cjs && node scripts/verify-ai-drive-sim.cjs && node scripts/verify-bubble-position.cjs && node scripts/verify-cli-path-env.cjs",
+    "check": "node --check src/main.cjs && node --check src/preload.cjs && node --check src/overlay.js && node --check src/settings.js && node --check src/characters.js && node --check scripts/generate-icon.cjs && node --check scripts/package-mac.cjs && node --check scripts/package-platform.cjs && node --check scripts/package-deb.cjs && node --check scripts/verify-bubble-position.cjs && node scripts/verify-bubble-position.cjs",
     "package:mac": "node scripts/package-mac.cjs",
     "package:win": "node scripts/package-platform.cjs win32-x64",
     "package:linux": "node scripts/package-platform.cjs linux-x64",

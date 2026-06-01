@@ -12,18 +12,6 @@ const languageButton = document.getElementById("languageButton");
 const languagePopover = document.getElementById("languagePopover");
 const languageSelect = document.getElementById("languageSelect");
 const addShortcut = document.getElementById("addShortcut");
-const aiEnabled = document.getElementById("aiEnabled");
-const aiFreedom = document.getElementById("aiFreedom");
-const aiScreenAwareness = document.getElementById("aiScreenAwareness");
-const aiAutoSpeak = document.getElementById("aiAutoSpeak");
-const aiProvider = document.getElementById("aiProvider");
-const aiModel = document.getElementById("aiModel");
-const aiMaxWords = document.getElementById("aiMaxWords");
-const aiMaxWordsValue = document.getElementById("aiMaxWordsValue");
-const aiDetect = document.getElementById("aiDetect");
-const aiTest = document.getElementById("aiTest");
-const aiStatus = document.getElementById("aiStatus");
-const aiInstallHelp = document.getElementById("aiInstallHelp");
 const resetSettings = document.getElementById("resetSettings");
 const applyButton = document.getElementById("openOverlaySettings");
 const quitApp = document.getElementById("quitApp");
@@ -89,7 +77,6 @@ const I18N = {
     tabCharacters: "Characters",
     tabCustom: "Custom",
     tabLinks: "Links",
-    tabAI: "AI",
     companions: "Companions",
     effectQuality: "Effect quality",
     characters: "Characters",
@@ -99,22 +86,6 @@ const I18N = {
     effectDirection: "Effect direction",
     shortcuts: "Shortcuts",
     shortcutDisplay: "Shortcut display",
-    aiTitle: "AI CLI",
-    aiHint: "Use your own logged-in CLI",
-    aiChat: "Character chat",
-    aiFreedom: "Freedom",
-    aiScreen: "Screen awareness",
-    aiAutoSpeak: "Auto thoughts",
-    aiProvider: "Provider",
-    aiModel: "Model optional",
-    aiMaxWords: "Max words",
-    aiDetect: "Connect",
-    aiTest: "Test",
-    aiOff: "AI is off.",
-    aiChecking: "Checking...",
-    aiReady: "Connected",
-    aiMissing: "Not connected",
-    aiInstallHelp: "Install or log in from Terminal, then press Detect.",
     movement: "Movement",
     heading: "Heading",
     mouse: "Mouse",
@@ -147,7 +118,7 @@ const I18N = {
     resetConfirm: "Reset BusyPet settings?",
     paintColor: "Paint color",
     customName: "Custom name",
-    customConcept: "AI concept",
+    customConcept: "Personality note",
     customConceptPlaceholder: "Friendly tiny wizard who speaks softly and loves debugging.",
     effectPreview: "Effect direction preview",
     customGrid: "Custom pixel grid",
@@ -190,7 +161,6 @@ const I18N = {
     tabCharacters: "캐릭터",
     tabCustom: "커스텀",
     tabLinks: "링크",
-    tabAI: "AI",
     companions: "캐릭터 켜기",
     effectQuality: "이펙트 품질",
     characters: "캐릭터",
@@ -200,22 +170,6 @@ const I18N = {
     effectDirection: "이펙트 방향",
     shortcuts: "바로가기",
     shortcutDisplay: "바로가기 표시",
-    aiTitle: "AI CLI",
-    aiHint: "내가 로그인한 CLI 사용",
-    aiChat: "캐릭터 채팅",
-    aiFreedom: "자유",
-    aiScreen: "화면 같이 보기",
-    aiAutoSpeak: "자동 생각",
-    aiProvider: "제공자",
-    aiModel: "모델 선택사항",
-    aiMaxWords: "최대 단어",
-    aiDetect: "연결",
-    aiTest: "테스트",
-    aiOff: "AI가 꺼져 있어.",
-    aiChecking: "확인 중...",
-    aiReady: "연결됨",
-    aiMissing: "연결 안 됨",
-    aiInstallHelp: "터미널에서 설치/로그인 후 감지를 눌러줘.",
     movement: "움직임",
     heading: "머리방향",
     mouse: "마우스",
@@ -248,7 +202,7 @@ const I18N = {
     resetConfirm: "BusyPet 설정을 초기화할까?",
     paintColor: "칠할 색",
     customName: "커스텀 이름",
-    customConcept: "AI 컨셉",
+    customConcept: "성격 메모",
     customConceptPlaceholder: "예: 말투가 다정한 작은 마법사. 디버깅을 좋아하고 조용히 조언함.",
     effectPreview: "이펙트 방향 미리보기",
     customGrid: "커스텀 픽셀 그리드",
@@ -338,7 +292,6 @@ function renderLanguage() {
   quitApp.title = t("closeSettings");
   customName.placeholder = t("customName");
   customConcept.placeholder = t("customConceptPlaceholder");
-  aiModel.placeholder = "default";
   paintColor.title = t("paintColor");
   pixelGrid.setAttribute("aria-label", t("customGrid"));
   effectTestCanvas.setAttribute("aria-label", t("effectPreview"));
@@ -374,15 +327,13 @@ function renderLanguage() {
   setEffectPoint.textContent = iconText("↓", "point");
   clearCustom.textContent = iconText("×", "clear");
   testEffect.textContent = iconText("▶", "test");
-  aiDetect.textContent = iconText("⌕", "aiDetect");
-  aiTest.textContent = iconText("▶", "aiTest");
   resetSettings.textContent = iconText("↺", "reset");
   programExit.textContent = iconText("⏻", "exit");
   applyButton.textContent = iconText("✓", "apply");
 }
 
 function setActiveTab(tab) {
-  activeTab = ["characters", "custom", "links", "ai"].includes(tab) ? tab : "characters";
+  activeTab = ["characters", "custom", "links"].includes(tab) ? tab : "characters";
   for (const button of tabButtons) {
     const isActive = button.dataset.tab === activeTab;
     button.classList.toggle("active", isActive);
@@ -391,45 +342,6 @@ function setActiveTab(tab) {
   for (const panel of tabPanels) {
     panel.hidden = panel.dataset.tabPanel !== activeTab;
   }
-}
-
-function normalizeAi() {
-  if (!settings.ai || typeof settings.ai !== "object") settings.ai = {};
-  settings.ai.enabled = settings.ai.enabled === true;
-  settings.ai.provider = ["codex", "claude", "ollama"].includes(settings.ai.provider) ? settings.ai.provider : "codex";
-  settings.ai.model = String(settings.ai.model || "").slice(0, 80);
-  settings.ai.maxWords = Math.min(160, Math.max(12, Math.round(Number(settings.ai.maxWords || 60))));
-  settings.ai.freedom = settings.ai.freedom === true;
-  settings.ai.screenAwareness = settings.ai.screenAwareness === true;
-  settings.ai.autoSpeak = settings.ai.autoSpeak === true;
-  return settings.ai;
-}
-
-function aiInstallText(provider = normalizeAi().provider) {
-  if (provider === "codex") {
-    return "Install: npm install -g @openai/codex\nLogin: codex";
-  }
-  if (provider === "claude") return "Install: npm install -g @anthropic-ai/claude-code\nLogin: claude";
-  return "Install: https://ollama.com\nModel: ollama pull llama3.2\nRun: ollama serve";
-}
-
-function setAiStatus(message, tone = "muted") {
-  aiStatus.textContent = message;
-  aiStatus.dataset.tone = tone;
-}
-
-function renderAiSettings() {
-  const ai = normalizeAi();
-  aiEnabled.checked = ai.enabled;
-  aiFreedom.checked = ai.freedom;
-  aiScreenAwareness.checked = ai.screenAwareness;
-  aiAutoSpeak.checked = ai.autoSpeak;
-  aiProvider.value = ai.provider;
-  aiModel.value = ai.model;
-  aiMaxWords.value = String(ai.maxWords);
-  aiMaxWordsValue.textContent = String(ai.maxWords);
-  aiInstallHelp.textContent = aiInstallText(ai.provider);
-  if (!ai.enabled) setAiStatus(t("aiOff"), "muted");
 }
 
 function blankPixels() {
@@ -1190,7 +1102,6 @@ function render() {
   renderSlots();
   renderCustomEditor();
   renderShortcuts();
-  renderAiSettings();
   setActiveTab(activeTab);
 }
 
@@ -1252,81 +1163,6 @@ addShortcut.addEventListener("click", () => {
   settings.shortcuts.push({ type: "web", name: t("newLink"), url: "https://", imagePath: "" });
   renderShortcuts();
   scheduleSave();
-});
-
-aiEnabled.addEventListener("change", () => {
-  normalizeAi().enabled = aiEnabled.checked;
-  renderAiSettings();
-  scheduleSave(true);
-});
-
-aiFreedom.addEventListener("change", () => {
-  normalizeAi().freedom = aiFreedom.checked;
-  scheduleSave(true);
-});
-
-aiScreenAwareness.addEventListener("change", () => {
-  normalizeAi().screenAwareness = aiScreenAwareness.checked;
-  scheduleSave(true);
-});
-
-aiAutoSpeak.addEventListener("change", () => {
-  normalizeAi().autoSpeak = aiAutoSpeak.checked;
-  scheduleSave(true);
-});
-
-aiProvider.addEventListener("change", () => {
-  normalizeAi().provider = aiProvider.value;
-  renderAiSettings();
-  scheduleSave(true);
-});
-
-bindTextInput(aiModel, (value) => {
-  normalizeAi().model = value.trim().slice(0, 80);
-});
-
-aiMaxWords.addEventListener("input", () => {
-  const ai = normalizeAi();
-  ai.maxWords = Math.min(160, Math.max(12, Math.round(Number(aiMaxWords.value || 60))));
-  aiMaxWordsValue.textContent = String(ai.maxWords);
-  scheduleSave();
-});
-
-aiDetect.addEventListener("click", async () => {
-  const provider = normalizeAi().provider;
-  aiDetect.disabled = true;
-  setAiStatus(t("aiChecking"), "muted");
-  const result = await api.detectAiProvider(provider);
-  aiDetect.disabled = false;
-  if (result?.ok && result.connected) {
-    const ai = normalizeAi();
-    ai.enabled = true;
-    aiEnabled.checked = true;
-    scheduleSave(true);
-    setAiStatus(`${t("aiReady")}: ${result.label}${result.command ? ` (${result.command})` : ""}`, "ok");
-  } else {
-    setAiStatus(`${t("aiMissing")}: ${result?.error || result?.label || provider}`, "bad");
-  }
-});
-
-aiTest.addEventListener("click", async () => {
-  const provider = normalizeAi().provider;
-  aiTest.disabled = true;
-  setAiStatus(t("aiChecking"), "muted");
-  if (saveTimer) clearTimeout(saveTimer);
-  saveTimer = null;
-  settings = await api.updateSettings(settings);
-  const result = await api.testAiProvider(provider);
-  aiTest.disabled = false;
-  if (result?.ok) {
-    const ai = normalizeAi();
-    ai.enabled = true;
-    aiEnabled.checked = true;
-    scheduleSave(true);
-    setAiStatus(`${t("aiReady")}: ${result.text}`, "ok");
-  } else {
-    setAiStatus(`${t("aiMissing")}: ${result?.error || provider}`, "bad");
-  }
 });
 
 customSelect.addEventListener("change", () => {
