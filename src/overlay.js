@@ -1742,6 +1742,8 @@ function openPanel(pet) {
     const button = document.createElement("button");
     button.className = "shortcut";
     button.type = "button";
+    button.title = shortcut.name;
+    button.classList.toggle("name-only", displayMode === "name");
     if (displayMode !== "name") {
       let icon = shortcutIcon(shortcut);
       const imageUrl = shortcutImage(shortcut);
@@ -1761,7 +1763,6 @@ function openPanel(pet) {
       button.appendChild(label);
     } else {
       button.classList.add("image-only");
-      button.title = shortcut.name;
     }
     button.addEventListener("click", () => api.openShortcut(shortcut));
     grid.appendChild(button);

@@ -1,6 +1,6 @@
 {
   "name": "busypet-desktop",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "description": "Desktop pixel companions inspired by BusyPet.",
   "type": "module",
   "main": "src/main.cjs",

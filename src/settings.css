@@ -43,9 +43,9 @@ button {
   position: relative;
   cursor: pointer;
   isolation: isolate;
-  line-height: 1.05;
+  line-height: 1.15;
   overflow: hidden;
-  text-overflow: ellipsis;
+  text-overflow: clip;
   user-select: none;
   -webkit-tap-highlight-color: transparent;
 }
@@ -122,7 +122,7 @@ main {
   top: 77px;
   z-index: 4;
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(86px, 1fr));
   gap: 8px;
   padding: 0 0 2px;
   background: var(--bg);
@@ -145,8 +145,8 @@ main {
 
 .tab-button span:last-child {
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  overflow: visible;
+  text-overflow: clip;
   white-space: nowrap;
 }
 
@@ -619,7 +619,7 @@ input[type="range"] {
 
 .shortcut-row {
   display: grid;
-  grid-template-columns: 72px 1fr 58px;
+  grid-template-columns: minmax(82px, auto) minmax(0, 1fr) 44px;
   gap: 8px;
   padding: 8px;
   border: 2px solid var(--line);
@@ -675,6 +675,8 @@ input[type="range"] {
   padding: 0 5px;
   font-size: clamp(10px, 3vw, 13px);
   font-weight: 900;
+  line-height: 1.15;
+  text-overflow: clip;
   white-space: nowrap;
 }
 
@@ -770,7 +772,8 @@ input[type="range"] {
   color: var(--ink);
   font-size: clamp(10px, 3.05vw, 13px);
   font-weight: 900;
-  white-space: nowrap;
+  line-height: 1.12;
+  white-space: normal;
 }
 
 .tool-button.active {

@@ -496,6 +496,10 @@ body[data-performance="saver"] .aqua-tiny-fish {
   cursor: pointer;
 }
 
+.shortcut.name-only {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .shortcut.image-only {
   display: block;
   width: 34px;
@@ -570,10 +574,12 @@ body[data-performance="saver"] .aqua-tiny-fish {
 
 .shortcut span {
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow: visible;
+  overflow-wrap: anywhere;
+  text-overflow: clip;
+  white-space: normal;
   font-size: 10px;
+  line-height: 1.15;
 }
 
 .panel-actions {
@@ -887,7 +893,7 @@ body {
 
 .pet-panel {
   box-sizing: border-box;
-  width: 360px;
+  width: min(360px, calc(100vw - 24px));
   padding: 14px;
   border: 0;
   border-radius: 24px;
@@ -917,12 +923,12 @@ body {
 
 .panel-header strong {
   min-width: 0;
-  overflow: hidden;
+  overflow: visible;
   color: #111827;
   font-size: 13px;
   font-weight: 760;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  text-overflow: clip;
+  white-space: normal;
 }
 
 .panel-header__controls {
@@ -994,6 +1000,7 @@ body {
 
 .shortcut-grid {
   gap: 8px;
+  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
 }
 
 .shortcut,
