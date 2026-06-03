@@ -2,13 +2,18 @@ const fs = require("fs");
 const path = require("path");
 
 const root = path.resolve(__dirname, "..");
-const overlay = fs.readFileSync(path.join(root, "src", "overlay.js"), "utf8");
-const css = fs.readFileSync(path.join(root, "src", "overlay.css"), "utf8");
-const main = fs.readFileSync(path.join(root, "src", "main.cjs"), "utf8");
-const preload = fs.readFileSync(path.join(root, "src", "preload.cjs"), "utf8");
-const settings = fs.readFileSync(path.join(root, "src", "settings.js"), "utf8");
-const characters = fs.readFileSync(path.join(root, "src", "characters.js"), "utf8");
-const interaction = fs.readFileSync(path.join(root, "src", "interaction-variety.js"), "utf8");
+
+function readText(...segments) {
+  return fs.readFileSync(path.join(root, ...segments), "utf8").replace(/\r\n/g, "\n");
+}
+
+const overlay = readText("src", "overlay.js");
+const css = readText("src", "overlay.css");
+const main = readText("src", "main.cjs");
+const preload = readText("src", "preload.cjs");
+const settings = readText("src", "settings.js");
+const characters = readText("src", "characters.js");
+const interaction = readText("src", "interaction-variety.js");
 
 function assert(condition, message) {
   if (!condition) {
