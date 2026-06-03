@@ -3,6 +3,7 @@ const { contextBridge, ipcRenderer } = require("electron");
 contextBridge.exposeInMainWorld("busyPet", {
   platform: process.platform,
   getSettings: () => ipcRenderer.invoke("settings:get"),
+  getSystemStats: () => ipcRenderer.invoke("system:stats"),
   updateSettings: (patch) => ipcRenderer.invoke("settings:update", patch),
   resetSettings: () => ipcRenderer.invoke("settings:reset"),
   pickArea: (slotIndex) => ipcRenderer.invoke("area:pick", slotIndex),

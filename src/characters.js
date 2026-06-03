@@ -1,6 +1,6 @@
 // BusyPet — 픽셀 도트 캐릭터 (24×24)
 // 모든 캐릭터: 떠다니는(flyer) 타입
-// 동물 다 제거 → 특이한 컬렉션: UFO/로켓/자동차/슬라임/커서/유령/토성/마법구슬/도넛/해골/안구/에너지볼/별
+// 컬렉션: UFO/로켓/자동차/슬라임/혜성/별 + 동물(시바/고양이/토끼/레서판다/펭귄) + 토성/보석/도넛/해골/안구/에너지볼/벌레/탱크
 
 export const SPRITE_W = 24;
 export const SPRITE_H = 24;
@@ -54,6 +54,12 @@ function line(g, x1, y1, x2, y2, c) {
     if (e2 > -dy) { err -= dy; x1 += sx; }
     if (e2 < dx) { err += dx; y1 += sy; }
   }
+}
+
+// 위로 뾰족한 삼각형 채우기 (동물 귀 등). apex = 꼭짓점(위), h = 높이, 아래로 갈수록 1px씩 넓어짐
+function tri(g, apexX, apexY, h, c) {
+  for (let r = 0; r < h; r++)
+    for (let x = apexX - r; x <= apexX + r; x++) px(g, x, apexY + r, c);
 }
 
 export function renderGrid(ctx, grid, palette) {
@@ -1185,6 +1191,160 @@ function buildSeaSnail(frame) {
 }
 
 // ============================================================
+// 오리지널 육성 동물 친구들
+// ============================================================
+// ----- 강아지: 시바견 "Kongi" -----
+const PUP_PAL = { K: "#3a2a1e", O: "#eda35a", D: "#cf7c3c", W: "#fff3e0", P: "#ffa6b6", N: "#2a1c14", I: "#ffffff" };
+function buildPup(frame) {
+  const g = blank();
+  const f = frame % 8;
+  const bob = f % 4 < 2 ? 0 : 1;
+  const cy = 13 + bob;
+  // 쫑긋 귀 (검은 테두리 + 탄색 + 분홍 안쪽)
+  tri(g, 6, cy - 9, 4, "K"); tri(g, 18, cy - 9, 4, "K");
+  tri(g, 6, cy - 8, 3, "O"); tri(g, 18, cy - 8, 3, "O");
+  tri(g, 6, cy - 7, 2, "P"); tri(g, 18, cy - 7, 2, "P");
+  // 머리
+  disc(g, 12, cy, 8, 7, "O");
+  ring(g, 12, cy, 8, 7, "K");
+  // 크림색 볼 + 주둥이
+  disc(g, 7, cy + 2, 2, 2, "W"); disc(g, 17, cy + 2, 2, 2, "W");
+  disc(g, 12, cy + 3, 5, 3, "W");
+  // 눈썹(콩고물 점) + 눈 + 반짝임
+  px(g, 8, cy - 3, "W"); px(g, 16, cy - 3, "W");
+  rect(g, 8, cy - 1, 2, 3, "K"); rect(g, 15, cy - 1, 2, 3, "K");
+  px(g, 9, cy - 1, "I"); px(g, 16, cy - 1, "I");
+  // 코 + 입
+  rect(g, 11, cy + 1, 2, 2, "N");
+  line(g, 12, cy + 3, 12, cy + 4, "K");
+  line(g, 12, cy + 4, 10, cy + 5, "K"); line(g, 12, cy + 4, 14, cy + 5, "K");
+  // 볼터치
+  px(g, 6, cy + 3, "P"); px(g, 18, cy + 3, "P");
+  return g;
+}
+
+// ----- 고양이: "Nabi" (회색 태비) -----
+const KIT_PAL = { K: "#241f2e", G: "#9aa6b8", D: "#6b7689", W: "#fbfcff", P: "#ffb3c8", N: "#ff8fae", I: "#ffffff", S: "#cdd6e2" };
+function buildKit(frame) {
+  const g = blank();
+  const f = frame % 8;
+  const bob = f % 4 < 2 ? 0 : 1;
+  const cy = 13 + bob;
+  // 귀
+  tri(g, 6, cy - 9, 4, "K"); tri(g, 18, cy - 9, 4, "K");
+  tri(g, 6, cy - 8, 3, "G"); tri(g, 18, cy - 8, 3, "G");
+  tri(g, 6, cy - 7, 2, "P"); tri(g, 18, cy - 7, 2, "P");
+  // 머리
+  disc(g, 12, cy, 8, 7, "G");
+  ring(g, 12, cy, 8, 7, "K");
+  // 태비 줄무늬(이마)
+  px(g, 12, cy - 6, "D"); px(g, 11, cy - 5, "D"); px(g, 13, cy - 5, "D"); px(g, 12, cy - 4, "D");
+  px(g, 5, cy, "D"); px(g, 19, cy, "D");
+  // 밝은 주둥이
+  disc(g, 12, cy + 3, 5, 3, "W");
+  // 눈 + 반짝임
+  rect(g, 8, cy - 1, 2, 3, "K"); rect(g, 15, cy - 1, 2, 3, "K");
+  px(g, 8, cy, "I"); px(g, 15, cy, "I");
+  // 코 + 입
+  px(g, 11, cy + 1, "N"); px(g, 12, cy + 1, "N"); px(g, 13, cy + 1, "N");
+  line(g, 12, cy + 2, 11, cy + 3, "K"); line(g, 12, cy + 2, 13, cy + 3, "K");
+  // 수염
+  line(g, 5, cy + 1, 1, cy, "S"); line(g, 5, cy + 2, 1, cy + 3, "S");
+  line(g, 19, cy + 1, 23, cy, "S"); line(g, 19, cy + 2, 23, cy + 3, "S");
+  // 볼터치
+  px(g, 6, cy + 3, "P"); px(g, 18, cy + 3, "P");
+  return g;
+}
+
+// ----- 토끼: "Mochi" (흰 토끼, 긴 귀) -----
+const BUNNY_PAL = { K: "#3a2e3a", W: "#fdfdff", S: "#ece5f1", P: "#ffb0c6", R: "#ff8aa6", I: "#ffffff" };
+function buildBunny(frame) {
+  const g = blank();
+  const f = frame % 8;
+  const bob = f % 4 < 2 ? 0 : -1;
+  const cy = 14 + bob;
+  // 긴 귀 (검은 테두리 + 흰색 + 분홍 안쪽)
+  rect(g, 6, cy - 13, 5, 11, "K"); rect(g, 14, cy - 13, 5, 11, "K");
+  rect(g, 7, cy - 12, 3, 9, "W"); rect(g, 15, cy - 12, 3, 9, "W");
+  rect(g, 8, cy - 11, 1, 6, "P"); rect(g, 16, cy - 11, 1, 6, "P");
+  // 머리
+  disc(g, 12, cy, 7, 6, "W");
+  ring(g, 12, cy, 7, 6, "K");
+  // 눈 + 반짝임
+  rect(g, 8, cy - 1, 2, 3, "K"); rect(g, 14, cy - 1, 2, 3, "K");
+  px(g, 8, cy - 1, "I"); px(g, 14, cy - 1, "I");
+  // 코 + 입
+  px(g, 11, cy + 1, "R"); px(g, 12, cy + 1, "R"); px(g, 13, cy + 1, "R");
+  line(g, 12, cy + 2, 12, cy + 3, "K");
+  line(g, 12, cy + 3, 10, cy + 4, "K"); line(g, 12, cy + 3, 14, cy + 4, "K");
+  // 볼터치
+  disc(g, 7, cy + 2, 1, 1, "P"); disc(g, 17, cy + 2, 1, 1, "P");
+  return g;
+}
+
+// ----- 레서판다: "Popo" -----
+const FOX_PAL = { K: "#2a1410", O: "#d6713c", D: "#a84a22", W: "#fff1df", C: "#f6c89a", N: "#2a1c14", I: "#ffffff", P: "#ff9a86" };
+function buildFox(frame) {
+  const g = blank();
+  const f = frame % 8;
+  const bob = f % 4 < 2 ? 0 : 1;
+  const cy = 13 + bob;
+  // 뾰족 귀 (검은 테두리 + 적갈색 + 크림 안쪽)
+  tri(g, 6, cy - 9, 4, "K"); tri(g, 18, cy - 9, 4, "K");
+  tri(g, 6, cy - 8, 3, "O"); tri(g, 18, cy - 8, 3, "O");
+  tri(g, 6, cy - 7, 2, "C"); tri(g, 18, cy - 7, 2, "C");
+  // 머리(적갈색)
+  disc(g, 12, cy, 8, 7, "O");
+  ring(g, 12, cy, 8, 7, "K");
+  // 흰 얼굴 무늬(볼 + 눈썹) — 레서판다 상징
+  disc(g, 7, cy + 1, 3, 3, "W"); disc(g, 17, cy + 1, 3, 3, "W");
+  rect(g, 8, cy - 3, 2, 1, "W"); rect(g, 15, cy - 3, 2, 1, "W");
+  // 흰 주둥이
+  disc(g, 12, cy + 3, 3, 2, "W");
+  // 눈 + 반짝임
+  rect(g, 8, cy - 1, 2, 2, "K"); rect(g, 15, cy - 1, 2, 2, "K");
+  px(g, 8, cy - 1, "I"); px(g, 15, cy - 1, "I");
+  // 눈물 줄무늬(짙은 갈색)
+  px(g, 9, cy + 1, "D"); px(g, 9, cy + 2, "D"); px(g, 15, cy + 1, "D"); px(g, 15, cy + 2, "D");
+  // 코 + 입
+  rect(g, 11, cy + 2, 2, 1, "N");
+  line(g, 12, cy + 3, 12, cy + 4, "K");
+  // 볼터치
+  px(g, 6, cy + 3, "P"); px(g, 18, cy + 3, "P");
+  return g;
+}
+
+// ----- 펭귄: "Pengu" (통통 전신) -----
+const HAM_PAL = { K: "#1b2331", B: "#33415c", W: "#fefeff", O: "#ffb13b", D: "#e8901f", P: "#ff9bb0", I: "#ffffff" };
+function buildHamster(frame) {
+  const g = blank();
+  const f = frame % 8;
+  const bob = f % 4 < 2 ? 0 : 1;
+  const yo = bob;
+  // 몸통(남색 달걀형)
+  disc(g, 12, 13 + yo, 7, 9, "B");
+  ring(g, 12, 13 + yo, 7, 9, "K");
+  // 날개(양옆 작은 지느러미)
+  px(g, 4, 13 + yo, "B"); px(g, 4, 14 + yo, "B"); px(g, 5, 15 + yo, "B");
+  px(g, 19, 13 + yo, "B"); px(g, 19, 14 + yo, "B"); px(g, 18, 15 + yo, "B");
+  px(g, 3, 13 + yo, "K"); px(g, 3, 14 + yo, "K"); px(g, 4, 15 + yo, "K");
+  px(g, 20, 13 + yo, "K"); px(g, 20, 14 + yo, "K"); px(g, 19, 15 + yo, "K");
+  // 흰 앞면(얼굴+배) — 위·옆은 남색 남김
+  disc(g, 12, 14 + yo, 5, 7, "W");
+  // 눈 + 반짝임 (흰 얼굴 위쪽)
+  rect(g, 9, 9 + yo, 2, 2, "K"); rect(g, 13, 9 + yo, 2, 2, "K");
+  px(g, 9, 9 + yo, "I"); px(g, 13, 9 + yo, "I");
+  // 부리(주황 다이아)
+  px(g, 11, 11 + yo, "O"); px(g, 12, 11 + yo, "O");
+  px(g, 11, 12 + yo, "D"); px(g, 12, 12 + yo, "D");
+  // 볼터치
+  px(g, 7, 11 + yo, "P"); px(g, 17, 11 + yo, "P");
+  // 발(주황)
+  rect(g, 8, 22 + yo, 3, 1, "O"); rect(g, 14, 22 + yo, 3, 1, "O");
+  return g;
+}
+
+// ============================================================
 // 캐릭터 사전
 // ============================================================
 function makeRender(buildFn, palette) {
@@ -1226,12 +1386,45 @@ export const CHARACTERS = {
     frames: 4,
     movement: { speed: 1.4, accel: 0.1, damping: 0.92, changeMs: [2000, 5000], area: { x: [0.05, 0.95], y: [0.05, 0.6] }, wobble: 0.12 },
   },
+  pup: {
+    id: "pup", name: "Kongi", premium: false, type: "animal",
+    render: makeRender(buildPup, PUP_PAL), build: buildPup, palette: PUP_PAL,
+    frames: 8,
+    movement: { speed: 1.9, accel: 0.12, damping: 0.9, changeMs: [1500, 3600], area: { x: [0.03, 0.97], y: [0.38, 0.94] }, wobble: 0.12 },
+  },
+  kit: {
+    id: "kit", name: "Nabi", premium: false, type: "animal",
+    render: makeRender(buildKit, KIT_PAL), build: buildKit, palette: KIT_PAL,
+    frames: 8,
+    movement: { speed: 1.55, accel: 0.09, damping: 0.92, changeMs: [2200, 5200], area: { x: [0.04, 0.96], y: [0.22, 0.88] }, wobble: 0.08 },
+  },
+  bunny: {
+    id: "bunny", name: "Mochi", premium: false, type: "animal",
+    render: makeRender(buildBunny, BUNNY_PAL), build: buildBunny, palette: BUNNY_PAL,
+    frames: 8,
+    movement: { speed: 2.15, accel: 0.16, damping: 0.86, changeMs: [1200, 3000], area: { x: [0.04, 0.96], y: [0.36, 0.93] }, wobble: 0.16 },
+  },
+  fox: {
+    id: "fox", name: "Popo", premium: true, type: "animal",
+    render: makeRender(buildFox, FOX_PAL), build: buildFox, palette: FOX_PAL,
+    frames: 8,
+    movement: { speed: 2.25, accel: 0.13, damping: 0.9, changeMs: [1500, 3600], area: { x: [0.03, 0.97], y: [0.26, 0.9] }, wobble: 0.1 },
+  },
+  hamster: {
+    id: "hamster", name: "Pengu", premium: true, type: "animal",
+    render: makeRender(buildHamster, HAM_PAL), build: buildHamster, palette: HAM_PAL,
+    frames: 8,
+    movement: { speed: 1.25, accel: 0.08, damping: 0.93, changeMs: [2600, 6200], area: { x: [0.05, 0.95], y: [0.45, 0.94] }, wobble: 0.11 },
+  },
 
   // === Pro (9종) ===
   rocket: {
     id: "rocket", name: "Rocket", premium: true, type: "flyer",
     render: makeRender(buildRocket, ROCKET_PAL), build: buildRocket, palette: ROCKET_PAL,
     frames: 8, orientToMovement: true,
+    // Rocket sprite is symmetric around column 11.5 (body 8-15, fins 5-7/16-18),
+    // so the exhaust centre is 11.5/24, not the grid centre 12/24.
+    effectAnchor: { x: 0.479, y: 0.86 },
     movement: { speed: 3.0, accel: 0.18, damping: 0.94, changeMs: [1200, 3000], area: { x: [0.05, 0.95], y: [0.05, 0.85] }, wobble: 0.04 },
   },
   saturn: {

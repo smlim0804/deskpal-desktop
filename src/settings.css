@@ -147,7 +147,7 @@ main {
   min-width: 0;
   overflow: visible;
   text-overflow: clip;
-  white-space: nowrap;
+  white-space: normal;
 }
 
 .tab-button.active {
@@ -547,6 +547,7 @@ input[type="checkbox"]:active {
 .control select,
 .shortcut-row input,
 .shortcut-row select,
+.shortcut-app-select,
 .custom-toolbar select,
 .custom-toolbar input,
 .custom-concept-field textarea,
@@ -619,22 +620,43 @@ input[type="range"] {
 
 .shortcut-row {
   display: grid;
-  grid-template-columns: minmax(82px, auto) minmax(0, 1fr) 44px;
+  grid-template-columns: 82px minmax(0, 1fr) 38px;
   gap: 8px;
   padding: 8px;
   border: 2px solid var(--line);
   background: #fffdf6;
+  align-items: center;
 }
 
 .shortcut-row input,
-.shortcut-row select {
+.shortcut-row select,
+.shortcut-app-select {
   min-width: 0;
-  height: 32px;
+  height: 34px;
   border: 2px solid var(--line);
   background: #fff;
   color: var(--ink);
-  padding: 0 7px;
+  padding: 0 9px;
   font-weight: 800;
+  line-height: 1.1;
+}
+
+.shortcut-row input {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.shortcut-app-select {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .shortcut-target,
@@ -644,7 +666,7 @@ input[type="range"] {
 
 .shortcut-tools {
   display: grid;
-  grid-template-columns: 42px repeat(3, minmax(0, 1fr));
+  grid-template-columns: 42px repeat(3, minmax(58px, 1fr));
   gap: 8px;
   align-items: center;
 }
@@ -672,12 +694,13 @@ input[type="range"] {
 .pick-button,
 .remove-button {
   min-width: 0;
-  padding: 0 5px;
-  font-size: clamp(10px, 3vw, 13px);
+  min-height: 32px;
+  padding: 0 7px;
+  font-size: 12px;
   font-weight: 900;
-  line-height: 1.15;
+  line-height: 1.1;
   text-overflow: clip;
-  white-space: nowrap;
+  white-space: normal;
 }
 
 .pick-button {
@@ -719,12 +742,13 @@ input[type="range"] {
 
 .custom-image-toolbar span {
   min-width: 0;
-  overflow: hidden;
+  overflow: visible;
   color: var(--muted);
   font-size: 10px;
   font-weight: 900;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  text-overflow: clip;
+  white-space: normal;
 }
 
 .custom-toolbar select,
@@ -980,6 +1004,7 @@ main {
 .control select,
 .shortcut-row input,
 .shortcut-row select,
+.shortcut-app-select,
 .custom-toolbar select,
 .custom-toolbar input,
 .custom-concept-field textarea,
@@ -1013,6 +1038,7 @@ main {
 .control select:focus-visible,
 .shortcut-row input:focus-visible,
 .shortcut-row select:focus-visible,
+.shortcut-app-select:focus-visible,
 .custom-toolbar select:focus-visible,
 .custom-toolbar input:focus-visible,
 .custom-concept-field textarea:focus-visible,
@@ -1106,4 +1132,112 @@ input[type="checkbox"]:checked {
 .footer-actions {
   gap: 12px;
   padding-bottom: 14px;
+}
+
+.topbar {
+  z-index: 30;
+}
+
+.section-tabs {
+  position: sticky;
+  top: 82px;
+  z-index: 24;
+  overflow: visible;
+  margin-top: -2px;
+  margin-bottom: 2px;
+}
+
+.tab-button {
+  overflow: visible;
+}
+
+.inline-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  margin-right: 7px;
+  border-radius: 999px;
+  color: #1d5ed8;
+  background: rgba(58, 135, 255, 0.1);
+  font-size: 11px;
+  line-height: 1;
+  vertical-align: -2px;
+}
+
+.switch-row > span,
+.field.full > span {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.switch-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 42px;
+  align-items: center;
+  min-height: 44px;
+  padding: 6px 2px;
+}
+
+.switch-row input[type="checkbox"] {
+  justify-self: end;
+  flex: 0 0 42px;
+}
+
+.ghost-controls {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 9px;
+  padding: 10px;
+  border-radius: 18px;
+  background: rgba(247, 249, 252, 0.74);
+  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.055);
+}
+
+.ghost-controls .field.full {
+  grid-column: 1 / -1;
+}
+
+.compact-switch {
+  min-height: 38px;
+  padding: 4px 0;
+}
+
+input[type="checkbox"] {
+  width: 42px;
+  height: 24px;
+  border: 0;
+  border-radius: 999px;
+  background: #e7edf5;
+  box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.06);
+}
+
+input[type="checkbox"]::after {
+  left: 4px;
+  top: 4px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.18);
+}
+
+input[type="checkbox"]:checked::after {
+  left: 22px;
+}
+
+.shortcut-image-preview {
+  overflow: visible;
+}
+
+.shortcut-image-preview img {
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
 }

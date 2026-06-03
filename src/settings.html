@@ -49,15 +49,45 @@
 
       <section class="panel compact" data-tab-panel="characters">
         <label class="switch-row">
-          <span data-i18n="companions">Companions</span>
+          <span><span class="inline-icon">◆</span><span data-i18n="companions">Companions</span></span>
           <input id="enabled" type="checkbox" />
         </label>
-        <label class="field full">
-          <span>FPS <strong id="fpsValue">16</strong></span>
-          <input id="fps" type="range" min="10" max="60" step="1" />
+        <label class="switch-row">
+          <span><span class="inline-icon">◌</span><span data-i18n="ghostMode">Ghost Mode</span></span>
+          <input id="ghostMode" type="checkbox" />
+        </label>
+        <div class="ghost-controls">
+          <label class="field full">
+            <span><span class="inline-icon">◷</span><span data-i18n="ghostDelay">Reappear after</span> <strong id="ghostDelayValue">3s</strong></span>
+            <input id="ghostDelaySeconds" type="range" min="1" max="15" step="1" />
+          </label>
+          <label class="switch-row compact-switch">
+            <span><span class="inline-icon">⌁</span><span data-i18n="ghostMouse">Mouse movement</span></span>
+            <input id="ghostTriggerMouse" type="checkbox" />
+          </label>
+          <label class="switch-row compact-switch">
+            <span><span class="inline-icon">⌨</span><span data-i18n="ghostKeyboard">Keyboard / wheel</span></span>
+            <input id="ghostTriggerKeyboard" type="checkbox" />
+          </label>
+          <label class="switch-row compact-switch">
+            <span><span class="inline-icon">⌁</span><span data-i18n="ghostWheel">Wheel</span></span>
+            <input id="ghostTriggerWheel" type="checkbox" />
+          </label>
+        </div>
+        <label class="switch-row">
+          <span><span class="inline-icon">▦</span><span data-i18n="backgroundMode">Run in background</span></span>
+          <input id="runInBackground" type="checkbox" />
+        </label>
+        <label class="switch-row">
+          <span><span class="inline-icon">▾</span><span data-i18n="showTrayIcon">Show tray icon</span></span>
+          <input id="showTrayIcon" type="checkbox" />
         </label>
         <label class="field full">
-          <span data-i18n="effectQuality">Effect quality</span>
+          <span><span class="inline-icon">▣</span>FPS <strong id="fpsValue">16</strong></span>
+          <input id="fps" type="range" min="10" max="120" step="1" />
+        </label>
+        <label class="field full">
+          <span><span class="inline-icon">✦</span><span data-i18n="effectQuality">Effect quality</span></span>
           <select id="performanceMode">
             <option value="saver">Saver</option>
             <option value="balanced">Balanced</option>
@@ -84,15 +114,6 @@
           <input id="customName" type="text" maxlength="32" placeholder="Custom name" />
           <button id="addCustom" class="mini-button add-custom-button" type="button" title="Add custom">+</button>
         </div>
-        <label class="field full custom-concept-field">
-          <span data-i18n="customConcept">Personality note</span>
-          <textarea
-            id="customConcept"
-            maxlength="420"
-            rows="3"
-            placeholder="Friendly tiny wizard who speaks softly and loves debugging."
-          ></textarea>
-        </label>
         <div class="custom-image-toolbar">
           <button id="customImagePick" class="pick-button" type="button">+ Image</button>
           <button id="customImageClear" class="remove-button" type="button">− Img</button>

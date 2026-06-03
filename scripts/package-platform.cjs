@@ -174,6 +174,18 @@ function writeLinuxDesktopFile(outDir) {
   fs.writeFileSync(path.join(outDir, "busypet-desktop.desktop"), desktopFile);
 }
 
+function removeOutputDir(outDir) {
+  for (let attempt = 0; attempt < 6; attempt += 1) {
+    try {
+      fs.rmSync(outDir, { recursive: true, force: true, maxRetries: 3, retryDelay: 120 });
+      return;
+    } catch (error) {
+      if (!["ENOTEMPTY", "EBUSY", "EPERM"].includes(error?.code) || attempt === 5) throw error;
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 140);
+    }
+  }
+}
+
 async function packageTarget(targetName) {
   const target = TARGETS[targetName];
   const outDir = path.join(DIST_DIR, target.outName);
@@ -181,7 +193,7 @@ async function packageTarget(targetName) {
   const zipPath = await ensureElectronZip(target);
   execFileSync(process.execPath, [path.join(ROOT, "scripts", "generate-icon.cjs")], { stdio: "inherit" });
 
-  fs.rmSync(outDir, { recursive: true, force: true });
+  removeOutputDir(outDir);
   ensureDir(outDir);
   await extractZip(zipPath, { dir: outDir });
   copyApp(appDir);

@@ -4,6 +4,14 @@ const api = window.busyPet;
 const slotList = document.getElementById("slotList");
 const shortcutList = document.getElementById("shortcutList");
 const enabled = document.getElementById("enabled");
+const ghostMode = document.getElementById("ghostMode");
+const ghostDelaySeconds = document.getElementById("ghostDelaySeconds");
+const ghostDelayValue = document.getElementById("ghostDelayValue");
+const ghostTriggerMouse = document.getElementById("ghostTriggerMouse");
+const ghostTriggerKeyboard = document.getElementById("ghostTriggerKeyboard");
+const ghostTriggerWheel = document.getElementById("ghostTriggerWheel");
+const runInBackground = document.getElementById("runInBackground");
+const showTrayIcon = document.getElementById("showTrayIcon");
 const fps = document.getElementById("fps");
 const fpsValue = document.getElementById("fpsValue");
 const performanceMode = document.getElementById("performanceMode");
@@ -18,7 +26,6 @@ const quitApp = document.getElementById("quitApp");
 const programExit = document.getElementById("programExit");
 const customSelect = document.getElementById("customSelect");
 const customName = document.getElementById("customName");
-const customConcept = document.getElementById("customConcept");
 const addCustom = document.getElementById("addCustom");
 const customImagePick = document.getElementById("customImagePick");
 const customImageClear = document.getElementById("customImageClear");
@@ -78,6 +85,13 @@ const I18N = {
     tabCustom: "Custom",
     tabLinks: "Links",
     companions: "Companions",
+    ghostMode: "Ghost Mode",
+    ghostDelay: "Reappear after",
+    ghostMouse: "Mouse",
+    ghostKeyboard: "Keyboard",
+    ghostWheel: "Wheel",
+    backgroundMode: "Run in background",
+    showTrayIcon: "Show tray icon",
     effectQuality: "Effect quality",
     characters: "Characters",
     characterHint: "Per-character settings",
@@ -112,14 +126,14 @@ const I18N = {
     exit: "Exit",
     apply: "Apply",
     pick: "Pick",
+    selectApp: "Select App",
+    noApp: "No app selected",
     dotGrid: "Dot Grid",
     imageStatus: "Image:",
     closeSettings: "Close settings",
     resetConfirm: "Reset BusyPet settings?",
     paintColor: "Paint color",
     customName: "Custom name",
-    customConcept: "Personality note",
-    customConceptPlaceholder: "Friendly tiny wizard who speaks softly and loves debugging.",
     effectPreview: "Effect direction preview",
     customGrid: "Custom pixel grid",
     customLimit: "Custom character limit reached.",
@@ -162,6 +176,13 @@ const I18N = {
     tabCustom: "커스텀",
     tabLinks: "링크",
     companions: "캐릭터 켜기",
+    ghostMode: "유령 모드",
+    ghostDelay: "복귀 대기",
+    ghostMouse: "마우스",
+    ghostKeyboard: "키보드",
+    ghostWheel: "휠",
+    backgroundMode: "백그라운드 실행",
+    showTrayIcon: "상태바에 표시",
     effectQuality: "이펙트 품질",
     characters: "캐릭터",
     characterHint: "캐릭터별 설정",
@@ -196,14 +217,14 @@ const I18N = {
     exit: "종료",
     apply: "적용",
     pick: "선택",
+    selectApp: "앱 선택",
+    noApp: "선택된 앱 없음",
     dotGrid: "도트 그리드",
     imageStatus: "사진:",
     closeSettings: "설정 닫기",
     resetConfirm: "BusyPet 설정을 초기화할까?",
     paintColor: "칠할 색",
     customName: "커스텀 이름",
-    customConcept: "성격 메모",
-    customConceptPlaceholder: "예: 말투가 다정한 작은 마법사. 디버깅을 좋아하고 조용히 조언함.",
     effectPreview: "이펙트 방향 미리보기",
     customGrid: "커스텀 픽셀 그리드",
     customLimit: "커스텀 캐릭터를 더 추가할 수 없어.",
@@ -291,7 +312,6 @@ function renderLanguage() {
   languageButton.title = t("language");
   quitApp.title = t("closeSettings");
   customName.placeholder = t("customName");
-  customConcept.placeholder = t("customConceptPlaceholder");
   paintColor.title = t("paintColor");
   pixelGrid.setAttribute("aria-label", t("customGrid"));
   effectTestCanvas.setAttribute("aria-label", t("effectPreview"));
@@ -353,7 +373,6 @@ function defaultCustomCharacter(index) {
     id: CUSTOM_IDS[index],
     name: `Custom ${index + 1}`,
     imagePath: "",
-    concept: "",
     pixels: blankPixels(),
     effectAnchor: { x: 0.5, y: 0.56 },
     effectDirection: "down",
@@ -376,7 +395,6 @@ function ensureCustomCharacters() {
       ...defaultCustomCharacter(index),
       ...existing,
       id: CUSTOM_IDS[index],
-      concept: String(existing.concept || "").trim().slice(0, 420),
       imagePath: String(existing.imagePath || ""),
       pixels: Array.isArray(existing.pixels)
         ? Array.from({ length: CUSTOM_CELL_COUNT }, (_item, pixelIndex) => existing.pixels[pixelIndex] || "")
@@ -637,12 +655,14 @@ function renderPixelGrid() {
 }
 
 function directionVector(direction) {
-  if (direction === "left") return { x: -1, y: 0, label: "X-" };
-  if (direction === "right") return { x: 1, y: 0, label: "X+" };
-  if (direction === "up") return { x: 0, y: -1, label: "Y-" };
-  return { x: 0, y: 1, label: "Y+" };
+  if (direction === "left") return { x: -1, y: 0, glyph: "←" };
+  if (direction === "right") return { x: 1, y: 0, glyph: "→" };
+  if (direction === "up") return { x: 0, y: -1, glyph: "↑" };
+  return { x: 0, y: 1, glyph: "↓" };
 }
 
+// A clean indicator: the sprite plus a bold arrow + colour stream that simply
+// shows which way the effect shoots out (no axes, coordinates, or START label).
 function drawEffectTest() {
   const canvas = effectTestCanvas;
   if (!canvas) return;
@@ -650,9 +670,12 @@ function drawEffectTest() {
   const width = canvas.width;
   const height = canvas.height;
   const character = selectedCustom();
-  const direction = directionVector(character.effectDirection);
-  const anchorGridX = Math.round((character.effectAnchor?.x ?? 0.5) * (CUSTOM_GRID_SIZE - 1));
-  const anchorGridY = Math.round((character.effectAnchor?.y ?? 0.56) * (CUSTOM_GRID_SIZE - 1));
+  const dirName = ["left", "right", "up", "down"].includes(character.effectDirection)
+    ? character.effectDirection
+    : "down";
+  const dir = directionVector(dirName);
+  const horizontal = dir.x !== 0;
+
   ctx.clearRect(0, 0, width, height);
   ctx.fillStyle = "#fffdf6";
   ctx.fillRect(0, 0, width, height);
@@ -660,70 +683,68 @@ function drawEffectTest() {
   ctx.lineWidth = 4;
   ctx.strokeRect(2, 2, width - 4, height - 4);
 
-  const originX = 176;
-  const originY = 18;
-  const axisW = 126;
-  const axisH = 52;
-  ctx.save();
-  ctx.strokeStyle = "rgba(32, 32, 36, 0.42)";
-  ctx.lineWidth = 2;
-  ctx.setLineDash([4, 3]);
-  ctx.beginPath();
-  ctx.moveTo(originX - 6, originY);
-  ctx.lineTo(originX + axisW, originY);
-  ctx.moveTo(originX, originY - 8);
-  ctx.lineTo(originX, originY + axisH);
-  ctx.stroke();
-  ctx.setLineDash([]);
-  ctx.fillStyle = "#202024";
-  ctx.font = "900 12px ui-monospace, Menlo, monospace";
-  ctx.fillText("X", originX + axisW - 8, originY - 5);
-  ctx.fillText("Y", originX + 7, originY + axisH - 2);
-  ctx.restore();
+  // Park the sprite on the side opposite the effect direction so the stream
+  // always has room to travel across the panel.
+  const spriteSize = horizontal ? 60 : 46;
+  const half = spriteSize / 2;
+  const pad = 16;
+  const cx = horizontal ? (dir.x > 0 ? pad + half : width - pad - half) : width / 2;
+  const cy = horizontal ? height / 2 : (dir.y > 0 ? pad + half : height - pad - half);
 
-  const spriteSize = 56;
-  const sx = 54;
-  const sy = 18;
   const temp = document.createElement("canvas");
   temp.width = spriteSize;
   temp.height = spriteSize;
-  drawCustomCharacter(temp.getContext("2d"), character, spriteSize, spriteSize, true);
-  ctx.drawImage(temp, sx, sy);
+  drawCustomCharacter(temp.getContext("2d"), character, spriteSize, spriteSize, false);
+  ctx.drawImage(temp, Math.round(cx - half), Math.round(cy - half));
 
-  const anchorX = sx + spriteSize * (character.effectAnchor?.x ?? 0.5);
-  const anchorY = sy + spriteSize * (character.effectAnchor?.y ?? 0.56);
-  const length = 42 + effectTestPulse * 12;
-  const endX = anchorX + direction.x * length;
-  const endY = anchorY + direction.y * length;
-  const hueBase = 20 + effectTestPulse * 180;
-  for (let i = 0; i < 10; i += 1) {
-    const t = i / 9;
-    ctx.fillStyle = `hsl(${(hueBase + i * 24) % 360} 95% 62%)`;
-    ctx.globalAlpha = 0.9 - t * 0.55;
-    const px = Math.round(anchorX + (endX - anchorX) * t - 4);
-    const py = Math.round(anchorY + (endY - anchorY) * t - 4 + Math.sin(t * Math.PI * 2 + effectTestPulse) * 2);
-    ctx.fillRect(px, py, 8, 8);
+  const avail = horizontal
+    ? (dir.x > 0 ? width - pad - (cx + half) : cx - half - pad)
+    : (dir.y > 0 ? height - pad - (cy + half) : cy - half - pad);
+  const reach = Math.max(20, avail);
+  const originX = cx + dir.x * (half + 2);
+  const originY = cy + dir.y * (half + 2);
+  const perpX = -dir.y;
+  const perpY = dir.x;
+
+  // Colour-stream particles flowing outward in the chosen direction.
+  const hueBase = 18 + effectTestPulse * 170;
+  const count = 7;
+  for (let i = 0; i < count; i += 1) {
+    const t = (i + 0.5) / count;
+    const dist = t * reach * (0.7 + effectTestPulse * 0.3);
+    const wob = Math.sin(t * 7 + effectTestPulse * 4) * 3;
+    const px = originX + dir.x * dist + perpX * wob;
+    const py = originY + dir.y * dist + perpY * wob;
+    const box = Math.max(3, 9 - i);
+    ctx.fillStyle = `hsl(${(hueBase + i * 24) % 360} 92% 60%)`;
+    ctx.globalAlpha = 0.95 - t * 0.55;
+    ctx.fillRect(Math.round(px - box / 2), Math.round(py - box / 2), box, box);
   }
   ctx.globalAlpha = 1;
+
+  // Bold direction arrow.
+  const arrowLen = Math.min(reach, 40);
+  const ax1 = originX + dir.x * arrowLen;
+  const ay1 = originY + dir.y * arrowLen;
+  const head = 9;
   ctx.strokeStyle = "#202024";
-  ctx.lineWidth = 3;
+  ctx.lineWidth = 4;
   ctx.beginPath();
-  ctx.moveTo(anchorX, anchorY);
-  ctx.lineTo(endX, endY);
+  ctx.moveTo(originX, originY);
+  ctx.lineTo(ax1, ay1);
   ctx.stroke();
   ctx.beginPath();
-  ctx.moveTo(endX, endY);
-  ctx.lineTo(endX - 5 * direction.x - 4 * Math.abs(direction.y), endY - 5 * direction.y - 4 * Math.abs(direction.x));
-  ctx.lineTo(endX - 5 * direction.x + 4 * Math.abs(direction.y), endY - 5 * direction.y + 4 * Math.abs(direction.x));
+  ctx.moveTo(ax1, ay1);
+  ctx.lineTo(ax1 - dir.x * head + perpX * head, ay1 - dir.y * head + perpY * head);
+  ctx.lineTo(ax1 - dir.x * head - perpX * head, ay1 - dir.y * head - perpY * head);
   ctx.closePath();
   ctx.fillStyle = "#202024";
   ctx.fill();
+
+  // Big direction glyph in the corner.
   ctx.fillStyle = "#202024";
-  ctx.font = "900 14px ui-monospace, Menlo, monospace";
-  ctx.fillText(direction.label, 18, 22);
-  ctx.fillText(`x:${anchorGridX} y:${anchorGridY}`, 178, 36);
-  ctx.font = "900 10px ui-monospace, Menlo, monospace";
-  ctx.fillText("START", Math.max(10, anchorX - 18), Math.max(14, anchorY - 10));
+  ctx.font = "900 24px ui-monospace, Menlo, monospace";
+  ctx.fillText(dir.glyph, 14, 32);
 }
 
 function paintPixel(index) {
@@ -755,7 +776,6 @@ function renderCustomEditor() {
   const character = selectedCustom();
   renderCustomSelector();
   customName.value = character.name;
-  customConcept.value = character.concept || "";
   customImageStatus.textContent = character.imagePath
     ? `${t("imageStatus")} ${fileNameFromPath(character.imagePath)}`
     : t("dotGrid");
@@ -965,6 +985,38 @@ function label(text) {
   return node;
 }
 
+async function chooseAppShortcut(index) {
+  const result = await api.pickAppShortcut();
+  // A queued save can swap out the whole `settings` object while the native
+  // picker is open, so re-acquire the shortcut by index instead of holding a
+  // stale reference — otherwise the very first pick is silently dropped and
+  // the user has to add the app twice.
+  const shortcut = settings.shortcuts[index];
+  if (!shortcut) return false;
+  if (!result?.ok) return false;
+  shortcut.type = "app";
+  shortcut.name = result.name || shortcut.name || t("app");
+  shortcut.appPath = result.appPath;
+  shortcut.imagePath = result.imagePath || shortcut.imagePath || "";
+  delete shortcut.url;
+  renderShortcuts();
+  scheduleSave(true);
+  return true;
+}
+
+function switchShortcutToWeb(shortcut) {
+  shortcut.type = "web";
+  delete shortcut.appPath;
+  delete shortcut.imagePath;
+  shortcut.url ||= "https://";
+}
+
+function switchShortcutToAppDraft(shortcut) {
+  shortcut.type = "app";
+  delete shortcut.url;
+  shortcut.appPath ||= "";
+}
+
 function renderShortcuts() {
   shortcutList.innerHTML = "";
   settings.shortcutDisplayMode = ["both", "image", "name"].includes(settings.shortcutDisplayMode)
@@ -981,15 +1033,22 @@ function renderShortcuts() {
     const type = document.createElement("select");
     type.append(makeOption("web", t("web")), makeOption("app", t("app")));
     type.value = shortcut.type;
-    type.addEventListener("change", () => {
-      shortcut.type = type.value;
-      if (shortcut.type === "app") {
-        delete shortcut.url;
-        shortcut.appPath ||= "";
-      } else {
-        delete shortcut.appPath;
-        shortcut.url ||= "https://";
+    type.addEventListener("change", async () => {
+      if (type.value === "app") {
+        switchShortcutToAppDraft(shortcut);
+        renderShortcuts();
+        const picked = await chooseAppShortcut(index);
+        if (!picked) {
+          const current = settings.shortcuts[index];
+          if (current) {
+            switchShortcutToWeb(current);
+            renderShortcuts();
+            scheduleSave(true);
+          }
+        }
+        return;
       }
+      switchShortcutToWeb(shortcut);
       renderShortcuts();
       scheduleSave();
     });
@@ -1002,16 +1061,25 @@ function renderShortcuts() {
       shortcut.name = value;
     });
 
-    const target = document.createElement("input");
-    target.className = "shortcut-target";
-    target.type = "text";
-    target.inputMode = shortcut.type === "web" ? "url" : "text";
-    target.placeholder = shortcut.type === "web" ? "https://example.com" : appPathPlaceholder();
-    target.value = shortcut.type === "web" ? shortcut.url || "" : shortcut.appPath || "";
-    bindTextInput(target, (value) => {
-      if (shortcut.type === "web") shortcut.url = value;
-      else shortcut.appPath = value;
-    });
+    let target;
+    if (shortcut.type === "app") {
+      target = document.createElement("button");
+      target.className = "shortcut-target shortcut-app-select";
+      target.type = "button";
+      target.textContent = shortcut.appPath ? shortcut.name || t("app") : t("selectApp");
+      target.title = shortcut.appPath || t("noApp");
+      target.addEventListener("click", () => chooseAppShortcut(index));
+    } else {
+      target = document.createElement("input");
+      target.className = "shortcut-target";
+      target.type = "text";
+      target.inputMode = "url";
+      target.placeholder = "https://example.com";
+      target.value = shortcut.url || "";
+      bindTextInput(target, (value) => {
+        shortcut.url = value;
+      });
+    }
 
     const tools = document.createElement("div");
     tools.className = "shortcut-tools";
@@ -1063,14 +1131,8 @@ function renderShortcuts() {
     pick.disabled = shortcut.type !== "app";
     pick.tabIndex = shortcut.type === "app" ? 0 : -1;
     pick.setAttribute("aria-hidden", shortcut.type === "app" ? "false" : "true");
-    pick.addEventListener("click", async () => {
-      const result = await api.pickAppShortcut();
-      if (!result?.ok) return;
-      shortcut.type = "app";
-      shortcut.name = shortcut.name || result.name;
-      shortcut.appPath = result.appPath;
-      renderShortcuts();
-      scheduleSave(true);
+    pick.addEventListener("click", () => {
+      chooseAppShortcut(index);
     });
     tools.append(imagePreview, imagePick, imageClear, pick);
 
@@ -1093,6 +1155,15 @@ function render() {
   settings.language = ["en", "ko"].includes(settings.language) ? settings.language : "en";
   renderLanguage();
   enabled.checked = settings.enabled !== false;
+  ghostMode.checked = settings.ghostMode !== false;
+  const nextGhostDelay = Math.round(Number(settings.ghostDelaySeconds || 3));
+  ghostDelaySeconds.value = String(nextGhostDelay);
+  ghostDelayValue.textContent = `${nextGhostDelay}s`;
+  ghostTriggerMouse.checked = settings.ghostTriggerMouse !== false;
+  ghostTriggerKeyboard.checked = settings.ghostTriggerKeyboard !== false;
+  ghostTriggerWheel.checked = settings.ghostTriggerWheel !== false;
+  runInBackground.checked = settings.runInBackground !== false;
+  showTrayIcon.checked = settings.showTrayIcon !== false;
   const nextFps = Math.round(Number(settings.fps || 16));
   fps.value = String(nextFps);
   fpsValue.textContent = String(nextFps);
@@ -1118,6 +1189,43 @@ function animatePreviews() {
 
 enabled.addEventListener("change", () => {
   settings.enabled = enabled.checked;
+  scheduleSave(true);
+});
+
+ghostMode.addEventListener("change", () => {
+  settings.ghostMode = ghostMode.checked;
+  scheduleSave(true);
+});
+
+ghostDelaySeconds.addEventListener("input", () => {
+  const value = Math.round(Number(ghostDelaySeconds.value));
+  ghostDelayValue.textContent = `${value}s`;
+  settings.ghostDelaySeconds = value;
+  scheduleSave();
+});
+
+ghostTriggerMouse.addEventListener("change", () => {
+  settings.ghostTriggerMouse = ghostTriggerMouse.checked;
+  scheduleSave(true);
+});
+
+ghostTriggerKeyboard.addEventListener("change", () => {
+  settings.ghostTriggerKeyboard = ghostTriggerKeyboard.checked;
+  scheduleSave(true);
+});
+
+ghostTriggerWheel.addEventListener("change", () => {
+  settings.ghostTriggerWheel = ghostTriggerWheel.checked;
+  scheduleSave(true);
+});
+
+runInBackground.addEventListener("change", () => {
+  settings.runInBackground = runInBackground.checked;
+  scheduleSave(true);
+});
+
+showTrayIcon.addEventListener("change", () => {
+  settings.showTrayIcon = showTrayIcon.checked;
   scheduleSave(true);
 });
 
@@ -1173,10 +1281,6 @@ customSelect.addEventListener("change", () => {
 bindTextInput(customName, (value) => {
   const character = selectedCustom();
   character.name = value.trim().slice(0, 32) || `Custom ${selectedCustomIndex + 1}`;
-});
-
-bindTextInput(customConcept, (value) => {
-  selectedCustom().concept = value.trim().slice(0, 420);
 });
 
 addCustom.addEventListener("click", () => {
