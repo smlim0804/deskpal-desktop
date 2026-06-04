@@ -7,19 +7,19 @@ const PACKAGE_JSON = require("../package.json");
 const DIST_DIR = path.join(ROOT, "dist");
 const RELEASE_DIR = path.join(ROOT, "release");
 const TARGET_ARCH = architectureFromArg(process.argv[2]);
-const SOURCE_DIR = path.join(DIST_DIR, `DeskPal Desktop-linux-${TARGET_ARCH.releaseSuffix}`);
+const SOURCE_DIR = path.join(DIST_DIR, `DeskPal-linux-${TARGET_ARCH.releaseSuffix}`);
 const PACKAGE_ROOT = path.join(DIST_DIR, "deb", `deskpal-desktop-${TARGET_ARCH.debArch}`);
 const INSTALL_DIR = path.join(PACKAGE_ROOT, "opt", "deskpal-desktop");
 const DESKTOP_DIR = path.join(PACKAGE_ROOT, "usr", "share", "applications");
 const ICON_DIR = path.join(PACKAGE_ROOT, "usr", "share", "icons", "hicolor", "scalable", "apps");
 const BIN_DIR = path.join(PACKAGE_ROOT, "usr", "bin");
 const DEBIAN_DIR = path.join(PACKAGE_ROOT, "DEBIAN");
-const OUTPUT = path.join(RELEASE_DIR, `DeskPal-Desktop-Ubuntu-${TARGET_ARCH.releaseSuffix}.deb`);
+const OUTPUT = path.join(RELEASE_DIR, `DeskPal-Ubuntu-${TARGET_ARCH.releaseSuffix}.deb`);
 
 const DESKTOP_FILE = [
   "[Desktop Entry]",
   "Type=Application",
-  "Name=DeskPal Desktop",
+  "Name=DeskPal",
   "Comment=Desktop pixel companions",
   "Exec=/opt/deskpal-desktop/deskpal-desktop",
   "Icon=deskpal-desktop",
@@ -97,7 +97,7 @@ function writeControlFile() {
     "Maintainer: smlim0804 <smlim0804@users.noreply.github.com>",
     "Depends: libgtk-3-0, libnss3, libxss1, libgbm1, libasound2 | libasound2t64, libatk-bridge2.0-0",
     "Description: Desktop pixel companions",
-    " DeskPal Desktop adds small pixel companions that roam on top of the desktop.",
+    " DeskPal adds small pixel companions that roam on top of the desktop.",
     "",
   ].join("\n");
 

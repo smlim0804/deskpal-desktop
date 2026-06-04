@@ -3,11 +3,11 @@ const path = require("path");
 const { execFileSync } = require("child_process");
 
 const ROOT = path.resolve(__dirname, "..");
-const APP_NAME = "DeskPal Desktop";
+const APP_NAME = "DeskPal";
 const ARCH = process.env.DESKPAL_ARCH || process.arch;
 const APP_PATH = path.join(ROOT, "dist", `${APP_NAME}-darwin-${ARCH}`, `${APP_NAME}.app`);
 const RELEASE_DIR = path.join(ROOT, "release", "installers");
-const OUTPUT = path.join(RELEASE_DIR, `DeskPal-Desktop-macOS-${ARCH}.dmg`);
+const OUTPUT = path.join(RELEASE_DIR, `DeskPal-macOS-${ARCH}.dmg`);
 
 if (process.platform !== "darwin") {
   throw new Error("DMG packaging must run on macOS.");

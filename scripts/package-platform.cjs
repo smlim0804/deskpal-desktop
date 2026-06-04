@@ -6,7 +6,7 @@ const { execFileSync } = require("child_process");
 const extractZip = require("extract-zip");
 
 const ROOT = path.resolve(__dirname, "..");
-const APP_NAME = "DeskPal Desktop";
+const APP_NAME = "DeskPal";
 const APP_ID = "com.deskpal.desktop";
 const DIST_DIR = path.join(ROOT, "dist");
 const CACHE_DIR = path.join(ROOT, ".cache", "electron");

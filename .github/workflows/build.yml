@@ -1,4 +1,4 @@
-name: Build DeskPal Desktop
+name: Build DeskPal
 
 on:
   push:
@@ -24,12 +24,12 @@ jobs:
             os: macos-14
             script: installer:mac
             signing: mac
-            artifact: "DeskPal Desktop-macOS"
+            artifact: "DeskPal-macOS"
           - name: Windows x64
             os: windows-latest
             script: installer:win
             signing: ""
-            artifact: "DeskPal Desktop-win32-x64"
+            artifact: "DeskPal-win32-x64"
 
     steps:
       - name: Checkout
@@ -88,5 +88,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact }}
-          path: release/installers/*
+          path: release/installers/DeskPal-*
           if-no-files-found: error

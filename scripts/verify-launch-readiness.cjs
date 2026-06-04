@@ -4,8 +4,8 @@ const path = require("path");
 const root = path.resolve(__dirname, "..");
 const releaseApi = "https://api.github.com/repos/smlim0804/deskpal-downloads/releases/latest";
 const expectedAssets = [
-  "DeskPal-Desktop-macOS-arm64.dmg",
-  "DeskPal-Desktop-Windows-x64.exe",
+  "DeskPal-macOS-arm64.dmg",
+  "DeskPal-Windows-x64.exe",
 ];
 
 function readText(...segments) {
@@ -90,7 +90,7 @@ async function main() {
   const characters = readText("src", "characters.js");
 
   assert(pkg.name === "deskpal-desktop", "package name must be deskpal-desktop");
-  assert(pkg.build?.productName === "DeskPal Desktop", "Electron productName must be DeskPal Desktop");
+  assert(pkg.build?.productName === "DeskPal", "Electron productName must be DeskPal");
   assert(pkg.build?.appId === "com.deskpal.desktop", "Electron appId must be com.deskpal.desktop");
   assert(/^\d+\.\d+\.\d+$/.test(pkg.version), "package version must be a stable semver");
 

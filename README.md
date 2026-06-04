@@ -1,4 +1,4 @@
-# DeskPal Desktop
+# DeskPal
 
 Desktop version of DeskPal. It runs as a transparent always-on-top overlay, so pixel companions can walk around the computer screen instead of only inside Chrome.
 
@@ -29,16 +29,16 @@ npm run installer:desktop
 Outputs:
 
 ```text
-dist/DeskPal Desktop-darwin-arm64/DeskPal Desktop.app
-dist/DeskPal Desktop-win32-x64/DeskPal Desktop.exe
-release/installers/DeskPal-Desktop-macOS-arm64.dmg
-release/installers/DeskPal-Desktop-Windows-x64.exe
+dist/DeskPal-darwin-arm64/DeskPal.app
+dist/DeskPal-win32-x64/DeskPal.exe
+release/installers/DeskPal-macOS-arm64.dmg
+release/installers/DeskPal-Windows-x64.exe
 ```
 
 On this Mac:
 
 ```bash
-open "/Users/limsungmin/Desktop/codex_product/deskpal_desktop/dist/DeskPal Desktop-darwin-arm64/DeskPal Desktop.app"
+open "/Users/limsungmin/Desktop/codex_product/deskpal_desktop/dist/DeskPal-darwin-arm64/DeskPal.app"
 ```
 
 macOS downloaded release:
@@ -50,14 +50,14 @@ macOS downloaded release:
 - For local testing of an unsigned download only:
 
 ```bash
-xattr -dr com.apple.quarantine "/Applications/DeskPal Desktop.app"
-open "/Applications/DeskPal Desktop.app"
+xattr -dr com.apple.quarantine "/Applications/DeskPal.app"
+open "/Applications/DeskPal.app"
 ```
 
 Windows:
 
 ```powershell
-& ".\dist\DeskPal Desktop-win32-x64\DeskPal Desktop.exe"
+& ".\dist\DeskPal-win32-x64\DeskPal.exe"
 ```
 
 The app opens two windows:
@@ -67,8 +67,8 @@ The app opens two windows:
 
 Public releases are intentionally macOS + Windows only right now:
 
-- macOS: `DeskPal-Desktop-macOS-arm64.dmg`
-- Windows: `DeskPal-Desktop-Windows-x64.exe`
+- macOS: `DeskPal-macOS-arm64.dmg`
+- Windows: `DeskPal-Windows-x64.exe`
 
 Older Linux packaging scripts are kept in the repo for experimentation, but Linux artifacts should not be uploaded to public releases unless the Linux click-through behavior is tested again.
 
@@ -92,10 +92,10 @@ Release flow:
 npm run check
 npm run installer:desktop
 gh release create vX.Y.Z \
-  release/installers/DeskPal-Desktop-macOS-arm64.dmg \
-  release/installers/DeskPal-Desktop-Windows-x64.exe \
+  release/installers/DeskPal-macOS-arm64.dmg \
+  release/installers/DeskPal-Windows-x64.exe \
   -R smlim0804/deskpal-downloads \
-  --title "DeskPal Desktop vX.Y.Z" \
+  --title "DeskPal vX.Y.Z" \
   --notes "macOS DMG and Windows EXE only."
 npm run verify:launch
 ```

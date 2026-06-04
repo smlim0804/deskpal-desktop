@@ -5,7 +5,7 @@ const { execFileSync } = require("child_process");
 
 const ROOT = path.resolve(__dirname, "..");
 const PACKAGE_JSON = require(path.join(ROOT, "package.json"));
-const APP_NAME = "DeskPal Desktop";
+const APP_NAME = "DeskPal";
 const APP_VERSION = PACKAGE_JSON.version || "0.0.0";
 const ARCH = process.env.DESKPAL_ARCH || process.arch;
 const FINAL_OUT_DIR = path.join(ROOT, "dist", `${APP_NAME}-darwin-${ARCH}`);

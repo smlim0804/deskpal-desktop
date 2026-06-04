@@ -1,6 +1,6 @@
 {
   "name": "deskpal-desktop",
-  "version": "0.2.9",
+  "version": "0.3.0",
   "description": "Desktop pixel companions for DeskPal.",
   "type": "module",
   "main": "src/main.cjs",
@@ -47,7 +47,7 @@
   },
   "build": {
     "appId": "com.deskpal.desktop",
-    "productName": "DeskPal Desktop",
+    "productName": "DeskPal",
     "asar": false,
     "directories": {
       "output": "release/installers"
@@ -70,7 +70,7 @@
         }
       ],
       "icon": "build/icon.ico",
-      "artifactName": "DeskPal-Desktop-Windows-x64.${ext}"
+      "artifactName": "DeskPal-Windows-x64.${ext}"
     }
   }
 }
