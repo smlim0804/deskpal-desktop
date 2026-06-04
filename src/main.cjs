@@ -1394,6 +1394,52 @@ async function activateLicenseKey(licenseKey) {
   return { ok: true, license: settings.license };
 }
 
+async function syncOwnerLicense() {
+  if (hasProLicense(settings)) return { ok: true, skipped: true };
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 2500);
+  try {
+    const response = await fetch(LICENSE_API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      signal: controller.signal,
+      body: JSON.stringify({
+        action: "owner-status",
+        product: "deskpal",
+        plan: "pro",
+        machineId: getMachineId(),
+        appVersion: app.getVersion(),
+        platform: process.platform,
+      }),
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok || !result?.ok || result.status !== "active") {
+      return { ok: false, owner: false };
+    }
+
+    settings.license = normalizeLicense({
+      plan: "pro",
+      status: "active",
+      key: result.licenseKey || "OWNER-DESKPAL-PRO",
+      email: result.email || "",
+      activatedAt: Date.now(),
+      lastCheckedAt: Date.now(),
+      deviceLimit: result.deviceLimit || 1,
+      activatedDevices: result.activatedDevices || 1,
+      message: result.message || "Owner premium active.",
+    });
+    settings = normalizeSettings(settings);
+    saveSettings();
+    broadcastSettings();
+    return { ok: true, owner: true };
+  } catch (error) {
+    return { ok: false, error: error?.message || "Owner license sync failed." };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 function normalizeVersion(value) {
   return String(value || "").trim().replace(/^v/i, "").split(/[+-]/)[0];
 }
@@ -1968,8 +2014,11 @@ if (gotSingleInstanceLock) {
     }
   });
 
-  app.whenReady().then(() => {
+  app.whenReady().then(async () => {
     loadSettings();
+    await syncOwnerLicense().catch((error) => {
+      console.warn("Owner license sync failed", error?.message || error);
+    });
     applyAppIcon();
     refreshSystemStatsCache({ force: true });
     buildMenu();
