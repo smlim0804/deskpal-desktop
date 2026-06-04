@@ -17,6 +17,7 @@ contextBridge.exposeInMainWorld("busyPet", {
       ignore: !!ignore,
       preserveFocus: options?.preserveFocus === true,
     }),
+  setOverlayIdle: (idle) => ipcRenderer.send("overlay:idle", idle === true),
   openSettings: () => ipcRenderer.send("settings:show"),
   closeSettings: () => ipcRenderer.send("settings:hide"),
   quit: () => ipcRenderer.send("app:quit"),

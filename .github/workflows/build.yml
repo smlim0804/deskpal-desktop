@@ -22,13 +22,13 @@ jobs:
         include:
           - name: macOS arm64
             os: macos-14
-            script: package:mac
-            archive: mac
+            script: installer:mac
+            signing: mac
             artifact: "BusyPet Desktop-macOS"
           - name: Windows x64
             os: windows-latest
-            script: package:win
-            archive: win
+            script: installer:win
+            signing: ""
             artifact: "BusyPet Desktop-win32-x64"
 
     steps:
@@ -48,7 +48,7 @@ jobs:
         run: npm run check
 
       - name: Import Apple signing certificate
-        if: matrix.archive == 'mac'
+        if: matrix.signing == 'mac'
         shell: bash
         env:
           APPLE_CERTIFICATE_BASE64: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
@@ -84,12 +84,9 @@ jobs:
           APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
         run: npm run ${{ matrix.script }}
 
-      - name: Archive
-        run: npm run archive:${{ matrix.archive }}
-
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact }}
-          path: release/*
+          path: release/installers/*
           if-no-files-found: error

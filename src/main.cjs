@@ -248,6 +248,7 @@ let overlayWindow = null;
 let settingsWindow = null;
 let settings = clone(DEFAULT_SETTINGS);
 let cursorTimer = null;
+let cursorWatchIdle = false;
 let ignoringMouse = true;
 let pendingAreaPick = null;
 let lastCpuSample = null;
@@ -1360,7 +1361,7 @@ function createSettingsWindow() {
   });
 
   settingsWindow.loadFile(path.join(__dirname, "settings.html"));
-  settingsWindow.on("close", (event) => {
+  settingsWindow.on("close", () => {
     if (app.isQuitting) return;
     // When background mode is off, closing the window quits the whole app
     // instead of leaving it alive in the tray/menu bar.
@@ -1369,8 +1370,9 @@ function createSettingsWindow() {
       app.quit();
       return;
     }
-    event.preventDefault();
-    settingsWindow.hide();
+    // Background mode: let the window actually close so its renderer's memory is
+    // reclaimed. The overlay keeps the app alive and showSettingsWindow()
+    // re-creates this window on demand.
   });
   settingsWindow.on("closed", () => {
     settingsWindow = null;
@@ -1412,8 +1414,11 @@ function setOverlayClickThrough(ignore, options = {}) {
 
 function startCursorWatch() {
   stopCursorWatch();
-  cursorTimer = setInterval(() => {
-    if (!overlayWindow || overlayWindow.isDestroyed()) return;
+  const poll = () => {
+    if (!overlayWindow || overlayWindow.isDestroyed()) {
+      cursorTimer = null;
+      return;
+    }
     const bounds = overlayWindow.getBounds();
     const point = screen.getCursorScreenPoint();
     overlayWindow.webContents.send("cursor:point", {
@@ -1421,11 +1426,16 @@ function startCursorWatch() {
       y: point.y - bounds.y,
       idleMs: systemInputIdleMs(),
     });
-  }, 72);
+    // 72ms while pets are visible (smooth follow/avoid); ease to 240ms while
+    // they are hidden — hidden pets ignore the cursor, so this just keeps
+    // feeding idle time for ghost reappear.
+    cursorTimer = setTimeout(poll, cursorWatchIdle ? 240 : 72);
+  };
+  poll();
 }
 
 function stopCursorWatch() {
-  if (cursorTimer) clearInterval(cursorTimer);
+  if (cursorTimer) clearTimeout(cursorTimer);
   cursorTimer = null;
 }
 
@@ -1599,16 +1609,16 @@ ipcMain.on("overlay:click-through", (_event, payload) => {
   setOverlayClickThrough(payload);
 });
 
+ipcMain.on("overlay:idle", (_event, idle) => {
+  cursorWatchIdle = idle === true;
+});
+
 ipcMain.on("settings:show", showSettingsWindow);
 
 ipcMain.on("settings:hide", () => {
-  if (!settingsWindow || settingsWindow.isDestroyed()) return;
-  if (settings.runInBackground === false) {
-    app.isQuitting = true;
-    app.quit();
-    return;
-  }
-  settingsWindow.hide();
+  // Closing (rather than hiding) frees the settings renderer; the window 'close'
+  // handler decides whether to quit (background off) or just close (background on).
+  if (settingsWindow && !settingsWindow.isDestroyed()) settingsWindow.close();
 });
 
 ipcMain.on("app:quit", () => {
@@ -1630,7 +1640,8 @@ if (gotSingleInstanceLock) {
     buildMenu();
     syncTray();
     createOverlayWindow();
-    createSettingsWindow();
+    // Settings is a whole extra renderer (~30-50MB); create it lazily on first
+    // open instead of holding that memory for a window most users rarely touch.
     hydrateShortcutIcons();
     if (!settings.enabled || !settings.slots.some((slot) => slot.enabled !== false)) {
       showSettingsWindow();

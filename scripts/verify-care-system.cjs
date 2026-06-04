@@ -98,6 +98,9 @@ assert(!tick.includes("maybeCareQuirkReactions"), "tick must not run old quirk r
 assert(tick.includes("refreshSystemStats()"), "tick must refresh system stats");
 assert(tick.includes("recordFrameHealth(now, dt, profile)"), "tick must detect long frames");
 assert(tick.includes("updateGhostMode(now)"), "tick must restore pets after mouse goes quiet");
+includes(overlay, "function wakeTick", "loop paces itself instead of always re-requesting animation frames");
+includes(overlay, "window.setTimeout(wakeTick, 160)", "loop idles to ~160ms polling when nothing is animating");
+includes(overlay, "const petsActive = !ghostHidden && pets.some", "loop idles while pets are ghost-hidden");
 assert(tick.includes("ghostMotionFrozen(now)"), "tick must freeze pets while fully ghosted");
 assert(tick.includes("freezePetForGhost(pet, now)"), "tick must keep hidden pets in place");
 
@@ -126,6 +129,9 @@ includes(main, "function systemStats", "system stats function");
 includes(main, "function systemInputIdleMs", "system input idle function");
 includes(main, "powerMonitor.getSystemIdleTime()", "Electron input idle source");
 includes(main, "idleMs: systemInputIdleMs()", "cursor payload includes input idle");
+includes(main, "cursorWatchIdle ? 240 : 72", "cursor poll eases off while pets are hidden");
+includes(main, 'ipcMain.on("overlay:idle"', "main listens for the overlay idle hint");
+includes(overlay, "api.setOverlayIdle(hidden)", "overlay tells main when pets hide so the cursor poll can ease off");
 includes(main, "function memoryStats", "corrected memory stats function");
 includes(main, "function memoryStatsFallback", "cross-platform memory stats fallback");
 includes(main, "function electronMemoryStats", "cache-aware memory stats via Electron");

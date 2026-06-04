@@ -115,6 +115,7 @@ let effectParticles = [];
 let desktopObjects = [];
 let effectsDirty = false;
 let animationFrameId = null;
+let tickTimer = null;
 let aquariumSignature = "";
 let autoTalkBusy = false;
 let nextAutoTalkAt = 0;
@@ -14144,6 +14145,9 @@ function setGhostHidden(hidden) {
       wakePet(pet, 0.76);
     }
   }
+  // Tell main to ease off the high-frequency cursor poll while pets are hidden
+  // (you are working) — they don't follow/avoid the cursor when hidden.
+  if (typeof api.setOverlayIdle === "function") api.setOverlayIdle(hidden);
 }
 
 function ghostShowDelayMs() {
@@ -20111,9 +20115,39 @@ function startAreaPicker(payload) {
   });
 }
 
+function wakeTick() {
+  tickTimer = null;
+  tick(performance.now());
+}
+
+// The loop used to re-request an animation frame every display refresh
+// (60-120 Hz) no matter the FPS setting, and kept running at full rate even
+// while every pet was ghost-hidden (i.e. while you are actively working). Pace
+// it instead: poll slowly when nothing is animating, run at the chosen frame
+// rate for low FPS, and only fall back to rAF for high FPS. Motion is dt-scaled
+// so speed is unchanged.
 function scheduleTick() {
-  if (animationFrameId) window.cancelAnimationFrame(animationFrameId);
-  animationFrameId = window.requestAnimationFrame(tick);
+  if (animationFrameId) {
+    window.cancelAnimationFrame(animationFrameId);
+    animationFrameId = null;
+  }
+  if (tickTimer) {
+    window.clearTimeout(tickTimer);
+    tickTimer = null;
+  }
+  const live = effectParticles.length > 0 || desktopObjects.length > 0 || activePet || areaPicker;
+  const petsActive = !ghostHidden && pets.some((pet) => pet.enabled);
+  if (!live && !petsActive) {
+    // Idle: just poll often enough to notice ghost reappear / new activity.
+    tickTimer = window.setTimeout(wakeTick, 160);
+    return;
+  }
+  const frameMs = performanceProfile().frameMs;
+  if (frameMs >= 21) {
+    tickTimer = window.setTimeout(wakeTick, frameMs);
+  } else {
+    animationFrameId = window.requestAnimationFrame(tick);
+  }
 }
 
 function tick(now) {

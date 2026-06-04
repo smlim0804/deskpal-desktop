@@ -8,7 +8,7 @@
     "start": "node node_modules/electron/cli.js .",
     "dev": "node node_modules/electron/cli.js .",
     "icons": "node scripts/generate-icon.cjs",
-    "check": "node --check src/main.cjs && node --check src/preload.cjs && node --check src/overlay.js && node --check src/settings.js && node --check src/characters.js && node --check src/interaction-variety.js && node --check scripts/generate-icon.cjs && node --check scripts/package-mac.cjs && node --check scripts/package-platform.cjs && node --check scripts/package-deb.cjs && node --check scripts/verify-bubble-position.cjs && node --check scripts/verify-care-system.cjs && node scripts/verify-bubble-position.cjs && node scripts/verify-care-system.cjs",
+    "check": "node --check src/main.cjs && node --check src/preload.cjs && node --check src/overlay.js && node --check src/settings.js && node --check src/characters.js && node --check src/interaction-variety.js && node --check scripts/generate-icon.cjs && node --check scripts/package-mac.cjs && node --check scripts/package-platform.cjs && node --check scripts/package-deb.cjs && node --check scripts/package-dmg.cjs && node --check scripts/verify-bubble-position.cjs && node --check scripts/verify-care-system.cjs && node scripts/verify-bubble-position.cjs && node scripts/verify-care-system.cjs",
     "package:mac": "node scripts/package-mac.cjs",
     "package:win": "node scripts/package-platform.cjs win32-x64",
     "package:linux": "node scripts/package-platform.cjs linux-x64",
@@ -25,7 +25,10 @@
     "archive:all": "npm run archive:mac && npm run archive:win && npm run archive:linux",
     "release:ubuntu": "npm run package:linux && npm run archive:linux && npm run package:deb",
     "release:ubuntu:arm64": "npm run package:linux:arm64 && npm run archive:linux:arm64 && npm run package:deb:arm64",
-    "release:local": "npm run package:all && npm run archive:all"
+    "release:local": "npm run package:all && npm run archive:all",
+    "installer:mac": "npm run package:mac && node scripts/package-dmg.cjs",
+    "installer:win": "electron-builder --win portable --x64 --publish never",
+    "installer:desktop": "npm run installer:win && npm run installer:mac"
   },
   "keywords": [
     "desktop",
@@ -37,7 +40,36 @@
   "license": "UNLICENSED",
   "devDependencies": {
     "electron": "^42.2.0",
+    "electron-builder": "^26.8.1",
     "extract-zip": "^2.0.1",
     "rcedit": "^5.0.2"
+  },
+  "build": {
+    "appId": "com.busypet.desktop",
+    "productName": "BusyPet Desktop",
+    "asar": false,
+    "directories": {
+      "output": "release/installers"
+    },
+    "files": [
+      "package.json",
+      "README.md",
+      "SECURITY.md",
+      "src/**/*",
+      "build/**/*",
+      "docs/**/*"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.ico",
+      "artifactName": "BusyPet-Desktop-Windows-x64.${ext}"
+    }
   }
 }
