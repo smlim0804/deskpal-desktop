@@ -822,7 +822,7 @@ function normalizeLicense(source) {
     email: String(src.email || "").trim().slice(0, 160),
     activatedAt: Math.round(clamp(src.activatedAt, 0, Date.now(), 0)),
     lastCheckedAt: Math.round(clamp(src.lastCheckedAt, 0, Date.now(), 0)),
-    deviceLimit: Math.round(clamp(src.deviceLimit, 1, 10, DEFAULT_LICENSE.deviceLimit)),
+    deviceLimit: plan === "lifetime" ? 0 : Math.round(clamp(src.deviceLimit, 1, 10, DEFAULT_LICENSE.deviceLimit)),
     activatedDevices: Math.round(clamp(src.activatedDevices, 0, 10, 0)),
     message: String(src.message || "").trim().slice(0, 180),
   };
@@ -1386,7 +1386,7 @@ async function activateLicenseKey(licenseKey) {
     email: result.email || "",
     activatedAt: Date.now(),
     lastCheckedAt: Date.now(),
-    deviceLimit: result.deviceLimit || 2,
+    deviceLimit: result.plan === "lifetime" ? 0 : (result.deviceLimit ?? 2),
     activatedDevices: result.activatedDevices || 1,
     message: result.message || "",
   });
