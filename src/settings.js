@@ -20,6 +20,9 @@ const licenseKey = document.getElementById("licenseKey");
 const activateLicense = document.getElementById("activateLicense");
 const buyPro = document.getElementById("buyPro");
 const licenseStatus = document.getElementById("licenseStatus");
+const deviceIdLabel = document.getElementById("deviceIdLabel");
+const deviceId = document.getElementById("deviceId");
+const copyDeviceId = document.getElementById("copyDeviceId");
 const updateBadge = document.getElementById("updateBadge");
 const updateStatus = document.getElementById("updateStatus");
 const checkUpdates = document.getElementById("checkUpdates");
@@ -118,6 +121,9 @@ const I18N = {
     licensePlaceholder: "LICENSE-KEY",
     activateLicense: "Activate",
     buyPro: "Buy Plan",
+    deviceId: "Device ID",
+    copyDeviceId: "Copy",
+    deviceIdCopied: "Device ID copied.",
     licenseActivating: "Activating...",
     licenseActivated: "Premium activated.",
     updatesTitle: "Updates",
@@ -234,6 +240,9 @@ const I18N = {
     licensePlaceholder: "라이선스 키",
     activateLicense: "활성화",
     buyPro: "플랜 구매",
+    deviceId: "기기 ID",
+    copyDeviceId: "복사",
+    deviceIdCopied: "기기 ID를 복사했어.",
     licenseActivating: "활성화 중...",
     licenseActivated: "프리미엄 활성화 완료.",
     updatesTitle: "업데이트",
@@ -441,6 +450,8 @@ function renderLanguage() {
   testEffect.textContent = iconText("▶", "test");
   activateLicense.textContent = iconText("★", "activateLicense");
   buyPro.textContent = iconText("↗", "buyPro");
+  deviceIdLabel.textContent = t("deviceId");
+  copyDeviceId.textContent = t("copyDeviceId");
   checkUpdates.textContent = iconText("↻", "checkUpdates");
   openUpdate.textContent = iconText("⬇", "openUpdate");
   resetSettings.textContent = iconText("↺", "reset");
@@ -1579,6 +1590,13 @@ buyPro.addEventListener("click", () => {
   api.openLicenseCheckout();
 });
 
+copyDeviceId.addEventListener("click", async () => {
+  const value = deviceId.textContent.trim();
+  if (!value || value === "loading" || value === "unavailable") return;
+  await api.copyText(value);
+  licenseStatus.textContent = t("deviceIdCopied");
+});
+
 activateLicense.addEventListener("click", async () => {
   const key = licenseKey.value.trim();
   if (!key) return;
@@ -1818,6 +1836,11 @@ programExit.addEventListener("click", () => {
 
 async function init() {
   settings = await api.getSettings();
+  try {
+    deviceId.textContent = await api.getMachineId();
+  } catch {
+    deviceId.textContent = "unavailable";
+  }
   ensureCustomCharacters();
   setPaintMode("draw");
   render();

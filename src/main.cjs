@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, ipcMain, screen, shell, dialog, nativeImage, Tray, powerMonitor } = require("electron");
+const { app, BrowserWindow, Menu, ipcMain, screen, shell, dialog, nativeImage, Tray, powerMonitor, clipboard } = require("electron");
 const crypto = require("crypto");
 const fs = require("fs");
 const os = require("os");
@@ -1869,6 +1869,13 @@ ipcMain.handle("settings:reset", () => {
 });
 
 ipcMain.handle("license:activate", async (_event, licenseKey) => activateLicenseKey(licenseKey));
+
+ipcMain.handle("machine:id", () => getMachineId());
+
+ipcMain.handle("clipboard:write", (_event, value) => {
+  clipboard.writeText(String(value || ""));
+  return { ok: true };
+});
 
 ipcMain.handle("license:checkout", async () => {
   await shell.openExternal("https://www.aidogam.com/projects/deskpal#license");

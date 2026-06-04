@@ -237,6 +237,33 @@ main {
   gap: 8px;
 }
 
+.device-id-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  border: 2px solid rgba(35, 35, 43, 0.16);
+  background: rgba(255, 255, 255, 0.72);
+}
+
+#deviceIdLabel {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 900;
+}
+
+#deviceId {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ink);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 10px;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 #licenseStatus {
   color: var(--muted);
   font-size: 10px;

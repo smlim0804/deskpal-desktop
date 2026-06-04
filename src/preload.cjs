@@ -7,6 +7,8 @@ contextBridge.exposeInMainWorld("deskPal", {
   updateSettings: (patch) => ipcRenderer.invoke("settings:update", patch),
   updateSlot: (index, patch) => ipcRenderer.invoke("settings:slot:update", { index, patch }),
   resetSettings: () => ipcRenderer.invoke("settings:reset"),
+  getMachineId: () => ipcRenderer.invoke("machine:id"),
+  copyText: (value) => ipcRenderer.invoke("clipboard:write", value),
   activateLicense: (licenseKey) => ipcRenderer.invoke("license:activate", licenseKey),
   openLicenseCheckout: () => ipcRenderer.invoke("license:checkout"),
   checkForUpdates: () => ipcRenderer.invoke("updates:check"),
