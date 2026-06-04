@@ -1472,6 +1472,51 @@ function releaseDownloadUrl(release) {
   return asset?.browser_download_url || release?.html_url || UPDATE_PAGE_URL;
 }
 
+function checkoutPlan(value) {
+  return value === "lifetime" ? "lifetime" : "pro";
+}
+
+function fallbackCheckoutUrl(plan) {
+  const url = new URL("https://www.aidogam.com/projects/deskpal");
+  url.searchParams.set("plan", checkoutPlan(plan));
+  url.hash = "license";
+  return url.toString();
+}
+
+function safeHttpUrl(value) {
+  try {
+    const url = new URL(String(value || ""));
+    return ["http:", "https:"].includes(url.protocol) ? url.toString() : "";
+  } catch {
+    return "";
+  }
+}
+
+async function resolveLicenseCheckoutUrl(plan) {
+  const targetPlan = checkoutPlan(plan);
+  try {
+    const response = await fetch(LICENSE_API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "checkout",
+        product: "deskpal",
+        plan: targetPlan,
+        language: settings.language || "en",
+        machineId: getMachineId(),
+        appVersion: app.getVersion(),
+        platform: process.platform,
+      }),
+    });
+    const result = await response.json().catch(() => ({}));
+    const checkoutUrl = safeHttpUrl(result?.checkoutUrl);
+    if (response.ok && result?.ok && checkoutUrl) return checkoutUrl;
+  } catch {
+    // Fallback below keeps the app usable before checkout env vars are wired.
+  }
+  return fallbackCheckoutUrl(targetPlan);
+}
+
 async function checkForUpdates({ manual = false } = {}) {
   settings.update = normalizeUpdate({
     ...settings.update,
@@ -1877,9 +1922,10 @@ ipcMain.handle("clipboard:write", (_event, value) => {
   return { ok: true };
 });
 
-ipcMain.handle("license:checkout", async () => {
-  await shell.openExternal("https://www.aidogam.com/projects/deskpal#license");
-  return { ok: true };
+ipcMain.handle("license:checkout", async (_event, plan) => {
+  const target = await resolveLicenseCheckoutUrl(plan);
+  await shell.openExternal(target);
+  return { ok: true, url: target };
 });
 
 ipcMain.handle("updates:check", async () => checkForUpdates({ manual: true }));

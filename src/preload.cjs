@@ -10,7 +10,7 @@ contextBridge.exposeInMainWorld("deskPal", {
   getMachineId: () => ipcRenderer.invoke("machine:id"),
   copyText: (value) => ipcRenderer.invoke("clipboard:write", value),
   activateLicense: (licenseKey) => ipcRenderer.invoke("license:activate", licenseKey),
-  openLicenseCheckout: () => ipcRenderer.invoke("license:checkout"),
+  openLicenseCheckout: (plan) => ipcRenderer.invoke("license:checkout", plan),
   checkForUpdates: () => ipcRenderer.invoke("updates:check"),
   openUpdate: () => ipcRenderer.invoke("updates:open"),
   pickArea: (slotIndex) => ipcRenderer.invoke("area:pick", slotIndex),

@@ -19,6 +19,7 @@ const licenseHelp = document.getElementById("licenseHelp");
 const licenseKey = document.getElementById("licenseKey");
 const activateLicense = document.getElementById("activateLicense");
 const buyPro = document.getElementById("buyPro");
+const buyLifetime = document.getElementById("buyLifetime");
 const licenseStatus = document.getElementById("licenseStatus");
 const deviceIdLabel = document.getElementById("deviceIdLabel");
 const deviceId = document.getElementById("deviceId");
@@ -120,7 +121,8 @@ const I18N = {
     licenseHelpPro: "Premium active: all character slots, custom sprites, shortcuts, and effects are unlocked.",
     licensePlaceholder: "LICENSE-KEY",
     activateLicense: "Activate",
-    buyPro: "Buy Plan",
+    buyPro: "Buy Pro",
+    buyLifetime: "Lifetime",
     deviceId: "Device ID",
     copyDeviceId: "Copy",
     deviceIdCopied: "Device ID copied.",
@@ -239,7 +241,8 @@ const I18N = {
     licenseHelpPro: "프리미엄 활성화됨: 모든 캐릭터 슬롯, 커스텀, 바로가기, 이펙트가 열렸어.",
     licensePlaceholder: "라이선스 키",
     activateLicense: "활성화",
-    buyPro: "플랜 구매",
+    buyPro: "Pro 구매",
+    buyLifetime: "평생권",
     deviceId: "기기 ID",
     copyDeviceId: "복사",
     deviceIdCopied: "기기 ID를 복사했어.",
@@ -450,6 +453,11 @@ function renderLanguage() {
   testEffect.textContent = iconText("▶", "test");
   activateLicense.textContent = iconText("★", "activateLicense");
   buyPro.textContent = iconText("↗", "buyPro");
+  buyPro.title = t("buyPro");
+  buyPro.setAttribute("aria-label", t("buyPro"));
+  buyLifetime.textContent = iconText("∞", "buyLifetime");
+  buyLifetime.title = t("buyLifetime");
+  buyLifetime.setAttribute("aria-label", t("buyLifetime"));
   deviceIdLabel.textContent = t("deviceId");
   copyDeviceId.textContent = t("copyDeviceId");
   checkUpdates.textContent = iconText("↻", "checkUpdates");
@@ -1587,7 +1595,11 @@ performanceMode.addEventListener("change", () => {
 });
 
 buyPro.addEventListener("click", () => {
-  api.openLicenseCheckout();
+  api.openLicenseCheckout("pro");
+});
+
+buyLifetime.addEventListener("click", () => {
+  api.openLicenseCheckout("lifetime");
 });
 
 copyDeviceId.addEventListener("click", async () => {
