@@ -105,6 +105,9 @@ async function main() {
 
   includes(mainSource, "https://www.aidogam.com/api/deskpal-license", "DeskPal license API URL");
   includes(mainSource, "https://api.github.com/repos/smlim0804/deskpal-downloads/releases/latest", "DeskPal update release API");
+  includes(mainSource, "DeskPal-macOS-arm64.dmg", "macOS direct update asset name");
+  includes(mainSource, "DeskPal-Windows-x64.exe", "Windows direct update asset name");
+  includes(functionBody(mainSource, "releaseDownloadUrl"), "String(item?.name || \"\") === wanted", "update resolver uses exact asset names");
   includes(mainSource, "Notification", "native update notification support");
   includes(mainSource, "function updateTargetUrl", "shared update download target");
   includes(mainSource, "function notifyUpdateAvailable", "update notification handler");

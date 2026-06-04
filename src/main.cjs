@@ -26,6 +26,10 @@ const UPDATE_API_URL =
   process.env.DESKPAL_UPDATE_API_URL || "https://api.github.com/repos/smlim0804/deskpal-downloads/releases/latest";
 const UPDATE_PAGE_URL =
   process.env.DESKPAL_UPDATE_PAGE_URL || "https://github.com/smlim0804/deskpal-downloads/releases/latest";
+const UPDATE_ASSET_BY_PLATFORM = {
+  darwin: "DeskPal-macOS-arm64.dmg",
+  win32: "DeskPal-Windows-x64.exe",
+};
 const CARE_MEMORY_LIMIT = 12;
 const CHARACTER_IDS = [
   "ufo",
@@ -1468,8 +1472,8 @@ function isVersionNewer(latest, current) {
 
 function releaseDownloadUrl(release) {
   const assets = Array.isArray(release?.assets) ? release.assets : [];
-  const wanted = process.platform === "darwin" ? ".dmg" : process.platform === "win32" ? ".exe" : ".tar.gz";
-  const asset = assets.find((item) => String(item?.name || "").toLowerCase().includes(wanted));
+  const wanted = UPDATE_ASSET_BY_PLATFORM[process.platform] || "";
+  const asset = assets.find((item) => String(item?.name || "") === wanted);
   return asset?.browser_download_url || release?.html_url || UPDATE_PAGE_URL;
 }
 
