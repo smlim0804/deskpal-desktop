@@ -10,23 +10,20 @@ npm install
 npm start
 ```
 
-To create double-clickable app folders:
+To create local double-clickable app folders:
 
 ```bash
 cd /Users/limsungmin/Desktop/codex_product/deskpal_desktop
 npm run check
 npm run package:mac
 npm run package:win
-npm run package:linux
-npm run package:linux:arm64
 ```
 
-Ubuntu installer:
+To create public installer files for releases:
 
 ```bash
 cd /Users/limsungmin/Desktop/codex_product/deskpal_desktop
-npm run release:ubuntu
-npm run release:ubuntu:arm64
+npm run installer:desktop
 ```
 
 Outputs:
@@ -34,11 +31,8 @@ Outputs:
 ```text
 dist/DeskPal Desktop-darwin-arm64/DeskPal Desktop.app
 dist/DeskPal Desktop-win32-x64/DeskPal Desktop.exe
-dist/DeskPal Desktop-linux-x64/deskpal-desktop
-dist/DeskPal Desktop-linux-arm64/deskpal-desktop
-release/DeskPal-Desktop-macOS-arm64.zip
-release/DeskPal-Desktop-Windows-x64.zip
-release/DeskPal-Desktop-Ubuntu-x64.tar.gz
+release/installers/DeskPal-Desktop-macOS-arm64.dmg
+release/installers/DeskPal-Desktop-Windows-x64.exe
 ```
 
 On this Mac:
@@ -60,32 +54,6 @@ xattr -dr com.apple.quarantine "/Applications/DeskPal Desktop.app"
 open "/Applications/DeskPal Desktop.app"
 ```
 
-Ubuntu/Linux:
-
-```bash
-chmod +x "dist/DeskPal Desktop-linux-x64/deskpal-desktop"
-"dist/DeskPal Desktop-linux-x64/deskpal-desktop"
-```
-
-Ubuntu 22.04 easiest install:
-
-1. Check the Ubuntu CPU type with `dpkg --print-architecture`.
-2. Download `DeskPal-Desktop-Ubuntu-x64.tar.gz` for `amd64`.
-3. Extract it.
-4. Run `deskpal-desktop`.
-
-Terminal run:
-
-```bash
-cd ~/Downloads
-tar -xzf DeskPal-Desktop-Ubuntu-x64.tar.gz
-cd "DeskPal Desktop-linux-x64"
-chmod +x deskpal-desktop chrome_crashpad_handler
-./deskpal-desktop --no-sandbox
-```
-
-Linux `.deb` packages should be built on Linux or in GitHub Actions.
-
 Windows:
 
 ```powershell
@@ -96,6 +64,42 @@ The app opens two windows:
 
 - Transparent overlay: the companions roam on top of the desktop.
 - Settings window: change FPS, each character, speed, size, mouse behavior, effect, and shortcuts.
+
+Public releases are intentionally macOS + Windows only right now:
+
+- macOS: `DeskPal-Desktop-macOS-arm64.dmg`
+- Windows: `DeskPal-Desktop-Windows-x64.exe`
+
+Older Linux packaging scripts are kept in the repo for experimentation, but Linux artifacts should not be uploaded to public releases unless the Linux click-through behavior is tested again.
+
+## Commerce and updates
+
+DeskPal uses `https://www.aidogam.com/api/deskpal-license` for license activation and `https://api.github.com/repos/smlim0804/deskpal-downloads/releases/latest` for update checks.
+
+Free limits are enforced in `src/main.cjs`:
+
+- up to 2 enabled character slots
+- 1 web shortcut
+- 1 app shortcut
+- no custom characters
+- no effects
+
+Pro unlocks those limits after a valid license key is activated. The owner's machine is auto-unlocked through the `owner-status` API action.
+
+Release flow:
+
+```bash
+npm run check
+npm run installer:desktop
+gh release create vX.Y.Z \
+  release/installers/DeskPal-Desktop-macOS-arm64.dmg \
+  release/installers/DeskPal-Desktop-Windows-x64.exe \
+  -R smlim0804/deskpal-downloads \
+  --title "DeskPal Desktop vX.Y.Z" \
+  --notes "macOS DMG and Windows EXE only."
+```
+
+The overlay update badge appears when the public release version is newer than the app's `package.json` version.
 
 ## Current MVP
 
