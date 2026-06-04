@@ -1,7 +1,7 @@
 {
   "name": "deskpal-desktop",
-  "version": "0.2.4",
-  "description": "Desktop pixel companions inspired by DeskPal.",
+  "version": "0.2.5",
+  "description": "Desktop pixel companions for DeskPal.",
   "type": "module",
   "main": "src/main.cjs",
   "scripts": {

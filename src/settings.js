@@ -109,16 +109,17 @@ const I18N = {
     ghostWheel: "Wheel",
     showTrayIcon: "Show tray icon",
     effectQuality: "Effect quality",
-    licenseTitle: "DeskPal Pro",
+    licenseTitle: "DeskPal Plans",
     licenseFree: "Free",
     licensePro: "Pro",
+    licenseLifetime: "Lifetime",
     licenseHelpFree: "Free: 2 characters, 1 app shortcut, 1 web shortcut, no custom sprites or effects.",
-    licenseHelpPro: "Pro active: all character slots, custom sprites, shortcuts, and effects are unlocked.",
+    licenseHelpPro: "Premium active: all character slots, custom sprites, shortcuts, and effects are unlocked.",
     licensePlaceholder: "LICENSE-KEY",
     activateLicense: "Activate",
-    buyPro: "Buy Pro",
+    buyPro: "Buy Plan",
     licenseActivating: "Activating...",
-    licenseActivated: "Pro activated.",
+    licenseActivated: "Premium activated.",
     updatesTitle: "Updates",
     updateReady: "Ready",
     updateAvailable: "Update",
@@ -224,16 +225,17 @@ const I18N = {
     ghostWheel: "휠",
     showTrayIcon: "상태바에 표시",
     effectQuality: "이펙트 품질",
-    licenseTitle: "DeskPal Pro",
+    licenseTitle: "DeskPal 플랜",
     licenseFree: "Free",
     licensePro: "Pro",
+    licenseLifetime: "Lifetime",
     licenseHelpFree: "무료: 캐릭터 2개, 앱 바로가기 1개, 웹 바로가기 1개. 커스텀과 이펙트는 잠겨 있어.",
-    licenseHelpPro: "Pro 활성화됨: 모든 캐릭터 슬롯, 커스텀, 바로가기, 이펙트가 열렸어.",
+    licenseHelpPro: "프리미엄 활성화됨: 모든 캐릭터 슬롯, 커스텀, 바로가기, 이펙트가 열렸어.",
     licensePlaceholder: "라이선스 키",
     activateLicense: "활성화",
-    buyPro: "Pro 구매",
+    buyPro: "플랜 구매",
     licenseActivating: "활성화 중...",
-    licenseActivated: "Pro 활성화 완료.",
+    licenseActivated: "프리미엄 활성화 완료.",
     updatesTitle: "업데이트",
     updateReady: "대기",
     updateAvailable: "업데이트",
@@ -360,7 +362,7 @@ function iconText(icon, key) {
 }
 
 function isPro() {
-  return settings?.license?.plan === "pro" && settings?.license?.status === "active";
+  return ["pro", "lifetime"].includes(settings?.license?.plan) && settings?.license?.status === "active";
 }
 
 function freeLimitText() {
@@ -1458,7 +1460,8 @@ function renderShortcuts() {
 
 function renderLicensePanel() {
   const pro = isPro();
-  licenseBadge.textContent = pro ? t("licensePro") : t("licenseFree");
+  const lifetime = pro && settings.license?.plan === "lifetime";
+  licenseBadge.textContent = lifetime ? t("licenseLifetime") : pro ? t("licensePro") : t("licenseFree");
   licenseBadge.dataset.tone = pro ? "pro" : "free";
   licenseHelp.textContent = freeLimitText();
   licenseKey.value = pro ? "" : licenseKey.value;

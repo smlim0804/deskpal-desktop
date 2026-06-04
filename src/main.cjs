@@ -811,11 +811,12 @@ function normalizeCustomCharacter(item, index) {
 
 function normalizeLicense(source) {
   const src = source && typeof source === "object" ? source : {};
-  const plan = src.plan === "pro" && src.status === "active" ? "pro" : "free";
+  const requestedPlan = src.plan === "lifetime" ? "lifetime" : src.plan === "pro" ? "pro" : "free";
+  const plan = requestedPlan !== "free" && src.status === "active" ? requestedPlan : "free";
   return {
     ...clone(DEFAULT_LICENSE),
     plan,
-    status: plan === "pro" ? "active" : "inactive",
+    status: plan !== "free" ? "active" : "inactive",
     key: String(src.key || "").trim().slice(0, 120),
     email: String(src.email || "").trim().slice(0, 160),
     activatedAt: Math.round(clamp(src.activatedAt, 0, Date.now(), 0)),
@@ -842,7 +843,7 @@ function normalizeUpdate(source) {
 }
 
 function hasProLicense(value = settings) {
-  return value?.license?.plan === "pro" && value?.license?.status === "active";
+  return ["pro", "lifetime"].includes(value?.license?.plan) && value?.license?.status === "active";
 }
 
 function isCustomCharacterId(characterId) {
@@ -1378,7 +1379,7 @@ async function activateLicenseKey(licenseKey) {
   }
 
   settings.license = normalizeLicense({
-    plan: "pro",
+    plan: result.plan === "lifetime" ? "lifetime" : "pro",
     status: "active",
     key,
     email: result.email || "",
