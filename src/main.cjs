@@ -1476,9 +1476,10 @@ function checkoutPlan(value) {
   return value === "lifetime" ? "lifetime" : "pro";
 }
 
-function fallbackCheckoutUrl(plan) {
+function fallbackCheckoutUrl(plan, machineId = "") {
   const url = new URL("https://www.aidogam.com/projects/deskpal");
   url.searchParams.set("plan", checkoutPlan(plan));
+  if (machineId) url.searchParams.set("machineId", machineId);
   url.hash = "license";
   return url.toString();
 }
@@ -1494,6 +1495,7 @@ function safeHttpUrl(value) {
 
 async function resolveLicenseCheckoutUrl(plan) {
   const targetPlan = checkoutPlan(plan);
+  const machineId = getMachineId();
   try {
     const response = await fetch(LICENSE_API_URL, {
       method: "POST",
@@ -1503,7 +1505,7 @@ async function resolveLicenseCheckoutUrl(plan) {
         product: "deskpal",
         plan: targetPlan,
         language: settings.language || "en",
-        machineId: getMachineId(),
+        machineId,
         appVersion: app.getVersion(),
         platform: process.platform,
       }),
@@ -1514,7 +1516,7 @@ async function resolveLicenseCheckoutUrl(plan) {
   } catch {
     // Fallback below keeps the app usable before checkout env vars are wired.
   }
-  return fallbackCheckoutUrl(targetPlan);
+  return fallbackCheckoutUrl(targetPlan, machineId);
 }
 
 async function checkForUpdates({ manual = false } = {}) {

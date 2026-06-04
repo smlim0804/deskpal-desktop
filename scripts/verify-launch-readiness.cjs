@@ -106,6 +106,7 @@ async function main() {
   includes(mainSource, "plan: targetPlan", "selected checkout plan is sent to API");
   includes(mainSource, "function fallbackCheckoutUrl", "checkout fallback to website");
   includes(mainSource, "url.searchParams.set(\"plan\", checkoutPlan(plan))", "fallback checkout preserves selected plan");
+  includes(mainSource, "url.searchParams.set(\"machineId\", machineId)", "fallback checkout preserves Device ID");
   includes(preloadSource, "openLicenseCheckout: (plan)", "preload passes selected checkout plan");
   includes(settingsHtml, "id=\"buyPro\"", "Pro checkout button");
   includes(settingsHtml, "id=\"buyLifetime\"", "Lifetime checkout button");
