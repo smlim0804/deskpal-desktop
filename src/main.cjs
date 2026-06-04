@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, ipcMain, screen, shell, dialog, nativeImage, Tray, powerMonitor, clipboard } = require("electron");
+const { app, BrowserWindow, Menu, ipcMain, screen, shell, dialog, nativeImage, Tray, powerMonitor, clipboard, Notification } = require("electron");
 const crypto = require("crypto");
 const fs = require("fs");
 const os = require("os");
@@ -288,6 +288,7 @@ let tray = null;
 let systemStatsCache = null;
 let systemStatsCacheAt = 0;
 let systemStatsRefreshPending = false;
+let lastUpdateNotificationVersion = "";
 
 const SYSTEM_STATS_REFRESH_MS = 5000;
 
@@ -1472,6 +1473,35 @@ function releaseDownloadUrl(release) {
   return asset?.browser_download_url || release?.html_url || UPDATE_PAGE_URL;
 }
 
+function updateTargetUrl() {
+  return settings.update?.downloadUrl || settings.update?.pageUrl || UPDATE_PAGE_URL;
+}
+
+async function openUpdateTarget() {
+  await shell.openExternal(updateTargetUrl());
+}
+
+function notifyUpdateAvailable(update) {
+  if (!update?.available || !update.latestVersion) return;
+  if (lastUpdateNotificationVersion === update.latestVersion) return;
+  lastUpdateNotificationVersion = update.latestVersion;
+  if (!Notification?.isSupported?.()) return;
+  const ko = settings.language === "ko";
+  const notification = new Notification({
+    title: ko ? "DeskPal 업데이트" : "DeskPal update",
+    body: ko
+      ? `새 버전 ${update.latestVersion}을 다운로드할 수 있어.`
+      : `Version ${update.latestVersion} is ready to download.`,
+    silent: false,
+  });
+  notification.on("click", () => {
+    openUpdateTarget().catch((error) => {
+      console.warn("Open update failed", error?.message || error);
+    });
+  });
+  notification.show();
+}
+
 function checkoutPlan(value) {
   return value === "lifetime" ? "lifetime" : "pro";
 }
@@ -1557,6 +1587,8 @@ async function checkForUpdates({ manual = false } = {}) {
 
   saveSettings();
   broadcastSettings();
+  refreshTrayMenu();
+  if (!manual) notifyUpdateAvailable(settings.update);
   return settings.update;
 }
 
@@ -1580,6 +1612,8 @@ function trayLabel(key) {
   const ko = settings.language === "ko";
   const labels = {
     settings: ko ? "설정" : "Settings",
+    update: ko ? "업데이트 다운로드" : "Download Update",
+    checkUpdate: ko ? "업데이트 확인" : "Check for Updates",
     ghost: ko ? "유령모드" : "Ghost Mode",
     quit: ko ? "종료" : "Quit",
   };
@@ -1587,11 +1621,32 @@ function trayLabel(key) {
 }
 
 function trayTemplate() {
-  return [
+  const template = [
     {
       label: trayLabel("settings"),
       click: showSettingsWindow,
     },
+  ];
+  if (settings.update?.available) {
+    template.push({
+      label: `${trayLabel("update")} ${settings.update.latestVersion || ""}`.trim(),
+      click: () => {
+        openUpdateTarget().catch((error) => {
+          console.warn("Open update failed", error?.message || error);
+        });
+      },
+    });
+  } else {
+    template.push({
+      label: trayLabel("checkUpdate"),
+      click: () => {
+        checkForUpdates({ manual: true }).catch((error) => {
+          console.warn("Update check failed", error?.message || error);
+        });
+      },
+    });
+  }
+  template.push(
     {
       label: trayLabel("ghost"),
       type: "checkbox",
@@ -1610,7 +1665,8 @@ function trayTemplate() {
         app.quit();
       },
     },
-  ];
+  );
+  return template;
 }
 
 function refreshTrayMenu() {
@@ -1933,8 +1989,7 @@ ipcMain.handle("license:checkout", async (_event, plan) => {
 ipcMain.handle("updates:check", async () => checkForUpdates({ manual: true }));
 
 ipcMain.handle("updates:open", async () => {
-  const target = settings.update?.downloadUrl || settings.update?.pageUrl || UPDATE_PAGE_URL;
-  await shell.openExternal(target);
+  await openUpdateTarget();
   return { ok: true };
 });
 

@@ -101,6 +101,10 @@ async function main() {
 
   includes(mainSource, "https://www.aidogam.com/api/deskpal-license", "DeskPal license API URL");
   includes(mainSource, "https://api.github.com/repos/smlim0804/deskpal-downloads/releases/latest", "DeskPal update release API");
+  includes(mainSource, "Notification", "native update notification support");
+  includes(mainSource, "function updateTargetUrl", "shared update download target");
+  includes(mainSource, "function notifyUpdateAvailable", "update notification handler");
+  includes(mainSource, "trayLabel(\"update\")", "tray update download item");
   includes(mainSource, "function resolveLicenseCheckoutUrl", "app-driven checkout resolver");
   includes(mainSource, "action: \"checkout\"", "checkout API action");
   includes(mainSource, "plan: targetPlan", "selected checkout plan is sent to API");
