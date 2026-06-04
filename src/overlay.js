@@ -93,6 +93,7 @@ const stage = document.getElementById("stage");
 const effectsCanvas = document.getElementById("effects-canvas");
 const effectsCtx = effectsCanvas?.getContext("2d", { alpha: true }) || null;
 const panel = document.getElementById("pet-panel");
+const updatePill = document.getElementById("update-pill");
 const viewportCache = { w: window.innerWidth, h: window.innerHeight };
 
 let settings = null;
@@ -20187,6 +20188,7 @@ function syncPets() {
   if (!settings) return;
   document.body.dataset.performance = settings.performanceMode || "saver";
   syncGhostSettings();
+  syncUpdatePill();
   if (!settings.ghostMode) setGhostHidden(false);
   while (pets.length < MAX_SLOTS) pets.push(createPet(pets.length));
   const slots = settings.slots || [];
@@ -20236,6 +20238,21 @@ function syncPets() {
   if (activePet && !activePet.enabled) {
     closePanel(true);
   }
+}
+
+function syncUpdatePill() {
+  if (!updatePill) return;
+  const update = settings?.update || {};
+  const available = update.available === true;
+  updatePill.hidden = !available;
+  if (!available) return;
+  const ko = settings?.language === "ko";
+  const label = ko ? "업데이트" : "Update";
+  const version = update.latestVersion ? `v${String(update.latestVersion).replace(/^v/i, "")}` : "";
+  updatePill.querySelector(".update-pill__text").textContent = label;
+  updatePill.querySelector(".update-pill__version").textContent = version;
+  updatePill.title = version ? `${label} ${version}` : label;
+  updatePill.setAttribute("aria-label", updatePill.title);
 }
 
 function handleCursorPoint(point) {
@@ -20465,5 +20482,11 @@ for (const [eventName, source] of [
   );
 }
 
+updatePill?.addEventListener("click", (event) => {
+  event.preventDefault();
+  event.stopPropagation();
+  api.setClickThrough(false);
+  api.openUpdate();
+});
 
 init();

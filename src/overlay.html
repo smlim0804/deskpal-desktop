@@ -13,6 +13,11 @@
   <body>
     <main id="stage" aria-label="DeskPal desktop overlay">
       <canvas id="effects-canvas" aria-hidden="true"></canvas>
+      <button id="update-pill" class="update-pill interactive" type="button" hidden aria-live="polite">
+        <span class="update-pill__icon">↻</span>
+        <strong class="update-pill__text">Update</strong>
+        <em class="update-pill__version"></em>
+      </button>
       <section id="pet-panel" class="pet-panel interactive" hidden></section>
     </main>
     <script type="module" src="./overlay.js"></script>

@@ -4,7 +4,9 @@ const path = require("path");
 const { execFileSync } = require("child_process");
 
 const ROOT = path.resolve(__dirname, "..");
+const PACKAGE_JSON = require(path.join(ROOT, "package.json"));
 const APP_NAME = "DeskPal Desktop";
+const APP_VERSION = PACKAGE_JSON.version || "0.0.0";
 const ARCH = process.env.DESKPAL_ARCH || process.arch;
 const FINAL_OUT_DIR = path.join(ROOT, "dist", `${APP_NAME}-darwin-${ARCH}`);
 const FINAL_DEST_APP = path.join(FINAL_OUT_DIR, `${APP_NAME}.app`);
@@ -197,6 +199,8 @@ setPlist("CFBundleExecutable", APP_NAME);
 setPlist("CFBundleName", APP_NAME);
 setPlist("CFBundleDisplayName", APP_NAME);
 setPlist("CFBundleIdentifier", "com.deskpal.desktop");
+setPlist("CFBundleShortVersionString", APP_VERSION);
+setPlist("CFBundleVersion", APP_VERSION);
 if (fs.existsSync(ICON_ICNS)) {
   fs.copyFileSync(ICON_ICNS, path.join(RESOURCES_DIR, "DeskPal.icns"));
   setPlist("CFBundleIconFile", "DeskPal");
