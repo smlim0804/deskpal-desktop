@@ -97,6 +97,7 @@ gh release create vX.Y.Z \
   -R smlim0804/deskpal-downloads \
   --title "DeskPal Desktop vX.Y.Z" \
   --notes "macOS DMG and Windows EXE only."
+npm run verify:launch
 ```
 
 The overlay update badge appears when the public release version is newer than the app's `package.json` version.
