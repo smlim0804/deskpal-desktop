@@ -204,6 +204,44 @@ function makeIcon(size) {
   return png(size, size, data);
 }
 
+function svgIcon() {
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" shape-rendering="crispEdges">
+  <g transform="translate(37 34) rotate(-24) scale(2.25) translate(-12 -12)" opacity=".26">
+    <rect x="8" y="6" width="8" height="11" fill="#000000"/>
+    <rect x="6" y="14" width="13" height="2" fill="#000000"/>
+    <rect x="9" y="17" width="5" height="5" fill="#000000"/>
+  </g>
+  <g transform="translate(34 30) rotate(-24) scale(2.25) translate(-12 -12)">
+    <rect x="11" y="1" width="2" height="1" fill="#1a1a1a"/>
+    <rect x="10" y="2" width="4" height="1" fill="#1a1a1a"/>
+    <rect x="9" y="3" width="1" height="3" fill="#1a1a1a"/>
+    <rect x="14" y="3" width="1" height="3" fill="#1a1a1a"/>
+    <rect x="10" y="3" width="4" height="3" fill="#e63b3b"/>
+    <rect x="13" y="4" width="1" height="2" fill="#a82020"/>
+    <rect x="8" y="6" width="1" height="9" fill="#1a1a1a"/>
+    <rect x="15" y="6" width="1" height="9" fill="#1a1a1a"/>
+    <rect x="9" y="6" width="4" height="9" fill="#f0f0f0"/>
+    <rect x="13" y="6" width="2" height="9" fill="#bcbcbc"/>
+    <rect x="10" y="7" width="3" height="3" fill="#1a1a1a"/>
+    <rect x="11" y="8" width="1" height="1" fill="#f0f0f0"/>
+    <rect x="8" y="11" width="8" height="1" fill="#e63b3b"/>
+    <rect x="7" y="13" width="1" height="3" fill="#e63b3b"/>
+    <rect x="6" y="14" width="1" height="2" fill="#e63b3b"/>
+    <rect x="16" y="13" width="1" height="3" fill="#e63b3b"/>
+    <rect x="17" y="14" width="1" height="2" fill="#e63b3b"/>
+    <rect x="5" y="15" width="1" height="1" fill="#1a1a1a"/>
+    <rect x="18" y="15" width="1" height="1" fill="#1a1a1a"/>
+    <rect x="10" y="15" width="4" height="2" fill="#1a1a1a"/>
+    <rect x="9" y="17" width="5" height="1" fill="#f0f0f0"/>
+    <rect x="9" y="18" width="5" height="1" fill="#ffe066"/>
+    <rect x="9" y="19" width="5" height="1" fill="#ffd84a"/>
+    <rect x="10" y="20" width="3" height="1" fill="#ff7e3a"/>
+    <rect x="11" y="21" width="1" height="1" fill="#e63b3b"/>
+  </g>
+</svg>
+`;
+}
+
 function writeIco(images, outputPath) {
   const header = Buffer.alloc(6);
   header.writeUInt16LE(0, 0);
@@ -232,6 +270,7 @@ function main() {
   const sizes = [16, 32, 48, 64, 128, 256, 512, 1024];
   const pngs = new Map(sizes.map((size) => [size, makeIcon(size)]));
   fs.writeFileSync(path.join(BUILD_DIR, "icon.png"), pngs.get(1024));
+  fs.writeFileSync(path.join(BUILD_DIR, "icon.svg"), svgIcon());
   writeIco(
     [16, 32, 48, 256].map((size) => ({ size, buffer: pngs.get(size) })),
     path.join(BUILD_DIR, "icon.ico"),

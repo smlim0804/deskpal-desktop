@@ -88,6 +88,7 @@ async function main() {
   const settingsHtml = readText("src", "settings.html");
   const settingsJs = readText("src", "settings.js");
   const characters = readText("src", "characters.js");
+  const iconSvg = readText("build", "icon.svg");
 
   assert(pkg.name === "deskpal-desktop", "package name must be deskpal-desktop");
   assert(pkg.build?.productName === "DeskPal", "Electron productName must be DeskPal");
@@ -97,6 +98,9 @@ async function main() {
   assert(fileSize("build", "icon.png") > 1000, "rocket PNG app icon is missing or empty");
   assert(fileSize("build", "icon.icns") > 1000, "macOS ICNS app icon is missing or empty");
   assert(fileSize("build", "icon.ico") > 1000, "Windows ICO app icon is missing or empty");
+  includes(iconSvg, "shape-rendering=\"crispEdges\"", "pixel rocket SVG rendering");
+  includes(iconSvg, "#e63b3b", "rocket red app icon body");
+  includes(iconSvg, "#ff7e3a", "rocket flame app icon");
   includes(characters, "effectAnchor: { x: 0.47, y: 0.86 }", "rocket exhaust effect anchor");
 
   includes(mainSource, "https://www.aidogam.com/api/deskpal-license", "DeskPal license API URL");
