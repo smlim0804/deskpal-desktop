@@ -11,7 +11,7 @@ import {
   socialVarietyCount,
 } from "./interaction-variety.js";
 
-const api = window.busyPet;
+const api = window.deskPal;
 const SPRITE_RES = 24;
 const IMAGE_SPRITE_RES = 96;
 const BASE_SIZE = 54;
@@ -71,10 +71,15 @@ const INTERACTION_VARIETY_READY =
   socialVarietyCount() >= INTERACTION_VARIETY_MINIMUM &&
   discoveryVarietyCount() >= INTERACTION_VARIETY_MINIMUM &&
   patrolVarietyCount() >= INTERACTION_VARIETY_MINIMUM;
+// effectFrameMs caps how often the full-screen effects canvas is cleared and
+// redrawn. Pet MOTION still runs at the user's FPS, but particle trails look
+// identical at 30-60 Hz, so we avoid re-compositing the whole transparent
+// overlay 120x/s just to nudge soft particles. This is the biggest CPU/GPU win
+// when an effect (e.g. rainbow) is active.
 const PERFORMANCE_PROFILES = Object.freeze({
-  saver: { frameMs: 1000 / 18, heavyFrameMs: 1000 / 16, maxParticles: 36, trailMs: 220, dpr: 1, trails: true, ribbonPoints: 18 },
-  balanced: { frameMs: 1000 / 30, heavyFrameMs: 1000 / 24, maxParticles: 100, trailMs: 118, dpr: 1, trails: true, ribbonPoints: 28 },
-  smooth: { frameMs: 1000 / 45, heavyFrameMs: 1000 / 34, maxParticles: 160, trailMs: 76, dpr: 1.35, trails: true, ribbonPoints: 42 },
+  saver: { frameMs: 1000 / 18, heavyFrameMs: 1000 / 16, effectFrameMs: 1000 / 30, maxParticles: 36, trailMs: 220, dpr: 1, trails: true, ribbonPoints: 18 },
+  balanced: { frameMs: 1000 / 30, heavyFrameMs: 1000 / 24, effectFrameMs: 1000 / 45, maxParticles: 100, trailMs: 118, dpr: 1, trails: true, ribbonPoints: 28 },
+  smooth: { frameMs: 1000 / 45, heavyFrameMs: 1000 / 34, effectFrameMs: 1000 / 60, maxParticles: 160, trailMs: 76, dpr: 1, trails: true, ribbonPoints: 42 },
 });
 const DEFAULT_MOVEMENT = {
   speed: 1.6,
@@ -85,8 +90,6 @@ const DEFAULT_MOVEMENT = {
 };
 
 const stage = document.getElementById("stage");
-const aquarium = document.getElementById("aquarium");
-const ground = document.getElementById("ground");
 const effectsCanvas = document.getElementById("effects-canvas");
 const effectsCtx = effectsCanvas?.getContext("2d", { alpha: true }) || null;
 const panel = document.getElementById("pet-panel");
@@ -114,9 +117,10 @@ let effectsCanvasSignature = "";
 let effectParticles = [];
 let desktopObjects = [];
 let effectsDirty = false;
+let effectsCanvasShown = true;
+let effectsEmptyAt = 0;
 let animationFrameId = null;
 let tickTimer = null;
-let aquariumSignature = "";
 let autoTalkBusy = false;
 let nextAutoTalkAt = 0;
 let lastAutoMicroEventAt = 0;
@@ -206,12 +210,12 @@ const PANEL_I18N = {
     close: "Close",
     settings: "Settings",
     shortcuts: "Shortcuts",
-    links: "Links",
+    links: "Web",
     apps: "Apps",
     carePage: "System",
     back: "Back",
     noShortcuts: "No shortcuts yet.",
-    addShortcuts: "Add links or apps in Settings.",
+    addShortcuts: "Add web shortcuts or apps in Settings.",
     simpleCareNote: "Live computer load.",
     systemCpu: "CPU",
     systemRam: "RAM",
@@ -1261,12 +1265,12 @@ const PANEL_I18N = {
     close: "닫기",
     settings: "설정",
     shortcuts: "바로가기",
-    links: "링크",
+    links: "웹",
     apps: "앱",
     carePage: "시스템",
     back: "뒤로",
     noShortcuts: "아직 바로가기가 없어.",
-    addShortcuts: "설정에서 링크나 앱을 추가해줘.",
+    addShortcuts: "설정에서 웹 바로가기나 앱을 추가해줘.",
     simpleCareNote: "컴퓨터 상태를 실시간으로 보고 있어.",
     systemCpu: "CPU",
     systemRam: "RAM",
@@ -9134,6 +9138,21 @@ function careMovementFactor(care, personality = null, pet = null) {
   return clamp(factor, 0.42, 1.55);
 }
 
+// careMovementFactor() fans out into ~12 care/game lookups (bond perks, synergy
+// → caretakerStats, growth, mood patterns, …) that only change on care actions
+// or slow decay — yet the motion loop needs it every pet every frame. Recomputing
+// it 120x/s per pet was ~50% of all overlay CPU. Cache per pet with a short TTL;
+// a speed factor that lags a fraction of a second is imperceptible.
+const CARE_FACTOR_TTL_MS = 600;
+function cachedCareMovementFactor(pet, now) {
+  if (pet._careFactor !== undefined && now - (pet._careFactorAt || 0) < CARE_FACTOR_TTL_MS) {
+    return pet._careFactor;
+  }
+  pet._careFactorAt = now;
+  pet._careFactor = careMovementFactor(pet.care || careForPet(pet), personalityForPet(pet), pet);
+  return pet._careFactor;
+}
+
 function trickUnlocked(care, trick) {
   return care.level >= trick.level && care.training >= trick.training && care.bond >= trick.bond;
 }
@@ -14535,14 +14554,40 @@ function drawRibbonTrail(ctx, pet, now) {
   ctx.globalCompositeOperation = "source-over";
 }
 
+function setEffectsCanvasShown(shown) {
+  if (effectsCanvasShown === shown || !effectsCanvas) return;
+  effectsCanvasShown = shown;
+  // display:none removes the full-screen canvas from the compositor entirely;
+  // visibility/opacity would still keep the GPU blending a full-screen layer.
+  effectsCanvas.style.display = shown ? "" : "none";
+}
+
 function drawEffects(now) {
   if (!effectsCtx) return;
   const profile = performanceProfile();
-  if (stutterGuardActive(now) && now - lastEffectDrawAt < profile.heavyFrameMs) return;
+  // Cap the effects-canvas redraw rate (independent of the motion FPS). During a
+  // stutter, back off to the heavier interval; otherwise hold to the per-mode
+  // effect cap so a 120 Hz motion setting doesn't redraw particles 120x/s.
+  const minEffectMs = stutterGuardActive(now)
+    ? Math.max(profile.effectFrameMs || profile.heavyFrameMs, profile.heavyFrameMs)
+    : profile.effectFrameMs || profile.heavyFrameMs;
+  if (now - lastEffectDrawAt < minEffectMs) return;
   lastEffectDrawAt = now;
   const liveRibbon = hasRibbonTrails();
   const liveObjects = desktopObjects.length > 0;
-  if (!effectParticles.length && !effectsDirty && !liveRibbon && !liveObjects) return;
+  if (!effectParticles.length && !effectsDirty && !liveRibbon && !liveObjects) {
+    // Nothing to draw. After a short grace period, drop the full-screen canvas
+    // out of compositing — an empty transparent full-screen layer is still
+    // blended by the GPU every frame. It is re-shown instantly when effects
+    // return, so pet movement is unaffected.
+    if (effectsCanvasShown) {
+      if (effectsEmptyAt === 0) effectsEmptyAt = now;
+      else if (now - effectsEmptyAt > 400) setEffectsCanvasShown(false);
+    }
+    return;
+  }
+  effectsEmptyAt = 0;
+  setEffectsCanvasShown(true);
   const { w, h } = viewport();
   effectsCtx.clearRect(0, 0, w, h);
 
@@ -14587,6 +14632,40 @@ function drawEffects(now) {
       effectsCtx.fill();
     } else if (particle.type === "spark" || particle.type === "burst") {
       drawDiamond(effectsCtx, x, y, size);
+    } else if (particle.type === "star") {
+      // 4-point sparkle: two crossing slim diamonds.
+      effectsCtx.beginPath();
+      effectsCtx.moveTo(x, y - size);
+      effectsCtx.lineTo(x + size * 0.3, y);
+      effectsCtx.lineTo(x, y + size);
+      effectsCtx.lineTo(x - size * 0.3, y);
+      effectsCtx.closePath();
+      effectsCtx.moveTo(x - size, y);
+      effectsCtx.lineTo(x, y - size * 0.3);
+      effectsCtx.lineTo(x + size, y);
+      effectsCtx.lineTo(x, y + size * 0.3);
+      effectsCtx.closePath();
+      effectsCtx.fill();
+    } else if (particle.type === "ring") {
+      // Shock ring: expands and thins out as it ages (stays put, ignores dx/dy).
+      const radius = particle.size * (0.5 + age * 1.9);
+      effectsCtx.lineWidth = Math.max(1, 3 * (1 - age));
+      effectsCtx.strokeStyle = particle.color;
+      effectsCtx.beginPath();
+      effectsCtx.arc(particle.x, particle.y, radius, 0, Math.PI * 2);
+      effectsCtx.stroke();
+    } else if (particle.type === "heart") {
+      const s = size;
+      effectsCtx.beginPath();
+      effectsCtx.arc(x - s * 0.26, y - s * 0.12, s * 0.34, 0, Math.PI * 2);
+      effectsCtx.arc(x + s * 0.26, y - s * 0.12, s * 0.34, 0, Math.PI * 2);
+      effectsCtx.fill();
+      effectsCtx.beginPath();
+      effectsCtx.moveTo(x - s * 0.56, y);
+      effectsCtx.lineTo(x + s * 0.56, y);
+      effectsCtx.lineTo(x, y + s * 0.66);
+      effectsCtx.closePath();
+      effectsCtx.fill();
     } else {
       effectsCtx.fillRect(Math.round(x), Math.round(y), Math.round(size), Math.round(size));
     }
@@ -14945,8 +15024,39 @@ function updateMotion(pet, now, step) {
     return;
   }
 
+  // Mouse "follow": aim for an invisible circle around the cursor rather than
+  // the exact point. Head into the circle when outside it, then drift gently to
+  // a randomized anchor inside it — smoother than pinpoint chasing.
+  const followRadius = clamp(size * 1.7, 90, 160);
+  const mcx = pet.x + size / 2;
+  const mcy = pet.y + size / 2;
+  const mdx = mouseX - mcx;
+  const mdy = mouseY - mcy;
+  const mdist = Math.hypot(mdx, mdy) || 1;
+  const mouseOnScreen = mouseX > -60 && mouseY > -60 && mouseX < w + 60 && mouseY < h + 60;
+  const followMode = !flying && !aiDrive && behavior.mouseMode === "follow" && mouseOnScreen;
+  const followFar = followMode && mdist > followRadius;
+  if (followMode) {
+    if (followFar) {
+      const enter = followRadius * 0.82;
+      pet.targetX = clamp(mouseX - (mdx / mdist) * enter - size / 2, 0, maxX);
+      pet.targetY = clamp(mouseY - (mdy / mdist) * enter - size / 2, 0, maxY);
+    } else {
+      if (!pet.followWanderAt || now > pet.followWanderAt) {
+        const angle = rand(0, Math.PI * 2);
+        const radius = rand(0, followRadius * 0.6);
+        pet.followAnchorX = Math.cos(angle) * radius;
+        pet.followAnchorY = Math.sin(angle) * radius;
+        pet.followWanderAt = now + rand(800, 1600);
+      }
+      pet.targetX = clamp(mouseX + (pet.followAnchorX || 0) - size / 2, 0, maxX);
+      pet.targetY = clamp(mouseY + (pet.followAnchorY || 0) - size / 2, 0, maxY);
+    }
+    pet.nextTargetAt = now + 500;
+  }
+
   const reachedTarget = Math.hypot(pet.targetX - pet.x, pet.targetY - pet.y) < 12;
-  if (!flying && !aiControlled && (now > pet.nextTargetAt || reachedTarget)) {
+  if (!flying && !aiControlled && !followMode && (now > pet.nextTargetAt || reachedTarget)) {
     pickTarget(pet, now);
   } else if (!flying && aiControlled && reachedTarget) {
     pet.nextTargetAt = Math.max(pet.nextTargetAt, now + 180);
@@ -14970,30 +15080,30 @@ function updateMotion(pet, now, step) {
     }
     pet.vx += rand(-1, 1) * (movement.wobble || DEFAULT_MOVEMENT.wobble) * 0.35 * step;
     pet.vy += rand(-1, 1) * (movement.wobble || DEFAULT_MOVEMENT.wobble) * 0.35 * step;
-  } else if (!flying && behavior.movementStyle !== "stay") {
+  } else if (!flying && (behavior.movementStyle !== "stay" || followMode)) {
     const dx = pet.targetX - pet.x;
     const dy = pet.targetY - pet.y;
     const dist = Math.hypot(dx, dy) || 1;
-    const accel = (movement.accel || DEFAULT_MOVEMENT.accel) * behavior.speedMultiplier * replyFactor;
+    let accelMul = behavior.speedMultiplier * replyFactor;
+    if (followFar) {
+      // The farther outside the circle, the harder it accelerates, so it
+      // actually catches a moving cursor instead of lagging behind.
+      accelMul *= 2 + clamp(mdist / followRadius - 1, 0, 1.5) * 1.8;
+    } else if (followMode) {
+      accelMul *= 0.85;
+    }
+    const accel = (movement.accel || DEFAULT_MOVEMENT.accel) * accelMul;
     pet.vx += (dx / dist) * accel * step;
     pet.vy += (dy / dist) * accel * step;
-    pet.vx += rand(-1, 1) * (movement.wobble || DEFAULT_MOVEMENT.wobble) * replyFactor * step;
-    pet.vy += rand(-1, 1) * (movement.wobble || DEFAULT_MOVEMENT.wobble) * replyFactor * step;
+    const wobbleMul = followMode ? 0.3 : 1;
+    pet.vx += rand(-1, 1) * (movement.wobble || DEFAULT_MOVEMENT.wobble) * replyFactor * wobbleMul * step;
+    pet.vy += rand(-1, 1) * (movement.wobble || DEFAULT_MOVEMENT.wobble) * replyFactor * wobbleMul * step;
   } else if (!flying) {
     pet.vx += (pet.targetX - pet.x) * 0.002 * step;
     pet.vy += (pet.targetY - pet.y) * 0.002 * step;
   }
 
-  const cx = pet.x + size / 2;
-  const cy = pet.y + size / 2;
-  const mdx = mouseX - cx;
-  const mdy = mouseY - cy;
-  const mdist = Math.hypot(mdx, mdy);
-
-  if (!flying && !aiDrive && behavior.mouseMode === "follow" && mdist > 1) {
-    pet.vx += (mdx / mdist) * 0.16 * step;
-    pet.vy += (mdy / mdist) * 0.16 * step;
-  } else if (!flying && !aiDrive && behavior.mouseMode === "avoid" && mdist < MOUSE_PROXIMITY && mdist > Math.max(30, size * 0.7)) {
+  if (!flying && !aiDrive && behavior.mouseMode === "avoid" && mdist < MOUSE_PROXIMITY && mdist > Math.max(30, size * 0.7)) {
     const grabHalo = Math.max(30, size * 0.7);
     const range = Math.max(1, MOUSE_PROXIMITY - grabHalo);
     const force = (1 - (mdist - grabHalo) / range) * 0.18;
@@ -15003,9 +15113,10 @@ function updateMotion(pet, now, step) {
 
   const speed = Math.hypot(pet.vx, pet.vy);
   const aiSpeedBoost = aiDrive ? clamp(Number(aiDrive.speed) || Number(behavior.speedMultiplier) || 1, 1, 3) * 1.25 : 1;
-  const careFactor = careMovementFactor(pet.care || careForPet(pet), personalityForPet(pet), pet);
+  const careFactor = cachedCareMovementFactor(pet, now);
   const baseMaxSpeed = (movement.speed || DEFAULT_MOVEMENT.speed) * behavior.speedMultiplier * replyFactor * aiSpeedBoost * careFactor;
-  const maxSpeed = flying ? Math.max(baseMaxSpeed, MAX_THROW_SPEED) : baseMaxSpeed;
+  let maxSpeed = flying ? Math.max(baseMaxSpeed, MAX_THROW_SPEED) : baseMaxSpeed;
+  if (followFar) maxSpeed *= 1.7;
   if (speed > maxSpeed) {
     pet.vx *= maxSpeed / speed;
     pet.vy *= maxSpeed / speed;
@@ -15041,7 +15152,6 @@ function updateMotion(pet, now, step) {
     pet.spinVelocity += Math.abs(pet.vx) * 2.2 + 9;
     pet.impactUntil = Math.max(pet.impactUntil, now + 760);
   }
-
   if (Math.abs(pet.vx) > 0.08) {
     pet.direction = pet.vx >= 0 ? 1 : -1;
   }
@@ -15134,6 +15244,56 @@ function resolvePetPointerCollision(pet, now, step) {
   pet.impactUntil = Math.max(pet.impactUntil, now + 260);
 }
 
+// Varied "pop" when two pets bump. Picks one of several looks at random (never
+// the same one twice in a row) so collisions feel lively, scaled down in saver
+// mode and skipped while pets are ghost-hidden.
+let lastCollisionStyle = -1;
+const COLLISION_STYLES = [
+  { type: "spark", colors: ["#fff7ad", "#ffd166", "#ffe66b"], count: 8, speed: [30, 54], size: [4, 8], life: 440, lift: 0 },
+  { type: "confetti", colors: ["#ff4d6d", "#ffd166", "#39d98a", "#4dabf7", "#a78bfa", "#fb923c"], count: 9, speed: [26, 48], size: [4, 7], life: 640, lift: -6 },
+  { type: "bubble", colors: ["rgba(157,234,255,0.62)", "rgba(125,211,252,0.58)"], count: 6, speed: [16, 30], size: [6, 12], life: 600, lift: -10 },
+  { type: "heart", colors: ["#ff8fab", "#ff5d8f", "#ffc2e7"], count: 5, speed: [18, 34], size: [8, 12], life: 760, lift: -14 },
+  { type: "star", colors: ["#ffe66b", "#fff7ad", "#a5f3fc"], count: 7, speed: [30, 50], size: [5, 9], life: 500, lift: 0 },
+  { type: "ring", colors: ["#a5f3fc", "#93c5fd", "#fcd34d"], count: 1, speed: [0, 0], size: [10, 14], life: 400, lift: 0, ring: true },
+];
+function spawnCollisionBurst(x, y, now, energy) {
+  if (ghostHidden || !performanceProfile().trails) return;
+  const e = clamp(energy, 0.55, 1.7);
+  const density = (settings?.performanceMode || "saver") === "saver" ? 0.6 : 1;
+  const pick = (arr) => arr[Math.floor(rand(0, arr.length))];
+  let idx = Math.floor(rand(0, COLLISION_STYLES.length));
+  if (idx === lastCollisionStyle) idx = (idx + 1) % COLLISION_STYLES.length;
+  lastCollisionStyle = idx;
+  const style = COLLISION_STYLES[idx];
+  if (style.ring) {
+    pushEffectParticle({ type: "ring", x, y, dx: 0, dy: 0, size: rand(style.size[0], style.size[1]) + e * 6, color: pick(style.colors), alpha: 0.72, born: now, life: style.life });
+    const extra = Math.round(4 * density);
+    for (let i = 0; i < extra; i += 1) {
+      const a = rand(0, Math.PI * 2);
+      const sp = rand(24, 44) * e;
+      pushEffectParticle({ type: "spark", x, y, dx: Math.cos(a) * sp, dy: Math.sin(a) * sp, size: rand(4, 7), color: "#fff7ad", alpha: 0.9, born: now, life: 360 });
+    }
+    return;
+  }
+  const count = Math.max(3, Math.round(style.count * e * density));
+  for (let i = 0; i < count; i += 1) {
+    const a = rand(0, Math.PI * 2);
+    const sp = rand(style.speed[0], style.speed[1]) * e;
+    pushEffectParticle({
+      type: style.type,
+      x: x + rand(-3, 3),
+      y: y + rand(-3, 3),
+      dx: Math.cos(a) * sp,
+      dy: Math.sin(a) * sp + style.lift,
+      size: rand(style.size[0], style.size[1]),
+      color: pick(style.colors),
+      alpha: style.type === "bubble" ? 0.6 : 0.92,
+      born: now,
+      life: style.life,
+    });
+  }
+}
+
 function resolvePetCollisions(now) {
   for (let i = 0; i < pets.length; i += 1) {
     const a = pets[i];
@@ -15193,6 +15353,14 @@ function resolvePetCollisions(now) {
         b.spinVelocity += clamp((ny - nx) * impulse * 5, -18, 18);
         b.impactUntil = Math.max(b.impactUntil, now + 420);
       }
+
+      // Pop a varied effect on a real bump (approaching, not a resting overlap),
+      // throttled per pet so a lingering contact doesn't spam particles.
+      if (separatingSpeed < -0.5 && now - (a.lastCollisionFxAt || 0) > 280 && now - (b.lastCollisionFxAt || 0) > 280) {
+        a.lastCollisionFxAt = now;
+        b.lastCollisionFxAt = now;
+        spawnCollisionBurst(ax + nx * radiusA, ay + ny * radiusA, now, clamp(0.6 + Math.abs(separatingSpeed) * 0.35, 0.55, 1.7));
+      }
     }
   }
 }
@@ -15215,13 +15383,13 @@ function updateRainbowRibbon(pet, now) {
 function effectAnchorFor(pet) {
   const custom = customCharacterFor(pet.characterId);
   const character = characterFor(pet.characterId);
-  return custom?.effectAnchor || pet.behavior?.effectAnchor || character.effectAnchor || { x: 0.5, y: 0.56 };
+  return pet.behavior?.effectAnchor || custom?.effectAnchor || character.effectAnchor || { x: 0.5, y: 0.56 };
 }
 
 function effectDirectionFor(pet) {
   const custom = customCharacterFor(pet.characterId);
   const character = characterFor(pet.characterId);
-  return custom?.effectDirection || pet.behavior?.effectDirection || character.effectDirection || "back";
+  return pet.behavior?.effectDirection || custom?.effectDirection || character.effectDirection || "back";
 }
 
 function effectOrigin(pet, size) {
@@ -15376,10 +15544,6 @@ function shortcutIcon(shortcut) {
 function shortcutImage(shortcut) {
   if (shortcut?.imagePath) return fileUrlFromPath(shortcut.imagePath);
   return "";
-}
-
-function hasCustomShortcutImage(shortcut) {
-  return shortcutKind(shortcut) === "app" || !!String(shortcut?.imagePath || "").trim();
 }
 
 function makeCareMeter(labelText, value) {
@@ -19417,6 +19581,7 @@ function applyMovementAction(pet, command, character = characterFor(pet?.charact
 }
 
 function showPetThought(pet, text, options = {}) {
+  if (options.kind !== "system-benchmark") return;
   if (!pet?.el || !stage || !text) return;
   const old = pet.thoughtEl;
   if (old) hidePetBubble(pet, old, "thoughtEl", { immediate: true });
@@ -19435,6 +19600,7 @@ function showPetThought(pet, text, options = {}) {
 }
 
 function showPetThinking(pet, text = "", options = {}) {
+  if (options.kind !== "system-benchmark") return;
   if (!pet?.el || !stage) return;
   const old = pet.thinkingEl;
   if (old) hidePetBubble(pet, old, "thinkingEl", { immediate: true });
@@ -19502,13 +19668,17 @@ function positionPetBubbles() {
 
 async function maybeAutoTalk(now) {
   if (autoTalkBusy || now < nextAutoTalkAt) return;
+  if (!systemStats) {
+    nextAutoTalkAt = now + 5000;
+    return;
+  }
   const candidates = pets.filter((pet) => pet.enabled && !pet.dragging);
   if (!candidates.length) return;
   autoTalkBusy = true;
   nextAutoTalkAt = now + rand(16000, 30000);
   const pet = candidates[Math.floor(Math.random() * candidates.length)];
-  const line = systemStats && Math.random() < 0.75 ? systemBenchmarkLine() : careIdleLine(pet);
-  showPetThought(pet, line, { durationMs: 4300 });
+  const line = systemBenchmarkLine();
+  showPetThought(pet, line, { durationMs: 4300, kind: "system-benchmark" });
   autoTalkBusy = false;
 }
 
@@ -19653,35 +19823,138 @@ function renderShortcutGroup(titleText, shortcuts, displayMode, className) {
   return section;
 }
 
+function renderRadialBubble(shortcut, displayMode) {
+  const kind = shortcutKind(shortcut);
+  const button = document.createElement("button");
+  button.className = "radial-bubble";
+  button.dataset.kind = kind;
+  button.type = "button";
+  button.setAttribute("aria-label", shortcut.name);
+
+  let icon = shortcutIcon(shortcut);
+  const imageUrl = shortcutImage(shortcut);
+  if (imageUrl) {
+    const img = document.createElement("img");
+    img.alt = "";
+    img.src = imageUrl;
+    img.addEventListener("error", () => {
+      const fallback = shortcutIcon(shortcut);
+      fallback.classList.add("radial-bubble__icon");
+      img.replaceWith(fallback);
+    });
+    icon = img;
+  }
+  icon.classList.add("radial-bubble__icon");
+  button.appendChild(icon);
+
+  // The name (the one you set) appears only on hover, so the panel stays a
+  // clean set of logos/photos.
+  const tip = document.createElement("span");
+  tip.className = "radial-bubble__tip";
+  tip.textContent = shortcut.name;
+  button.appendChild(tip);
+
+  button.addEventListener("click", () => api.openShortcut(shortcut));
+  return button;
+}
+
+function renderRadialSide(kind, list, displayMode) {
+  const side = document.createElement("div");
+  side.className = `radial-side radial-side--${kind}`;
+  list.slice(0, 12).forEach((shortcut, index) => {
+    const bubble = renderRadialBubble(shortcut, displayMode);
+    bubble.style.setProperty("--i", String(index));
+    side.appendChild(bubble);
+  });
+  return side;
+}
+
+function makeToolBubble(icon, label, className, onClick) {
+  const button = document.createElement("button");
+  button.className = `radial-tool ${className || ""}`.trim();
+  button.type = "button";
+  button.title = label;
+  button.setAttribute("aria-label", label);
+  const glyph = document.createElement("span");
+  glyph.className = "radial-tool__icon";
+  glyph.textContent = icon;
+  const caption = document.createElement("span");
+  caption.className = "radial-tool__label";
+  caption.textContent = label;
+  button.append(glyph, caption);
+  button.addEventListener("click", onClick);
+  return button;
+}
+
+function renderRadialTools(pet) {
+  const tools = document.createElement("div");
+  tools.className = "radial-tools";
+
+  const settingsBtn = makeToolBubble("⚙", panelText("settings"), "radial-tool--settings", () => api.openSettings());
+  settingsBtn.style.setProperty("--i", "0");
+
+  tools.append(settingsBtn);
+  return tools;
+}
+
+function renderSystemStrip() {
+  const strip = document.createElement("div");
+  strip.className = "radial-system";
+  const stats = systemStats;
+  if (!stats) {
+    const waiting = document.createElement("span");
+    waiting.className = "radial-system__wait";
+    waiting.textContent = panelText("systemWaiting");
+    strip.appendChild(waiting);
+    return strip;
+  }
+  const metrics = [
+    ["systemCpu", stats.cpu?.percent || 0, "#ff8f6b"],
+    ["systemRam", stats.memory?.percent || 0, "#5fb6e8"],
+    ["systemStorage", stats.storage?.percent || 0, "#8be0a4"],
+  ];
+  metrics.forEach(([key, pct, color], index) => {
+    const meter = document.createElement("div");
+    meter.className = "radial-meter";
+    meter.style.setProperty("--i", String(index));
+    meter.style.setProperty("--value", String(Math.round(clamp(pct, 0, 100))));
+    meter.style.setProperty("--ring", color);
+    const inner = document.createElement("div");
+    inner.className = "radial-meter__inner";
+    const value = document.createElement("strong");
+    value.textContent = `${Math.round(pct)}%`;
+    const label = document.createElement("span");
+    label.textContent = panelText(key);
+    inner.append(value, label);
+    meter.appendChild(inner);
+    strip.appendChild(meter);
+  });
+  return strip;
+}
+
 function renderShortcutPanel(pet) {
-  const wrap = document.createElement("div");
-  wrap.className = "shortcut-panel";
+  const root = document.createElement("div");
+  root.className = "pet-radial";
 
   const shortcuts = currentShortcuts();
   const displayMode = ["both", "image", "name"].includes(settings?.shortcutDisplayMode)
     ? settings.shortcutDisplayMode
     : "both";
-  const visibleShortcuts = (displayMode === "image" ? shortcuts.filter(hasCustomShortcutImage) : shortcuts).slice(0, 24);
+  const visible = shortcuts.slice(0, 24);
+  const appShortcuts = visible.filter((shortcut) => shortcutKind(shortcut) === "app");
+  const webShortcuts = visible.filter((shortcut) => shortcutKind(shortcut) !== "app");
 
-  if (!visibleShortcuts.length) {
-    const empty = document.createElement("div");
-    empty.className = "panel-empty";
-    const title = document.createElement("strong");
-    title.textContent = panelText("noShortcuts");
-    const note = document.createElement("span");
-    note.textContent = panelText("addShortcuts");
-    empty.append(title, note);
-    wrap.appendChild(empty);
-    return wrap;
-  }
+  // apps fan out to the LEFT, web links to the RIGHT, with the pet showing
+  // through the transparent core in the middle.
+  root.appendChild(renderRadialSide("apps", appShortcuts, displayMode));
+  const core = document.createElement("div");
+  core.className = "radial-core";
+  core.style.setProperty("--core", `${getPetSize(pet)}px`);
+  root.appendChild(core);
+  root.appendChild(renderRadialSide("links", webShortcuts, displayMode));
 
-  const webShortcuts = visibleShortcuts.filter((shortcut) => shortcutKind(shortcut) !== "app");
-  const appShortcuts = visibleShortcuts.filter((shortcut) => shortcutKind(shortcut) === "app");
-  const webGroup = renderShortcutGroup(panelText("links"), webShortcuts, displayMode, "web-shortcuts");
-  const appGroup = renderShortcutGroup(panelText("apps"), appShortcuts, "image", "app-shortcuts");
-  if (webGroup) wrap.appendChild(webGroup);
-  if (appGroup) wrap.appendChild(appGroup);
-  return wrap;
+  root.appendChild(renderRadialTools(pet));
+  return root;
 }
 
 function renderSystemMetricCard(labelText, key, percentValue, detailText) {
@@ -19802,46 +20075,22 @@ function openPanel(pet, options = {}) {
   pet.targetX = pet.x;
   pet.targetY = pet.y;
   if (!options.noBurst) spawnClickBurst(pet);
-  const character = characterFor(pet.characterId);
-  const view = options.view || (options.noBurst && panel.dataset.view === "care" ? "care" : "shortcuts");
+
+  // Radial layout that bubbles out of the character: apps left, links right,
+  // settings below. The panel itself is transparent (no card) and only
+  // the bubbles capture clicks, so clicking the gaps closes it.
+  panel.className = "pet-panel pet-panel--radial";
+  panel.dataset.view = "shortcuts";
+  panel.dataset.system = "off";
+  panel.setAttribute("aria-label", panelText("shortcuts"));
+  panel.style.width = "";
+  panel.style.minHeight = "";
   panel.innerHTML = "";
-  panel.dataset.view = view;
-  panel.setAttribute("aria-label", view === "care" ? panelText("carePage") : panelText("shortcuts"));
-
-  const header = document.createElement("div");
-  header.className = "panel-header";
-  const title = document.createElement("strong");
-  title.textContent = view === "care" ? panelText("carePage") : panelText("shortcuts");
-  const close = document.createElement("button");
-  close.className = "panel-close";
-  close.type = "button";
-  close.textContent = "×";
-  close.setAttribute("aria-label", panelText("close"));
-  close.addEventListener("click", (event) => {
-    event.preventDefault();
-    event.stopPropagation();
-    closePanel(true);
-    api.setClickThrough(true);
-  });
-  const controls = document.createElement("div");
-  controls.className = "panel-header__controls";
-  controls.append(close);
-  header.append(title, controls);
-  panel.appendChild(header);
-  bindPanelMove(header);
-
-  panel.appendChild(view === "care" ? renderSimpleCarePage(pet, character) : renderShortcutPanel(pet));
-  panel.appendChild(renderPanelActions(pet, view));
-
-  const resize = document.createElement("div");
-  resize.className = "panel-resize";
-  resize.setAttribute("aria-hidden", "true");
-  panel.appendChild(resize);
-  bindPanelResize(resize);
+  panel.appendChild(renderShortcutPanel(pet));
 
   panel.hidden = false;
+  panel._lastTransform = "";
   positionPanel();
-  bindPanelMove(panel, { body: true });
 }
 
 function beginPanelMove(event, handle) {
@@ -19917,40 +20166,21 @@ function positionPanel() {
   if (!activePet || panel.hidden) return;
   const size = getPetSize(activePet);
   const { w, h } = viewport();
-  const rectW = panel.offsetWidth || 320;
-  const rectH = panel.offsetHeight || 112;
-  if (panelManual) {
-    const width = clamp(panelManual.width || rectW, 280, Math.min(560, w - 24), rectW);
-    const height = clamp(panelManual.height || rectH, 190, Math.min(680, h - 24), rectH);
-    const x = clamp(panelManual.x, 12, Math.max(12, w - width - 12));
-    const y = clamp(panelManual.y, 12, Math.max(12, h - height - 12));
-    panel.style.width = `${Math.round(width)}px`;
-    panel.style.minHeight = `${Math.round(height)}px`;
-    panel.style.transform = `translate(${Math.round(x)}px, ${Math.round(y)}px)`;
-    return;
-  }
-  panel.style.width = "";
-  panel.style.minHeight = "";
-  let x = activePet.x + size / 2 - rectW / 2;
-  const belowY = activePet.y + size + 10;
-  const aboveY = activePet.y - rectH - 10;
-  let y = belowY + rectH <= h - 12 ? belowY : aboveY >= 12 ? aboveY : activePet.y + size / 2 - rectH / 2;
-  x = clamp(x, 12, Math.max(12, w - rectW - 12));
-  y = clamp(y, 12, Math.max(12, h - rectH - 12));
-  panel.style.transform = `translate(${Math.round(x)}px, ${Math.round(y)}px)`;
-}
-
-function syncGround() {
-  ground.hidden = true;
-  ground.innerHTML = "";
-}
-
-function syncAquarium() {
-  if (!aquarium) return;
-  if (aquariumSignature === "disabled") return;
-  aquariumSignature = "disabled";
-  aquarium.hidden = true;
-  aquarium.innerHTML = "";
+  const rectW = panel.offsetWidth || 240;
+  const rectH = panel.offsetHeight || 160;
+  // Align the transparent core (which the pet shows through) with the pet so the
+  // bubbles fan out around the character. Falls back to the panel centre.
+  const core = panel.querySelector(".radial-core");
+  const coreCX = core ? core.offsetLeft + core.offsetWidth / 2 : rectW / 2;
+  const coreCY = core ? core.offsetTop + core.offsetHeight / 2 : rectH / 2;
+  const petCX = activePet.x + size / 2;
+  const petCY = activePet.y + size / 2;
+  let x = clamp(petCX - coreCX, 12, Math.max(12, w - rectW - 12));
+  let y = clamp(petCY - coreCY, 12, Math.max(12, h - rectH - 12));
+  const transform = `translate(${Math.round(x)}px, ${Math.round(y)}px)`;
+  if (panel._lastTransform === transform) return;
+  panel._lastTransform = transform;
+  panel.style.transform = transform;
 }
 
 function syncPets() {
@@ -20003,8 +20233,6 @@ function syncPets() {
       openPanel(pet);
     }
   }
-  syncGround();
-  syncAquarium();
   if (activePet && !activePet.enabled) {
     closePanel(true);
   }

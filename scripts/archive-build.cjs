@@ -8,23 +8,23 @@ const RELEASE_DIR = path.join(ROOT, "release");
 
 const TARGETS = {
   mac: {
-    folderPrefix: "BusyPet Desktop-darwin-",
-    output: "BusyPet-Desktop-macOS-arm64.zip",
+    folderPrefix: "DeskPal Desktop-darwin-",
+    output: "DeskPal-Desktop-macOS-arm64.zip",
     archive: archiveMacZip,
   },
   win: {
-    folder: "BusyPet Desktop-win32-x64",
-    output: "BusyPet-Desktop-Windows-x64.zip",
+    folder: "DeskPal Desktop-win32-x64",
+    output: "DeskPal-Desktop-Windows-x64.zip",
     archive: archiveGenericZip,
   },
   linux: {
-    folder: "BusyPet Desktop-linux-x64",
-    output: "BusyPet-Desktop-Ubuntu-x64.tar.gz",
+    folder: "DeskPal Desktop-linux-x64",
+    output: "DeskPal-Desktop-Ubuntu-x64.tar.gz",
     archive: archiveTarGz,
   },
   "linux-arm64": {
-    folder: "BusyPet Desktop-linux-arm64",
-    output: "BusyPet-Desktop-Ubuntu-arm64.tar.gz",
+    folder: "DeskPal Desktop-linux-arm64",
+    output: "DeskPal-Desktop-Ubuntu-arm64.tar.gz",
     archive: archiveTarGz,
   },
 };
@@ -53,7 +53,7 @@ function folderFor(target) {
 }
 
 function archiveMacZip(folder, outputPath) {
-  const appName = "BusyPet Desktop.app";
+  const appName = "DeskPal Desktop.app";
   const appPath = path.join(DIST_DIR, folder, appName);
   if (!fs.existsSync(appPath)) throw new Error(`Missing macOS app: ${appPath}`);
   execFileSync("ditto", ["-c", "-k", "--sequesterRsrc", "--keepParent", appName, outputPath], {

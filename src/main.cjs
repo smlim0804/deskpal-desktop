@@ -18,6 +18,14 @@ if (!gotSingleInstanceLock) {
 const MAX_SLOTS = 8;
 const CUSTOM_GRID_SIZE = 24;
 const CUSTOM_CHARACTER_LIMIT = 24;
+const FREE_CHARACTER_LIMIT = 2;
+const FREE_WEB_SHORTCUT_LIMIT = 1;
+const FREE_APP_SHORTCUT_LIMIT = 1;
+const LICENSE_API_URL = process.env.DESKPAL_LICENSE_API_URL || "https://www.aidogam.com/api/deskpal-license";
+const UPDATE_API_URL =
+  process.env.DESKPAL_UPDATE_API_URL || "https://api.github.com/repos/smlim0804/deskpal-desktop/releases/latest";
+const UPDATE_PAGE_URL =
+  process.env.DESKPAL_UPDATE_PAGE_URL || "https://github.com/smlim0804/deskpal-desktop/releases/latest";
 const CARE_MEMORY_LIMIT = 12;
 const CHARACTER_IDS = [
   "ufo",
@@ -98,6 +106,29 @@ const DEFAULT_GAME = Object.freeze({
   habitatLayout: [],
   habitatTheme: "cozy",
   ambientEvents: { counts: {}, lastAt: 0, lastId: "", lastKey: "" },
+});
+
+const DEFAULT_LICENSE = Object.freeze({
+  plan: "free",
+  status: "inactive",
+  key: "",
+  email: "",
+  activatedAt: 0,
+  lastCheckedAt: 0,
+  deviceLimit: 2,
+  activatedDevices: 0,
+  message: "",
+});
+
+const DEFAULT_UPDATE = Object.freeze({
+  checking: false,
+  available: false,
+  currentVersion: "",
+  latestVersion: "",
+  downloadUrl: "",
+  pageUrl: UPDATE_PAGE_URL,
+  checkedAt: 0,
+  message: "",
 });
 
 const TOY_IDS = ["ribbon", "bell", "ball", "brush", "rocketSnack", "starBlanket"];
@@ -217,7 +248,6 @@ const DEFAULT_SETTINGS = Object.freeze({
   language: "en",
   performanceMode: "saver",
   shortcutDisplayMode: "both",
-  runInBackground: true,
   showTrayIcon: true,
   ghostMode: true,
   ghostDelaySeconds: 3,
@@ -226,6 +256,8 @@ const DEFAULT_SETTINGS = Object.freeze({
   ghostTriggerWheel: true,
   ghostOpacity: 0,
   fps: 16,
+  license: clone(DEFAULT_LICENSE),
+  update: clone(DEFAULT_UPDATE),
   game: clone(DEFAULT_GAME),
   customCharacters: [defaultCustomCharacter(0)],
   slots: [
@@ -273,9 +305,60 @@ function getSettingsPath() {
   return path.join(app.getPath("userData"), "settings.json");
 }
 
+function getPreviousUserDataPath() {
+  return path.join(app.getPath("appData"), ["busy", "pet-desktop"].join(""));
+}
+
+function getMachineId() {
+  const userInfo = safeUserInfo();
+  const parts = [
+    "deskpal",
+    os.hostname(),
+    userInfo.username,
+    process.platform,
+    process.arch,
+    app.getPath("userData"),
+  ];
+  return crypto.createHash("sha256").update(parts.join("|")).digest("hex");
+}
+
+function safeUserInfo() {
+  try {
+    return os.userInfo();
+  } catch {
+    return { username: "" };
+  }
+}
+
+function migratePreviousSettings() {
+  const currentDir = app.getPath("userData");
+  const previousDir = getPreviousUserDataPath();
+  if (path.resolve(currentDir) === path.resolve(previousDir)) return;
+
+  const currentSettings = getSettingsPath();
+  const previousSettings = path.join(previousDir, "settings.json");
+  if (!fs.existsSync(currentSettings) && fs.existsSync(previousSettings)) {
+    fs.mkdirSync(currentDir, { recursive: true });
+    const previousText = fs.readFileSync(previousSettings, "utf8");
+    fs.writeFileSync(currentSettings, previousText.split(previousDir).join(currentDir));
+  }
+
+  const currentIcons = path.join(currentDir, "shortcut-icons");
+  const previousIcons = path.join(previousDir, "shortcut-icons");
+  if (!fs.existsSync(currentIcons) && fs.existsSync(previousIcons)) {
+    fs.cpSync(previousIcons, currentIcons, { recursive: true });
+  }
+}
+
 function getWindowIconPath() {
   const iconPath = path.join(__dirname, "..", "build", "icon.png");
   return fs.existsSync(iconPath) ? iconPath : undefined;
+}
+
+function applyAppIcon() {
+  const iconPath = getWindowIconPath();
+  if (!iconPath || !app.dock) return;
+  app.dock.setIcon(iconPath);
 }
 
 function cpuSample() {
@@ -726,6 +809,73 @@ function normalizeCustomCharacter(item, index) {
   };
 }
 
+function normalizeLicense(source) {
+  const src = source && typeof source === "object" ? source : {};
+  const plan = src.plan === "pro" && src.status === "active" ? "pro" : "free";
+  return {
+    ...clone(DEFAULT_LICENSE),
+    plan,
+    status: plan === "pro" ? "active" : "inactive",
+    key: String(src.key || "").trim().slice(0, 120),
+    email: String(src.email || "").trim().slice(0, 160),
+    activatedAt: Math.round(clamp(src.activatedAt, 0, Date.now(), 0)),
+    lastCheckedAt: Math.round(clamp(src.lastCheckedAt, 0, Date.now(), 0)),
+    deviceLimit: Math.round(clamp(src.deviceLimit, 1, 10, DEFAULT_LICENSE.deviceLimit)),
+    activatedDevices: Math.round(clamp(src.activatedDevices, 0, 10, 0)),
+    message: String(src.message || "").trim().slice(0, 180),
+  };
+}
+
+function normalizeUpdate(source) {
+  const src = source && typeof source === "object" ? source : {};
+  return {
+    ...clone(DEFAULT_UPDATE),
+    checking: src.checking === true,
+    available: src.available === true,
+    currentVersion: String(src.currentVersion || app.getVersion?.() || "").trim().slice(0, 40),
+    latestVersion: String(src.latestVersion || "").trim().slice(0, 40),
+    downloadUrl: String(src.downloadUrl || "").trim().slice(0, 500),
+    pageUrl: String(src.pageUrl || UPDATE_PAGE_URL).trim().slice(0, 500),
+    checkedAt: Math.round(clamp(src.checkedAt, 0, Date.now(), 0)),
+    message: String(src.message || "").trim().slice(0, 180),
+  };
+}
+
+function hasProLicense(value = settings) {
+  return value?.license?.plan === "pro" && value?.license?.status === "active";
+}
+
+function isCustomCharacterId(characterId) {
+  return CUSTOM_CHARACTER_IDS.includes(characterId);
+}
+
+function applyFreeLimits(next) {
+  if (hasProLicense(next)) return next;
+
+  next.slots = next.slots.map((slot, index) => {
+    const fallback = clone(DEFAULT_SETTINGS.slots[index] || DEFAULT_SETTINGS.slots[0]);
+    const limited = { ...slot, behavior: { ...(slot.behavior || fallback.behavior) } };
+    if (index >= FREE_CHARACTER_LIMIT) limited.enabled = false;
+    if (isCustomCharacterId(limited.character)) limited.character = fallback.character;
+    limited.behavior.effectMode = "off";
+    limited.behavior.effectIntensity = 1;
+    return limited;
+  });
+
+  let webCount = 0;
+  let appCount = 0;
+  next.shortcuts = next.shortcuts.filter((shortcut) => {
+    if (shortcut.type === "app") {
+      appCount += 1;
+      return appCount <= FREE_APP_SHORTCUT_LIMIT;
+    }
+    webCount += 1;
+    return webCount <= FREE_WEB_SHORTCUT_LIMIT;
+  });
+
+  return next;
+}
+
 function normalizeBehavior(source) {
   const merged = { ...clone(DEFAULT_BEHAVIOR), ...(source || {}) };
   merged.movementStyle = ["free", "stay"].includes(merged.movementStyle) ? merged.movementStyle : "free";
@@ -739,6 +889,11 @@ function normalizeBehavior(source) {
   merged.effectMode = ["off", ...EFFECT_IDS].includes(merged.effectMode)
     ? merged.effectMode
     : DEFAULT_BEHAVIOR.effectMode;
+  // The per-character effect-position override was removed: built-in characters
+  // use their own default effect anchor and custom characters set the point in
+  // the Pixel Maker. Strip any stale per-slot anchor so it can't override those.
+  delete merged.effectAnchor;
+  if (!["left", "right", "up", "down", "auto", "back"].includes(merged.effectDirection)) delete merged.effectDirection;
   merged.speedMultiplier = clamp(merged.speedMultiplier, 0.2, 3, 1);
   merged.scale = clamp(merged.scale, 0.5, 2.5, 1);
   merged.effectIntensity = clamp(merged.effectIntensity, 0.3, 2, 1);
@@ -1077,6 +1232,8 @@ function normalizeSettings(source) {
       : clone(DEFAULT_SETTINGS.customCharacters),
     slots: Array.isArray(src.slots) ? src.slots.slice(0, MAX_SLOTS) : clone(DEFAULT_SETTINGS.slots),
     shortcuts: Array.isArray(src.shortcuts) ? src.shortcuts : clone(DEFAULT_SETTINGS.shortcuts),
+    license: normalizeLicense(src.license),
+    update: normalizeUpdate(src.update),
     game: normalizeGame(src.game),
   };
   delete next.aquariumVersion;
@@ -1116,7 +1273,6 @@ function normalizeSettings(source) {
     src.ghostTriggerKeyboard === undefined ? DEFAULT_SETTINGS.ghostTriggerKeyboard : src.ghostTriggerKeyboard === true;
   next.ghostTriggerWheel = src.ghostTriggerWheel === undefined ? DEFAULT_SETTINGS.ghostTriggerWheel : src.ghostTriggerWheel === true;
   next.ghostOpacity = 0;
-  next.runInBackground = src.runInBackground === undefined ? DEFAULT_SETTINGS.runInBackground : src.runInBackground === true;
   next.showTrayIcon = src.showTrayIcon === undefined ? DEFAULT_SETTINGS.showTrayIcon : src.showTrayIcon === true;
   next.shortcutDisplayMode = ["both", "image", "name"].includes(src.shortcutDisplayMode)
     ? src.shortcutDisplayMode
@@ -1138,10 +1294,11 @@ function normalizeSettings(source) {
     .map((item) => normalizeShortcut(item, { allowDraft: true }))
     .filter(Boolean)
     .slice(0, 12);
-  return next;
+  return applyFreeLimits(next);
 }
 
 function loadSettings() {
+  migratePreviousSettings();
   try {
     const file = fs.readFileSync(getSettingsPath(), "utf8");
     settings = normalizeSettings(JSON.parse(file));
@@ -1192,6 +1349,123 @@ async function hydrateShortcutIcons() {
   broadcastSettings();
 }
 
+function sanitizeLicenseKey(value) {
+  return String(value || "").trim().replace(/\s+/g, "").slice(0, 120);
+}
+
+async function activateLicenseKey(licenseKey) {
+  const key = sanitizeLicenseKey(licenseKey);
+  if (!/^[A-Z0-9][A-Z0-9-]{7,80}$/i.test(key)) {
+    return { ok: false, error: "Check the license key." };
+  }
+
+  const response = await fetch(LICENSE_API_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      action: "activate",
+      product: "deskpal",
+      plan: "pro",
+      licenseKey: key,
+      machineId: getMachineId(),
+      appVersion: app.getVersion(),
+      platform: process.platform,
+    }),
+  });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok || !result?.ok) {
+    return { ok: false, error: result?.error || "License activation failed." };
+  }
+
+  settings.license = normalizeLicense({
+    plan: "pro",
+    status: "active",
+    key,
+    email: result.email || "",
+    activatedAt: Date.now(),
+    lastCheckedAt: Date.now(),
+    deviceLimit: result.deviceLimit || 2,
+    activatedDevices: result.activatedDevices || 1,
+    message: result.message || "",
+  });
+  settings = normalizeSettings(settings);
+  saveSettings();
+  broadcastSettings();
+  return { ok: true, license: settings.license };
+}
+
+function normalizeVersion(value) {
+  return String(value || "").trim().replace(/^v/i, "").split(/[+-]/)[0];
+}
+
+function versionParts(value) {
+  return normalizeVersion(value)
+    .split(".")
+    .map((item) => Number.parseInt(item, 10))
+    .map((item) => (Number.isFinite(item) ? item : 0));
+}
+
+function isVersionNewer(latest, current) {
+  const a = versionParts(latest);
+  const b = versionParts(current);
+  const length = Math.max(a.length, b.length, 3);
+  for (let index = 0; index < length; index += 1) {
+    const av = a[index] || 0;
+    const bv = b[index] || 0;
+    if (av > bv) return true;
+    if (av < bv) return false;
+  }
+  return false;
+}
+
+function releaseDownloadUrl(release) {
+  const assets = Array.isArray(release?.assets) ? release.assets : [];
+  const wanted = process.platform === "darwin" ? ".dmg" : process.platform === "win32" ? ".exe" : ".tar.gz";
+  const asset = assets.find((item) => String(item?.name || "").toLowerCase().includes(wanted));
+  return asset?.browser_download_url || release?.html_url || UPDATE_PAGE_URL;
+}
+
+async function checkForUpdates({ manual = false } = {}) {
+  settings.update = normalizeUpdate({
+    ...settings.update,
+    checking: true,
+    currentVersion: app.getVersion(),
+    message: manual ? "Checking for updates..." : settings.update?.message,
+  });
+  if (manual) broadcastSettings();
+
+  try {
+    const response = await fetch(UPDATE_API_URL, {
+      headers: { "User-Agent": `DeskPal/${app.getVersion()}` },
+    });
+    const release = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(release?.message || `Update check failed: ${response.status}`);
+    const latestVersion = normalizeVersion(release.tag_name || release.name || "");
+    const currentVersion = app.getVersion();
+    const available = latestVersion ? isVersionNewer(latestVersion, currentVersion) : false;
+    settings.update = normalizeUpdate({
+      available,
+      currentVersion,
+      latestVersion,
+      downloadUrl: releaseDownloadUrl(release),
+      pageUrl: release.html_url || UPDATE_PAGE_URL,
+      checkedAt: Date.now(),
+      message: available ? "Update available." : "DeskPal is up to date.",
+    });
+  } catch (error) {
+    settings.update = normalizeUpdate({
+      ...settings.update,
+      currentVersion: app.getVersion(),
+      checkedAt: Date.now(),
+      message: error?.message || "Update check failed.",
+    });
+  }
+
+  saveSettings();
+  broadcastSettings();
+  return settings.update;
+}
+
 function trayIcon() {
   const candidates = [
     getWindowIconPath(),
@@ -1212,7 +1486,6 @@ function trayLabel(key) {
   const ko = settings.language === "ko";
   const labels = {
     settings: ko ? "설정" : "Settings",
-    background: ko ? "백그라운드 실행" : "Run in Background",
     ghost: ko ? "유령모드" : "Ghost Mode",
     quit: ko ? "종료" : "Quit",
   };
@@ -1224,16 +1497,6 @@ function trayTemplate() {
     {
       label: trayLabel("settings"),
       click: showSettingsWindow,
-    },
-    {
-      label: trayLabel("background"),
-      type: "checkbox",
-      checked: settings.runInBackground !== false,
-      click: (menuItem) => {
-        settings.runInBackground = menuItem.checked;
-        saveSettings();
-        broadcastSettings();
-      },
     },
     {
       label: trayLabel("ghost"),
@@ -1264,7 +1527,7 @@ function refreshTrayMenu() {
 function createTray() {
   if (tray) return;
   tray = new Tray(trayIcon());
-  tray.setToolTip("BusyPet");
+  tray.setToolTip("DeskPal");
   refreshTrayMenu();
   tray.on("click", () => {
     refreshTrayMenu();
@@ -1320,7 +1583,7 @@ function createOverlayWindow() {
     alwaysOnTop: true,
     skipTaskbar: true,
     focusable: true,
-    title: "BusyPet Overlay",
+    title: "DeskPal Overlay",
     backgroundColor: "#00000000",
     webPreferences: {
       preload: path.join(__dirname, "preload.cjs"),
@@ -1344,11 +1607,11 @@ function createOverlayWindow() {
 
 function createSettingsWindow() {
   settingsWindow = new BrowserWindow({
-    width: 390,
+    width: 560,
     height: 720,
     minWidth: 360,
     minHeight: 560,
-    title: "BusyPet Settings",
+    title: "DeskPal Settings",
     icon: getWindowIconPath(),
     backgroundColor: "#f7f4ee",
     show: false,
@@ -1363,16 +1626,9 @@ function createSettingsWindow() {
   settingsWindow.loadFile(path.join(__dirname, "settings.html"));
   settingsWindow.on("close", () => {
     if (app.isQuitting) return;
-    // When background mode is off, closing the window quits the whole app
-    // instead of leaving it alive in the tray/menu bar.
-    if (settings.runInBackground === false) {
-      app.isQuitting = true;
-      app.quit();
-      return;
-    }
-    // Background mode: let the window actually close so its renderer's memory is
-    // reclaimed. The overlay keeps the app alive and showSettingsWindow()
-    // re-creates this window on demand.
+    // The overlay keeps the app alive in the background; closing the settings
+    // window just lets its renderer memory be reclaimed (showSettingsWindow()
+    // re-creates it on demand). Quitting is always explicit (tray / Exit).
   });
   settingsWindow.on("closed", () => {
     settingsWindow = null;
@@ -1442,7 +1698,7 @@ function stopCursorWatch() {
 function buildMenu() {
   const template = [
     {
-      label: "BusyPet",
+      label: "DeskPal",
       submenu: [
         { label: "Open Settings", accelerator: "CommandOrControl+,", click: showSettingsWindow },
         {
@@ -1488,8 +1744,71 @@ ipcMain.handle("settings:get", () => settings);
 
 ipcMain.handle("system:stats", () => systemStats());
 
-ipcMain.handle("settings:update", (_event, patch) => {
-  settings = normalizeSettings({ ...settings, ...(patch || {}) });
+// The overlay autosaves runtime state (game + per-slot care) very often. Those
+// saves must NOT carry the config the settings window owns (character, behavior
+// / mouseMode, enabled, shortcuts, ghost, fps, …) — otherwise a stale overlay
+// autosave reverts a change the user just made in settings (e.g. Mouse → Avoid
+// snapping back to Follow). So split ownership by sender.
+function mergeOverlayLiveState(patch) {
+  const next = clone(settings);
+  const source = patch && typeof patch === "object" ? patch : {};
+  if (source.game && typeof source.game === "object") next.game = source.game;
+  if (Array.isArray(source.slots)) {
+    for (let index = 0; index < next.slots.length; index += 1) {
+      const incoming = source.slots[index];
+      if (incoming && typeof incoming === "object" && incoming.care !== undefined) {
+        next.slots[index] = { ...next.slots[index], care: incoming.care };
+      }
+    }
+  }
+  return normalizeSettings(next);
+}
+
+ipcMain.handle("settings:update", (event, patch) => {
+  const fromOverlay =
+    overlayWindow && !overlayWindow.isDestroyed() && event.sender === overlayWindow.webContents;
+  if (fromOverlay) {
+    settings = mergeOverlayLiveState(patch);
+  } else {
+    const next = normalizeSettings({ ...settings, ...(patch || {}) });
+    // The settings window owns config, not runtime state — keep the latest
+    // game/care so a config edit doesn't roll back live progress.
+    next.game = settings.game;
+    for (let index = 0; index < next.slots.length; index += 1) {
+      if (settings.slots[index]) next.slots[index].care = settings.slots[index].care;
+    }
+    settings = next;
+  }
+  saveSettings();
+  broadcastSettings();
+  return settings;
+});
+
+ipcMain.handle("settings:slot:update", (event, payload) => {
+  const fromSettings =
+    settingsWindow && !settingsWindow.isDestroyed() && event.sender === settingsWindow.webContents;
+  if (!fromSettings) return settings;
+  const index = Math.trunc(Number(payload?.index));
+  if (!Number.isInteger(index) || index < 0 || index >= MAX_SLOTS) return settings;
+  const patch = payload?.patch && typeof payload.patch === "object" ? payload.patch : {};
+  const fallback = clone(DEFAULT_SETTINGS.slots[index] || DEFAULT_SETTINGS.slots[0]);
+  const current = settings.slots[index] || fallback;
+  const nextSlot = { ...current };
+  if (patch.character !== undefined) {
+    nextSlot.character = [...CHARACTER_IDS, ...CUSTOM_CHARACTER_IDS].includes(patch.character)
+      ? patch.character
+      : current.character || fallback.character;
+  }
+  if (patch.enabled !== undefined) nextSlot.enabled = patch.enabled !== false;
+  if (patch.behavior && typeof patch.behavior === "object") {
+    nextSlot.behavior = normalizeBehavior({
+      ...(current.behavior || fallback.behavior),
+      ...patch.behavior,
+    });
+  }
+  nextSlot.care = current.care;
+  settings.slots[index] = nextSlot;
+  settings = normalizeSettings(settings);
   saveSettings();
   broadcastSettings();
   return settings;
@@ -1500,6 +1819,21 @@ ipcMain.handle("settings:reset", () => {
   saveSettings();
   broadcastSettings();
   return settings;
+});
+
+ipcMain.handle("license:activate", async (_event, licenseKey) => activateLicenseKey(licenseKey));
+
+ipcMain.handle("license:checkout", async () => {
+  await shell.openExternal("https://www.aidogam.com/projects/deskpal#license");
+  return { ok: true };
+});
+
+ipcMain.handle("updates:check", async () => checkForUpdates({ manual: true }));
+
+ipcMain.handle("updates:open", async () => {
+  const target = settings.update?.downloadUrl || settings.update?.pageUrl || UPDATE_PAGE_URL;
+  await shell.openExternal(target);
+  return { ok: true };
 });
 
 ipcMain.handle("shortcut:open", async (_event, shortcut) => {
@@ -1616,8 +1950,8 @@ ipcMain.on("overlay:idle", (_event, idle) => {
 ipcMain.on("settings:show", showSettingsWindow);
 
 ipcMain.on("settings:hide", () => {
-  // Closing (rather than hiding) frees the settings renderer; the window 'close'
-  // handler decides whether to quit (background off) or just close (background on).
+  // Closing (rather than hiding) frees the settings renderer; the overlay keeps
+  // the app alive in the background.
   if (settingsWindow && !settingsWindow.isDestroyed()) settingsWindow.close();
 });
 
@@ -1636,6 +1970,7 @@ if (gotSingleInstanceLock) {
 
   app.whenReady().then(() => {
     loadSettings();
+    applyAppIcon();
     refreshSystemStatsCache({ force: true });
     buildMenu();
     syncTray();
@@ -1643,6 +1978,11 @@ if (gotSingleInstanceLock) {
     // Settings is a whole extra renderer (~30-50MB); create it lazily on first
     // open instead of holding that memory for a window most users rarely touch.
     hydrateShortcutIcons();
+    setTimeout(() => {
+      checkForUpdates().catch((error) => {
+        console.warn("Update check failed", error?.message || error);
+      });
+    }, 5000);
     if (!settings.enabled || !settings.slots.some((slot) => slot.enabled !== false)) {
       showSettingsWindow();
     }
@@ -1664,8 +2004,7 @@ if (gotSingleInstanceLock) {
   });
 
   app.on("window-all-closed", () => {
-    // In background mode, keep the menu shortcut available until the user
-    // explicitly quits. Otherwise close the app once no windows remain.
-    if (settings.runInBackground === false) app.quit();
+    // Background app: the tray + overlay keep DeskPal running even with no
+    // windows open. Quitting is explicit (tray "Quit" / settings "Exit").
   });
 }

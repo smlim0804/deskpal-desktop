@@ -1,11 +1,16 @@
 const { contextBridge, ipcRenderer } = require("electron");
 
-contextBridge.exposeInMainWorld("busyPet", {
+contextBridge.exposeInMainWorld("deskPal", {
   platform: process.platform,
   getSettings: () => ipcRenderer.invoke("settings:get"),
   getSystemStats: () => ipcRenderer.invoke("system:stats"),
   updateSettings: (patch) => ipcRenderer.invoke("settings:update", patch),
+  updateSlot: (index, patch) => ipcRenderer.invoke("settings:slot:update", { index, patch }),
   resetSettings: () => ipcRenderer.invoke("settings:reset"),
+  activateLicense: (licenseKey) => ipcRenderer.invoke("license:activate", licenseKey),
+  openLicenseCheckout: () => ipcRenderer.invoke("license:checkout"),
+  checkForUpdates: () => ipcRenderer.invoke("updates:check"),
+  openUpdate: () => ipcRenderer.invoke("updates:open"),
   pickArea: (slotIndex) => ipcRenderer.invoke("area:pick", slotIndex),
   completeAreaPick: (result) => ipcRenderer.invoke("area:pick-complete", result),
   openShortcut: (shortcut) => ipcRenderer.invoke("shortcut:open", shortcut),

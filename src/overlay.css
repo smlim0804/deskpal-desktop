@@ -47,173 +47,6 @@ body.ghost-hidden #effects-canvas {
   opacity: var(--ghost-opacity, 0);
 }
 
-#aquarium {
-  position: fixed;
-  inset: 0;
-  overflow: hidden;
-  pointer-events: none;
-  z-index: 2;
-}
-
-#aquarium::before {
-  content: none;
-}
-
-#aquarium::after {
-  content: none;
-}
-
-.aqua-item,
-.aqua-bubble,
-.aqua-tiny-fish {
-  position: absolute;
-  image-rendering: pixelated;
-  pointer-events: none;
-}
-
-.aqua-item {
-  bottom: 18px;
-}
-
-.aqua-rock {
-  width: 28px;
-  height: 13px;
-  background: #667085;
-  box-shadow:
-    8px -7px 0 #7a8498,
-    16px -3px 0 #515a6b,
-    5px 7px 0 #3f4654;
-}
-
-.aqua-rock.small {
-  width: 18px;
-  height: 9px;
-  background: #7a8498;
-  box-shadow: 7px -4px 0 #515a6b, 12px 5px 0 #3f4654;
-}
-
-.aqua-coral {
-  width: 8px;
-  height: 28px;
-  background: #ff6b6b;
-  box-shadow:
-    -8px 9px 0 #ff6b6b,
-    8px 5px 0 #ff6b6b,
-    0 -8px 0 #ff8fab,
-    8px -1px 0 #ff8fab,
-    -8px 16px 0 #ff8fab;
-}
-
-.aqua-coral.pink {
-  background: #ff70c8;
-  box-shadow:
-    -8px 9px 0 #ff70c8,
-    8px 5px 0 #ff70c8,
-    0 -8px 0 #ffc2e7,
-    8px -1px 0 #ffc2e7,
-    -8px 16px 0 #ffc2e7;
-}
-
-.aqua-coral.orange {
-  background: #ff9f1c;
-  box-shadow:
-    -8px 9px 0 #ff9f1c,
-    8px 5px 0 #ff9f1c,
-    0 -8px 0 #ffd166,
-    8px -1px 0 #ffd166,
-    -8px 16px 0 #ffd166;
-}
-
-.aqua-seaweed {
-  width: 7px;
-  height: 38px;
-  background: #2eb67d;
-  box-shadow:
-    8px -10px 0 #4ade80,
-    16px 3px 0 #1f9d66,
-    -8px 7px 0 #4ade80;
-  animation: seaweed-sway 2.8s steps(3) infinite;
-}
-
-.aqua-seaweed.tall {
-  height: 54px;
-  box-shadow:
-    8px -16px 0 #4ade80,
-    16px -3px 0 #1f9d66,
-    -8px 12px 0 #4ade80,
-    24px 13px 0 #2eb67d;
-}
-
-.aqua-treasure {
-  width: 34px;
-  height: 18px;
-  background: #9a5c1f;
-  border: 3px solid #2b2118;
-  box-shadow:
-    4px -8px 0 #ffd166,
-    12px -8px 0 #ffd166,
-    20px -8px 0 #ffd166,
-    11px 6px 0 #facc15;
-}
-
-.aqua-bubble {
-  border: 2px solid rgba(122, 235, 255, 0.65);
-  background: rgba(217, 255, 255, 0.22);
-  border-radius: 50%;
-  animation: bubble-rise linear infinite;
-}
-
-.aqua-tiny-fish {
-  left: -34px;
-  width: 18px;
-  height: 8px;
-  background: #ffd166;
-  box-shadow:
-    -5px 2px 0 #ffd166,
-    14px 2px 0 #ffffff,
-    16px 2px 0 #1f1f23;
-  animation: tiny-swim linear infinite;
-}
-
-.aqua-tiny-fish::before {
-  content: "";
-  position: absolute;
-  left: -9px;
-  top: -2px;
-  width: 7px;
-  height: 12px;
-  background: inherit;
-  clip-path: polygon(100% 50%, 0 0, 0 100%);
-}
-
-.aqua-tiny-fish.blue {
-  background: #4cc9f0;
-  box-shadow:
-    -5px 2px 0 #4cc9f0,
-    14px 2px 0 #ffffff,
-    16px 2px 0 #1f1f23;
-}
-
-.aqua-tiny-fish.pink {
-  background: #ff70c8;
-  box-shadow:
-    -5px 2px 0 #ff70c8,
-    14px 2px 0 #ffffff,
-    16px 2px 0 #1f1f23;
-}
-
-body[data-performance="saver"] .aqua-seaweed {
-  animation: none;
-}
-
-body[data-performance="saver"] #aquarium::before {
-  display: none;
-}
-
-body[data-performance="saver"] .aqua-tiny-fish {
-  animation-duration: 34s;
-}
-
 .pet {
   appearance: none;
   -webkit-appearance: none;
@@ -383,6 +216,251 @@ body[data-performance="saver"] .aqua-tiny-fish {
   box-shadow: 5px 5px 0 rgba(0, 0, 0, 0.25);
   pointer-events: auto;
   z-index: 60;
+}
+
+/* ===== Radial pet panel — bubbles out from the character (no card bg) ===== */
+.pet-panel.pet-panel--radial {
+  width: auto;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  box-shadow: none;
+  /* No frosted blur over the character — the radial layout is fully transparent. */
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  /* No card means no scrollbars / max-height clipping. */
+  overflow: visible;
+  max-height: none;
+  pointer-events: none;
+}
+
+.pet-radial {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  grid-template-rows: auto auto auto;
+  align-items: center;
+  justify-items: center;
+  gap: 12px 18px;
+}
+
+.radial-core {
+  grid-column: 2;
+  grid-row: 1;
+  width: var(--core, 54px);
+  height: var(--core, 54px);
+  pointer-events: none;
+}
+
+.radial-side {
+  display: grid;
+  grid-template-columns: repeat(2, auto);
+  gap: 8px 10px;
+  align-content: center;
+}
+.radial-side--apps {
+  grid-column: 1;
+  grid-row: 1;
+  justify-self: end;
+  justify-items: end;
+}
+.radial-side--links {
+  grid-column: 3;
+  grid-row: 1;
+  justify-self: start;
+  justify-items: start;
+}
+.radial-tools {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+}
+.radial-system {
+  grid-column: 1 / -1;
+  grid-row: 3;
+  display: flex;
+  gap: 14px;
+  justify-content: center;
+  align-items: center;
+}
+
+.radial-bubble,
+.radial-tool {
+  position: relative;
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  width: 54px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+}
+
+/* Name tooltip — shows the app/link name on hover, above the bubble. */
+.radial-bubble__tip {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  max-width: 200px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(20, 24, 30, 0.94);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+  opacity: 0;
+  transform: translate(-50%, 5px) scale(0.9);
+  transition: opacity 120ms ease, transform 130ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.34);
+  z-index: 6;
+}
+.radial-bubble:hover .radial-bubble__tip,
+.radial-bubble:focus-visible .radial-bubble__tip {
+  opacity: 1;
+  transform: translate(-50%, 0) scale(1);
+}
+
+.radial-bubble__icon,
+.radial-tool__icon {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  transition: transform 140ms cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 140ms ease, filter 140ms ease;
+}
+/* App logos + link photos: the image only — no white circle / padding behind it. */
+img.radial-bubble__icon {
+  object-fit: contain;
+  background: none;
+  border-radius: 11px;
+  box-shadow: none;
+  overflow: visible;
+  filter: drop-shadow(0 4px 9px rgba(15, 23, 42, 0.32));
+}
+/* Tool glyphs (settings/system) + the arrow fallback (link with no photo) keep a round bubble. */
+.radial-tool__icon,
+.radial-bubble .shortcut-icon {
+  width: 46px;
+  height: 46px;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 5px 16px rgba(15, 23, 42, 0.2), inset 0 0 0 2px rgba(15, 23, 42, 0.06);
+  overflow: hidden;
+  font-size: 19px;
+  color: #1d5ed8;
+}
+.radial-tool--system.is-active .radial-tool__icon {
+  background: #1d5ed8;
+  color: #fff;
+}
+
+.radial-bubble__label,
+.radial-tool__label {
+  max-width: 62px;
+  font-size: 10px;
+  font-weight: 800;
+  color: #20242a;
+  text-align: center;
+  line-height: 1.1;
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.92), 0 0 3px rgba(255, 255, 255, 0.7);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.radial-tool:hover .radial-tool__icon,
+.radial-bubble:hover .shortcut-icon {
+  transform: translateY(-3px) scale(1.08);
+  box-shadow: 0 9px 22px rgba(15, 23, 42, 0.28);
+}
+.radial-bubble:hover img.radial-bubble__icon {
+  transform: translateY(-3px) scale(1.1);
+  filter: drop-shadow(0 8px 15px rgba(15, 23, 42, 0.42));
+}
+.radial-bubble:active .radial-bubble__icon,
+.radial-tool:active .radial-tool__icon {
+  transform: translateY(0) scale(0.93);
+}
+
+.radial-meter {
+  pointer-events: auto;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: conic-gradient(var(--ring, #5fb6e8) calc(var(--value, 0) * 1%), rgba(15, 23, 42, 0.12) 0);
+  box-shadow: 0 5px 16px rgba(15, 23, 42, 0.2);
+}
+.radial-meter__inner {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.96);
+  display: grid;
+  place-items: center;
+  text-align: center;
+  line-height: 1;
+}
+.radial-meter__inner strong {
+  font-size: 13px;
+  font-weight: 900;
+  color: #20242a;
+}
+.radial-meter__inner span {
+  font-size: 8px;
+  font-weight: 800;
+  color: #5d584f;
+  margin-top: 2px;
+}
+.radial-system__wait {
+  font-size: 11px;
+  font-weight: 800;
+  color: #20242a;
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.9);
+}
+
+@keyframes radial-bubble-in {
+  0% {
+    transform: translate(var(--from-x, 0px), var(--from-y, 0px)) scale(0.2);
+    opacity: 0;
+  }
+  55% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate(0, 0) scale(1);
+    opacity: 1;
+  }
+}
+.radial-bubble,
+.radial-tool,
+.radial-meter {
+  animation: radial-bubble-in 380ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  animation-delay: calc(var(--i, 0) * 32ms);
+}
+.radial-side--apps .radial-bubble {
+  --from-x: 30px;
+}
+.radial-side--links .radial-bubble {
+  --from-x: -30px;
+}
+.radial-tools .radial-tool {
+  --from-y: -24px;
+}
+.radial-system .radial-meter {
+  --from-y: -18px;
 }
 
 .area-picker {
@@ -965,118 +1043,6 @@ body[data-performance="saver"] .aqua-tiny-fish {
   to {
     opacity: 0;
     transform: translate(calc(var(--x) + var(--dx)), calc(var(--y) + var(--dy))) rotate(180deg) scale(0.2);
-  }
-}
-
-#ground {
-  position: fixed;
-  left: 12px;
-  right: 12px;
-  bottom: 8px;
-  height: 54px;
-  pointer-events: none;
-  opacity: 0.95;
-  z-index: 3;
-}
-
-.grass-pixel,
-.flower-pixel,
-.tree-pixel,
-.house-pixel {
-  position: absolute;
-  bottom: 0;
-  image-rendering: pixelated;
-}
-
-.grass-pixel {
-  width: 7px;
-  height: 18px;
-  background: #25aa55;
-  box-shadow:
-    7px -5px 0 #49c86a,
-    14px 0 0 #25aa55,
-    21px -8px 0 #49c86a,
-    28px 0 0 #25aa55;
-  animation: grass-sway 1.8s steps(2) infinite;
-}
-
-body[data-performance="saver"] .grass-pixel {
-  animation: none;
-}
-
-.flower-pixel {
-  width: 8px;
-  height: 8px;
-  background: #ffd84a;
-  box-shadow:
-    0 -8px 0 #ff7ab6,
-    0 8px 0 #ff7ab6,
-    -8px 0 0 #ff7ab6,
-    8px 0 0 #ff7ab6,
-    0 16px 0 #2aac55,
-    0 24px 0 #2aac55;
-}
-
-.tree-pixel {
-  width: 28px;
-  height: 24px;
-  background: #289b4a;
-  box-shadow:
-    8px -10px 0 #34bd5d,
-    -8px 2px 0 #34bd5d,
-    18px 4px 0 #1f7f3e,
-    8px 24px 0 #8d5b2e,
-    8px 32px 0 #8d5b2e;
-}
-
-.house-pixel {
-  width: 40px;
-  height: 28px;
-  background: #f5d177;
-  border: 3px solid #242124;
-  box-shadow:
-    8px -13px 0 #d94747,
-    16px -13px 0 #d94747,
-    24px -13px 0 #d94747,
-    8px 8px 0 #4bb3e8,
-    24px 8px 0 #7b4b2a;
-}
-
-@keyframes grass-sway {
-  50% {
-    transform: translateX(1px);
-  }
-}
-
-@keyframes seaweed-sway {
-  50% {
-    transform: translateX(2px) skewX(-3deg);
-  }
-}
-
-@keyframes bubble-rise {
-  from {
-    opacity: 0;
-    transform: translate(0, 0) scale(0.8);
-  }
-  12% {
-    opacity: 0.8;
-  }
-  to {
-    opacity: 0;
-    transform: translate(18px, -95vh) scale(1.25);
-  }
-}
-
-@keyframes tiny-swim {
-  from {
-    transform: translate(-8vw, 0);
-  }
-  50% {
-    transform: translate(54vw, var(--swim-y));
-  }
-  to {
-    transform: translate(108vw, 0);
   }
 }
 

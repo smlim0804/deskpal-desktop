@@ -172,7 +172,79 @@ main {
 
 .panel.compact {
   display: grid;
+  /* Toggles flow into columns as the window widens; sliders/selects stay full. */
+  grid-template-columns: repeat(auto-fill, minmax(232px, 1fr));
   gap: 8px;
+  align-content: start;
+}
+.panel.compact > .field.full,
+.panel.compact > .ghost-controls {
+  grid-column: 1 / -1;
+}
+
+.license-panel,
+.update-panel {
+  display: grid;
+  gap: 10px;
+}
+
+.mini-note {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.45;
+}
+
+#licenseBadge,
+#updateBadge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 8px;
+  border: 2px solid var(--line);
+  background: #fffdf6;
+  color: var(--ink);
+  font-size: 10px;
+  font-weight: 900;
+  box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.14);
+}
+
+#licenseBadge[data-tone="pro"],
+#updateBadge[data-tone="update"] {
+  background: var(--gold);
+}
+
+.license-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.license-row input {
+  min-width: 0;
+  height: 38px;
+  border: 3px solid var(--line);
+  background: #fff;
+  color: var(--ink);
+  padding: 0 10px;
+  font-weight: 900;
+}
+
+.license-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+#licenseStatus {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.is-pro-locked {
+  opacity: 0.72;
 }
 
 .section-head {
@@ -282,6 +354,7 @@ input[type="checkbox"]:checked::after {
 .custom-toolbar select:focus-visible,
 .custom-toolbar input:focus-visible,
 .effect-controls select:focus-visible,
+.license-row input:focus-visible,
 input[type="checkbox"]:focus-visible {
   outline: 3px solid rgba(66, 215, 197, 0.45);
   outline-offset: 2px;
@@ -390,8 +463,7 @@ input[type="checkbox"]:active {
 .draw-button.is-popping::after,
 .pick-button.is-popping::after,
 .remove-button.is-popping::after,
-.tool-button.is-popping::after,
-.tab-button.is-popping::after {
+.tool-button.is-popping::after {
   animation: button-pop 260ms steps(4) both;
 }
 
@@ -509,7 +581,11 @@ input[type="checkbox"]:active {
 
 .slot-list {
   display: grid;
+  /* Widen the window and the character cards reflow into more columns instead
+     of each row just stretching. */
+  grid-template-columns: repeat(auto-fill, minmax(288px, 1fr));
   gap: 10px;
+  align-items: start;
 }
 
 .slot-card {
@@ -609,9 +685,124 @@ input[type="range"] {
   font-weight: 800;
 }
 
+.effect-anchor-picker {
+  min-width: 0;
+}
+
+.effect-anchor-body {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+}
+
+.effect-anchor-canvas {
+  width: 64px;
+  height: 64px;
+  border: 2px solid var(--line);
+  background:
+    linear-gradient(90deg, rgba(32, 32, 36, 0.08) 1px, transparent 1px),
+    linear-gradient(rgba(32, 32, 36, 0.08) 1px, transparent 1px),
+    #fffdf6;
+  background-size: 8px 8px;
+  cursor: crosshair;
+  image-rendering: pixelated;
+  touch-action: none;
+}
+
+.effect-anchor-canvas:hover {
+  filter: brightness(1.04);
+}
+
+.effect-anchor-canvas:focus-visible {
+  outline: 3px solid rgba(58, 135, 255, 0.32);
+  outline-offset: 3px;
+}
+
+.effect-anchor-readout {
+  min-width: 0;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
 .shortcut-list {
   display: grid;
+  /* Web shortcuts on the left, app shortcuts on the right. Falls back to a
+     single stacked column on a narrow window (see media query below). */
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  align-items: start;
+}
+
+@media (max-width: 470px) {
+  .shortcut-list {
+    grid-template-columns: 1fr;
+  }
+}
+
+.shortcut-actions {
+  display: flex;
   gap: 8px;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.shortcut-add-button {
+  width: auto;
+  min-width: 62px;
+  padding: 0 10px;
+  white-space: nowrap;
+}
+
+.shortcut-section {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.shortcut-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.shortcut-section-head strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.shortcut-section-head span {
+  display: inline-grid;
+  place-items: center;
+  min-width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  background: rgba(58, 135, 255, 0.1);
+  color: #1d5ed8;
+}
+
+.shortcut-section-list {
+  display: grid;
+  /* One row per line within each (already half-width) column. */
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+}
+
+.shortcut-empty {
+  margin: 0;
+  padding: 12px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
 }
 
 .shortcut-display-field {
@@ -672,22 +863,89 @@ input[type="range"] {
 }
 
 .shortcut-image-preview {
+  position: relative;
   display: grid;
   place-items: center;
   width: 42px;
-  height: 32px;
-  border: 2px solid var(--line);
-  background: #f4f1e8;
+  height: 42px;
   color: var(--muted);
-  font-size: 8px;
-  font-weight: 900;
   overflow: hidden;
 }
 
+.shortcut-image-preview.is-empty {
+  border: 2px solid rgba(15, 23, 42, 0.12);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 2px 7px rgba(15, 23, 42, 0.06);
+}
+
+.shortcut-image-placeholder {
+  position: relative;
+  width: 19px;
+  height: 15px;
+  border: 2px solid currentColor;
+  border-radius: 4px;
+  opacity: 0.78;
+}
+
+.shortcut-image-placeholder::before {
+  content: "";
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.shortcut-image-placeholder::after {
+  content: "";
+  position: absolute;
+  left: 3px;
+  bottom: 2px;
+  width: 11px;
+  height: 7px;
+  background: currentColor;
+  clip-path: polygon(0 100%, 38% 34%, 56% 64%, 72% 42%, 100% 100%);
+}
+
+.shortcut-image-placeholder.is-web-shortcut {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(58, 135, 255, 0.1);
+  color: #1d5ed8;
+  font-size: 15px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.shortcut-image-placeholder.is-web-shortcut::before,
+.shortcut-image-placeholder.is-web-shortcut::after {
+  content: none;
+}
+
+.shortcut-image-preview.has-image {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  overflow: visible;
+}
+
 .shortcut-image-preview img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
   image-rendering: auto;
 }
 
@@ -1122,6 +1380,7 @@ input[type="checkbox"]:checked {
 
 .preview,
 .shortcut-image-preview,
+.effect-anchor-canvas,
 .effect-test,
 .pixel-grid {
   border: 0;

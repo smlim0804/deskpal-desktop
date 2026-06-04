@@ -4,11 +4,11 @@ const path = require("path");
 const { execFileSync } = require("child_process");
 
 const ROOT = path.resolve(__dirname, "..");
-const APP_NAME = "BusyPet Desktop";
-const ARCH = process.env.BUSYPET_ARCH || process.arch;
+const APP_NAME = "DeskPal Desktop";
+const ARCH = process.env.DESKPAL_ARCH || process.arch;
 const FINAL_OUT_DIR = path.join(ROOT, "dist", `${APP_NAME}-darwin-${ARCH}`);
 const FINAL_DEST_APP = path.join(FINAL_OUT_DIR, `${APP_NAME}.app`);
-const BUILD_ROOT = fs.mkdtempSync(path.join(os.tmpdir(), "busypet-mac-"));
+const BUILD_ROOT = fs.mkdtempSync(path.join(os.tmpdir(), "deskpal-mac-"));
 const OUT_DIR = path.join(BUILD_ROOT, `${APP_NAME}-darwin-${ARCH}`);
 const DEST_APP = path.join(OUT_DIR, `${APP_NAME}.app`);
 const ELECTRON_APP = path.join(ROOT, "node_modules", "electron", "dist", "Electron.app");
@@ -196,10 +196,10 @@ if (fs.existsSync(ELECTRON_BIN)) fs.renameSync(ELECTRON_BIN, APP_BIN);
 setPlist("CFBundleExecutable", APP_NAME);
 setPlist("CFBundleName", APP_NAME);
 setPlist("CFBundleDisplayName", APP_NAME);
-setPlist("CFBundleIdentifier", "com.busypet.desktop");
+setPlist("CFBundleIdentifier", "com.deskpal.desktop");
 if (fs.existsSync(ICON_ICNS)) {
-  fs.copyFileSync(ICON_ICNS, path.join(RESOURCES_DIR, "BusyPet.icns"));
-  setPlist("CFBundleIconFile", "BusyPet");
+  fs.copyFileSync(ICON_ICNS, path.join(RESOURCES_DIR, "DeskPal.icns"));
+  setPlist("CFBundleIconFile", "DeskPal");
 }
 signApp();
 

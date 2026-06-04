@@ -6,8 +6,8 @@ const { execFileSync } = require("child_process");
 const extractZip = require("extract-zip");
 
 const ROOT = path.resolve(__dirname, "..");
-const APP_NAME = "BusyPet Desktop";
-const APP_ID = "com.busypet.desktop";
+const APP_NAME = "DeskPal Desktop";
+const APP_ID = "com.deskpal.desktop";
 const DIST_DIR = path.join(ROOT, "dist");
 const CACHE_DIR = path.join(ROOT, ".cache", "electron");
 const ELECTRON_VERSION = require("electron/package.json").version;
@@ -24,14 +24,14 @@ const TARGETS = {
     platform: "linux",
     arch: "x64",
     outName: `${APP_NAME}-linux-x64`,
-    executable: "busypet-desktop",
+    executable: "deskpal-desktop",
     sourceExecutable: "electron",
   },
   "linux-arm64": {
     platform: "linux",
     arch: "arm64",
     outName: `${APP_NAME}-linux-arm64`,
-    executable: "busypet-desktop",
+    executable: "deskpal-desktop",
     sourceExecutable: "electron",
   },
 };
@@ -165,13 +165,13 @@ function writeLinuxDesktopFile(outDir) {
     "Type=Application",
     `Name=${APP_NAME}`,
     "Comment=Desktop pixel companions",
-    "Exec=busypet-desktop",
+    "Exec=deskpal-desktop",
     "Terminal=false",
     "Categories=Utility;",
     `StartupWMClass=${APP_ID}`,
     "",
   ].join("\n");
-  fs.writeFileSync(path.join(outDir, "busypet-desktop.desktop"), desktopFile);
+  fs.writeFileSync(path.join(outDir, "deskpal-desktop.desktop"), desktopFile);
 }
 
 function removeOutputDir(outDir) {

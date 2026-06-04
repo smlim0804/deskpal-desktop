@@ -7,25 +7,25 @@ const PACKAGE_JSON = require("../package.json");
 const DIST_DIR = path.join(ROOT, "dist");
 const RELEASE_DIR = path.join(ROOT, "release");
 const TARGET_ARCH = architectureFromArg(process.argv[2]);
-const SOURCE_DIR = path.join(DIST_DIR, `BusyPet Desktop-linux-${TARGET_ARCH.releaseSuffix}`);
-const PACKAGE_ROOT = path.join(DIST_DIR, "deb", `busypet-desktop-${TARGET_ARCH.debArch}`);
-const INSTALL_DIR = path.join(PACKAGE_ROOT, "opt", "busypet-desktop");
+const SOURCE_DIR = path.join(DIST_DIR, `DeskPal Desktop-linux-${TARGET_ARCH.releaseSuffix}`);
+const PACKAGE_ROOT = path.join(DIST_DIR, "deb", `deskpal-desktop-${TARGET_ARCH.debArch}`);
+const INSTALL_DIR = path.join(PACKAGE_ROOT, "opt", "deskpal-desktop");
 const DESKTOP_DIR = path.join(PACKAGE_ROOT, "usr", "share", "applications");
 const ICON_DIR = path.join(PACKAGE_ROOT, "usr", "share", "icons", "hicolor", "scalable", "apps");
 const BIN_DIR = path.join(PACKAGE_ROOT, "usr", "bin");
 const DEBIAN_DIR = path.join(PACKAGE_ROOT, "DEBIAN");
-const OUTPUT = path.join(RELEASE_DIR, `BusyPet-Desktop-Ubuntu-${TARGET_ARCH.releaseSuffix}.deb`);
+const OUTPUT = path.join(RELEASE_DIR, `DeskPal-Desktop-Ubuntu-${TARGET_ARCH.releaseSuffix}.deb`);
 
 const DESKTOP_FILE = [
   "[Desktop Entry]",
   "Type=Application",
-  "Name=BusyPet Desktop",
+  "Name=DeskPal Desktop",
   "Comment=Desktop pixel companions",
-  "Exec=/opt/busypet-desktop/busypet-desktop",
-  "Icon=busypet-desktop",
+  "Exec=/opt/deskpal-desktop/deskpal-desktop",
+  "Icon=deskpal-desktop",
   "Terminal=false",
   "Categories=Utility;",
-  "StartupWMClass=com.busypet.desktop",
+  "StartupWMClass=com.deskpal.desktop",
   "",
 ].join("\n");
 
@@ -57,7 +57,7 @@ function ensureDpkgDeb() {
 }
 
 function ensureSourceDist() {
-  if (!fs.existsSync(path.join(SOURCE_DIR, "busypet-desktop"))) {
+  if (!fs.existsSync(path.join(SOURCE_DIR, "deskpal-desktop"))) {
     throw new Error(`Missing Linux app folder for ${TARGET_ARCH.debArch}. Run ${TARGET_ARCH.packageScript} before npm run package:deb.`);
   }
 }
@@ -89,7 +89,7 @@ function markExecutable(relativePath) {
 
 function writeControlFile() {
   const control = [
-    "Package: busypet-desktop",
+    "Package: deskpal-desktop",
     `Version: ${PACKAGE_JSON.version}`,
     "Section: utils",
     "Priority: optional",
@@ -97,7 +97,7 @@ function writeControlFile() {
     "Maintainer: smlim0804 <smlim0804@users.noreply.github.com>",
     "Depends: libgtk-3-0, libnss3, libxss1, libgbm1, libasound2 | libasound2t64, libatk-bridge2.0-0",
     "Description: Desktop pixel companions",
-    " BusyPet Desktop adds small pixel companions that roam on top of the desktop.",
+    " DeskPal Desktop adds small pixel companions that roam on top of the desktop.",
     "",
   ].join("\n");
 
@@ -110,18 +110,18 @@ function stagePackage() {
   fs.cpSync(SOURCE_DIR, INSTALL_DIR, { recursive: true });
 
   chmodDirectories(PACKAGE_ROOT);
-  markExecutable("busypet-desktop");
+  markExecutable("deskpal-desktop");
   markExecutable("chrome-sandbox");
   markExecutable("chrome_crashpad_handler");
 
   writeControlFile();
-  writeFile(path.join(DESKTOP_DIR, "busypet-desktop.desktop"), DESKTOP_FILE);
-  writeFile(path.join(ICON_DIR, "busypet-desktop.svg"), ICON_SVG);
+  writeFile(path.join(DESKTOP_DIR, "deskpal-desktop.desktop"), DESKTOP_FILE);
+  writeFile(path.join(ICON_DIR, "deskpal-desktop.svg"), ICON_SVG);
 
   ensureDir(BIN_DIR);
-  const linkPath = path.join(BIN_DIR, "busypet-desktop");
+  const linkPath = path.join(BIN_DIR, "deskpal-desktop");
   fs.rmSync(linkPath, { force: true });
-  fs.symlinkSync("/opt/busypet-desktop/busypet-desktop", linkPath);
+  fs.symlinkSync("/opt/deskpal-desktop/deskpal-desktop", linkPath);
 }
 
 function buildDeb() {

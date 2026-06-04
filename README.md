@@ -1,11 +1,11 @@
-# BusyPet Desktop
+# DeskPal Desktop
 
-Desktop version of BusyPet. It runs as a transparent always-on-top overlay, so pixel companions can walk around the computer screen instead of only inside Chrome.
+Desktop version of DeskPal. It runs as a transparent always-on-top overlay, so pixel companions can walk around the computer screen instead of only inside Chrome.
 
 ## Run
 
 ```bash
-cd /Users/limsungmin/Desktop/codex_product/busypet_desktop
+cd /Users/limsungmin/Desktop/codex_product/deskpal_desktop
 npm install
 npm start
 ```
@@ -13,7 +13,7 @@ npm start
 To create double-clickable app folders:
 
 ```bash
-cd /Users/limsungmin/Desktop/codex_product/busypet_desktop
+cd /Users/limsungmin/Desktop/codex_product/deskpal_desktop
 npm run check
 npm run package:mac
 npm run package:win
@@ -24,7 +24,7 @@ npm run package:linux:arm64
 Ubuntu installer:
 
 ```bash
-cd /Users/limsungmin/Desktop/codex_product/busypet_desktop
+cd /Users/limsungmin/Desktop/codex_product/deskpal_desktop
 npm run release:ubuntu
 npm run release:ubuntu:arm64
 ```
@@ -32,19 +32,19 @@ npm run release:ubuntu:arm64
 Outputs:
 
 ```text
-dist/BusyPet Desktop-darwin-arm64/BusyPet Desktop.app
-dist/BusyPet Desktop-win32-x64/BusyPet Desktop.exe
-dist/BusyPet Desktop-linux-x64/busypet-desktop
-dist/BusyPet Desktop-linux-arm64/busypet-desktop
-release/BusyPet-Desktop-macOS-arm64.zip
-release/BusyPet-Desktop-Windows-x64.zip
-release/BusyPet-Desktop-Ubuntu-x64.tar.gz
+dist/DeskPal Desktop-darwin-arm64/DeskPal Desktop.app
+dist/DeskPal Desktop-win32-x64/DeskPal Desktop.exe
+dist/DeskPal Desktop-linux-x64/deskpal-desktop
+dist/DeskPal Desktop-linux-arm64/deskpal-desktop
+release/DeskPal-Desktop-macOS-arm64.zip
+release/DeskPal-Desktop-Windows-x64.zip
+release/DeskPal-Desktop-Ubuntu-x64.tar.gz
 ```
 
 On this Mac:
 
 ```bash
-open "/Users/limsungmin/Desktop/codex_product/busypet_desktop/dist/BusyPet Desktop-darwin-arm64/BusyPet Desktop.app"
+open "/Users/limsungmin/Desktop/codex_product/deskpal_desktop/dist/DeskPal Desktop-darwin-arm64/DeskPal Desktop.app"
 ```
 
 macOS downloaded release:
@@ -56,32 +56,32 @@ macOS downloaded release:
 - For local testing of an unsigned download only:
 
 ```bash
-xattr -dr com.apple.quarantine "/Applications/BusyPet Desktop.app"
-open "/Applications/BusyPet Desktop.app"
+xattr -dr com.apple.quarantine "/Applications/DeskPal Desktop.app"
+open "/Applications/DeskPal Desktop.app"
 ```
 
 Ubuntu/Linux:
 
 ```bash
-chmod +x "dist/BusyPet Desktop-linux-x64/busypet-desktop"
-"dist/BusyPet Desktop-linux-x64/busypet-desktop"
+chmod +x "dist/DeskPal Desktop-linux-x64/deskpal-desktop"
+"dist/DeskPal Desktop-linux-x64/deskpal-desktop"
 ```
 
 Ubuntu 22.04 easiest install:
 
 1. Check the Ubuntu CPU type with `dpkg --print-architecture`.
-2. Download `BusyPet-Desktop-Ubuntu-x64.tar.gz` for `amd64`.
+2. Download `DeskPal-Desktop-Ubuntu-x64.tar.gz` for `amd64`.
 3. Extract it.
-4. Run `busypet-desktop`.
+4. Run `deskpal-desktop`.
 
 Terminal run:
 
 ```bash
 cd ~/Downloads
-tar -xzf BusyPet-Desktop-Ubuntu-x64.tar.gz
-cd "BusyPet Desktop-linux-x64"
-chmod +x busypet-desktop chrome_crashpad_handler
-./busypet-desktop --no-sandbox
+tar -xzf DeskPal-Desktop-Ubuntu-x64.tar.gz
+cd "DeskPal Desktop-linux-x64"
+chmod +x deskpal-desktop chrome_crashpad_handler
+./deskpal-desktop --no-sandbox
 ```
 
 Linux `.deb` packages should be built on Linux or in GitHub Actions.
@@ -89,7 +89,7 @@ Linux `.deb` packages should be built on Linux or in GitHub Actions.
 Windows:
 
 ```powershell
-& ".\dist\BusyPet Desktop-win32-x64\BusyPet Desktop.exe"
+& ".\dist\DeskPal Desktop-win32-x64\DeskPal Desktop.exe"
 ```
 
 The app opens two windows:

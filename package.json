@@ -1,7 +1,7 @@
 {
-  "name": "busypet-desktop",
+  "name": "deskpal-desktop",
   "version": "0.2.0",
-  "description": "Desktop pixel companions inspired by BusyPet.",
+  "description": "Desktop pixel companions inspired by DeskPal.",
   "type": "module",
   "main": "src/main.cjs",
   "scripts": {
@@ -45,8 +45,8 @@
     "rcedit": "^5.0.2"
   },
   "build": {
-    "appId": "com.busypet.desktop",
-    "productName": "BusyPet Desktop",
+    "appId": "com.deskpal.desktop",
+    "productName": "DeskPal Desktop",
     "asar": false,
     "directories": {
       "output": "release/installers"
@@ -69,7 +69,7 @@
         }
       ],
       "icon": "build/icon.ico",
-      "artifactName": "BusyPet-Desktop-Windows-x64.${ext}"
+      "artifactName": "DeskPal-Desktop-Windows-x64.${ext}"
     }
   }
 }

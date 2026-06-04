@@ -1,4 +1,4 @@
-name: Build BusyPet Desktop
+name: Build DeskPal Desktop
 
 on:
   push:
@@ -24,12 +24,12 @@ jobs:
             os: macos-14
             script: installer:mac
             signing: mac
-            artifact: "BusyPet Desktop-macOS"
+            artifact: "DeskPal Desktop-macOS"
           - name: Windows x64
             os: windows-latest
             script: installer:win
             signing: ""
-            artifact: "BusyPet Desktop-win32-x64"
+            artifact: "DeskPal Desktop-win32-x64"
 
     steps:
       - name: Checkout
@@ -66,7 +66,7 @@ jobs:
           fi
 
           CERTIFICATE_PATH="$RUNNER_TEMP/apple_certificate.p12"
-          KEYCHAIN_PATH="$RUNNER_TEMP/busypet-signing.keychain-db"
+          KEYCHAIN_PATH="$RUNNER_TEMP/deskpal-signing.keychain-db"
 
           printf '%s' "$APPLE_CERTIFICATE_BASE64" | base64 -D > "$CERTIFICATE_PATH"
           security create-keychain -p "$MACOS_KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"

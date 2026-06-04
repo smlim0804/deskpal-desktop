@@ -42,8 +42,9 @@ const idleLine = functionBody(overlay, "careIdleLine");
 const autoTalk = functionBody(overlay, "maybeAutoTalk");
 
 includes(overlay, "function renderShortcutPanel", "shortcut-only panel renderer");
-includes(overlay, "function renderShortcutGroup", "split shortcut group renderer");
-includes(overlay, "function renderSimpleCarePage", "simple care page renderer");
+includes(overlay, "function renderRadialSide", "radial apps/links sides");
+includes(overlay, "function renderRadialTools", "radial settings tool below the pet");
+includes(overlay, "function renderRadialBubble", "card-less bubble shortcut renderer");
 includes(overlay, "function renderSystemMetricCard", "system metric renderer");
 includes(overlay, "function setGhostHidden", "ghost mode visibility helper");
 includes(overlay, "function syncGhostBubbleState", "ghost mode speech bubble sync helper");
@@ -64,6 +65,8 @@ includes(overlay, "const visualRotation = (shouldOrient(pet) ? pet.rotation || 0
 includes(overlay, "registerSystemIdle(point.idleMs, moved ? \"mouse\" : \"global\", now)", "cursor payload drives global input idle");
 includes(overlay, "[\"keydown\", \"keyboard\"]", "keyboard activity fallback");
 includes(overlay, "[\"wheel\", \"wheel\"]", "wheel activity fallback");
+includes(overlay, "const followRadius = clamp(size * 1.7", "mouse-follow targets an invisible circle around the cursor");
+includes(overlay, "const followFar = followMode && mdist > followRadius", "follow speeds up to catch the cursor when outside the circle");
 includes(overlay, "function refreshSystemStats", "system stats refresh");
 includes(overlay, "nextSystemStatsAt = now + 5000", "renderer stats refresh is aligned to cached main stats");
 includes(overlay, "lastCareStatsPanelRefreshAt", "care stats panel rerender throttle");
@@ -77,18 +80,20 @@ includes(overlay, "profile.heavyFrameMs", "effect draw throttles during recovery
 includes(overlay, "function systemBenchmarkLine", "system benchmark speech");
 includes(overlay, 'carePage: "시스템"', "Korean system page label");
 includes(overlay, 'noShortcuts: "아직 바로가기가 없어."', "Korean empty shortcut label");
-includes(overlay, 'links: "링크"', "Korean link group label");
+includes(overlay, 'links: "웹"', "Korean web shortcut group label");
 includes(overlay, 'apps: "앱"', "Korean app group label");
 includes(overlay, 'systemCpu: "CPU"', "system CPU label");
 includes(overlay, 'systemRam: "RAM"', "system RAM label");
 includes(overlay, 'systemStorage: "용량"', "system storage label");
-includes(openPanel, 'view === "care" ? renderSimpleCarePage(pet, character) : renderShortcutPanel(pet)', "panel view switch");
+includes(openPanel, "pet-panel--radial", "click panel uses the card-less radial bubble layout");
+includes(openPanel, "renderShortcutPanel(pet)", "panel renders the radial shortcuts without a system toggle");
+assert(!openPanel.includes("systemOpen"), "character click panel must not expose the system benchmark toggle");
 assert(!openPanel.includes("renderPanelTabs"), "openPanel must not render care/game tabs");
 assert(!openPanel.includes("panelSections"), "openPanel must not build the old crowded section list");
 assert(!openPanel.includes("renderMiniGamePanel"), "openPanel must not attach mini games to character click");
 assert(!openPanel.includes("renderLeagueSeasonPanel"), "openPanel must not attach league UI to character click");
 assert(openPanel.includes("panelManual = null"), "fresh pet clicks must reset stale manual panel position");
-assert(positionPanel.includes("belowY"), "panel should position near the clicked character");
+assert(positionPanel.includes("radial-core"), "panel aligns its transparent core over the clicked character");
 assert(!idleLine.includes("character.name"), "auto idle speech must not prefix character names");
 assert(autoTalk.includes("systemBenchmarkLine()"), "auto speech must include random system benchmark lines");
 assert(!tick.includes("maybeAutoMicroEvents"), "tick must not run old automatic micro events");
@@ -101,10 +106,29 @@ assert(tick.includes("updateGhostMode(now)"), "tick must restore pets after mous
 includes(overlay, "function wakeTick", "loop paces itself instead of always re-requesting animation frames");
 includes(overlay, "window.setTimeout(wakeTick, 160)", "loop idles to ~160ms polling when nothing is animating");
 includes(overlay, "const petsActive = !ghostHidden && pets.some", "loop idles while pets are ghost-hidden");
+includes(overlay, "function setEffectsCanvasShown", "full-screen effects canvas drops out of compositing when empty");
+includes(overlay, 'effectsCanvas.style.display = shown ? "" : "none"', "empty effects canvas is removed from the compositor, not just hidden");
+includes(overlay, "maxParticles: 160, trailMs: 76, dpr: 1", "effects canvas resolution capped to 1x to cut RAM/fill");
+// The motion loop must use the cached care movement factor, never recompute the
+// care/synergy/caretaker aggregators per frame (that was ~50% of overlay CPU).
+includes(overlay, "function cachedCareMovementFactor", "care movement factor is memoized per pet");
+includes(overlay, "const careFactor = cachedCareMovementFactor(pet, now)", "motion loop uses the cached care factor, not the per-frame aggregator");
+assert(
+  !overlay.includes("const careFactor = careMovementFactor("),
+  "updateMotion must not call careMovementFactor directly every frame",
+);
+includes(overlay, "effectFrameMs", "effects-canvas redraw is capped independent of motion FPS");
+includes(overlay, "function spawnCollisionBurst", "pets emit a varied burst when they collide");
+includes(overlay, "spawnCollisionBurst(ax + nx * radiusA", "collision burst fires from the contact point on a real bump");
 assert(tick.includes("ghostMotionFrozen(now)"), "tick must freeze pets while fully ghosted");
 assert(tick.includes("freezePetForGhost(pet, now)"), "tick must keep hidden pets in place");
 
 includes(css, ".shortcut-panel", "shortcut panel styles");
+includes(css, ".pet-panel.pet-panel--radial", "radial panel is transparent (no card background)");
+includes(css, "@keyframes radial-bubble-in", "bubbles pop out from the character");
+includes(css, "-webkit-backdrop-filter: none", "radial panel adds no frosted blur over the character");
+includes(overlay, "radial-bubble__tip", "app/link name shows on hover, not as a permanent label");
+includes(css, ".radial-meter", "card-less system ring meters");
 includes(css, ".panel-empty", "empty shortcut styles");
 includes(css, ".simple-care-page", "simple care page styles");
 includes(css, ".system-metric-card", "system metric styles");
@@ -122,7 +146,7 @@ includes(css, "@keyframes pet-ghost-out", "ghost fade-out animation");
 includes(css, "@keyframes pet-ghost-in", "ghost fade-in animation");
 includes(css, "filter: none !important", "pet rectangle filter removal");
 
-includes(characters, "effectAnchor: { x: 0.479, y: 0.86 }", "rocket tail-centered effect anchor (sprite is symmetric around column 11.5)");
+includes(characters, "effectAnchor: { x: 0.47, y: 0.86 }", "rocket effect emits from the exhaust flame just left of centre");
 
 includes(main, "ipcMain.handle(\"system:stats\"", "system stats IPC");
 includes(main, "function systemStats", "system stats function");
@@ -132,6 +156,13 @@ includes(main, "idleMs: systemInputIdleMs()", "cursor payload includes input idl
 includes(main, "cursorWatchIdle ? 240 : 72", "cursor poll eases off while pets are hidden");
 includes(main, 'ipcMain.on("overlay:idle"', "main listens for the overlay idle hint");
 includes(overlay, "api.setOverlayIdle(hidden)", "overlay tells main when pets hide so the cursor poll can ease off");
+includes(main, "function mergeOverlayLiveState", "overlay autosaves only merge game/care, not settings-window config");
+assert(!main.includes("pushSettingsBounds"), "settings window must not create a pet no-go rectangle");
+assert(!preload.includes("onSettingsBounds"), "preload must not expose settings-window bounds");
+assert(!overlay.includes("resolveSettingsCollision"), "pets must be allowed over the settings window");
+assert(!overlay.includes("clampOutOfSettings"), "settings window must not alter pet targets");
+assert(!overlay.includes("settingsRect"), "overlay must not track settings as a blocked area");
+includes(main, "event.sender === overlayWindow.webContents", "settings update ownership is split by sender so mouseMode etc. don't revert");
 includes(main, "function memoryStats", "corrected memory stats function");
 includes(main, "function memoryStatsFallback", "cross-platform memory stats fallback");
 includes(main, "function electronMemoryStats", "cache-aware memory stats via Electron");
@@ -165,12 +196,13 @@ includes(main, "ghostTriggerKeyboard: true", "ghost keyboard trigger default");
 includes(main, "ghostTriggerWheel: true", "ghost wheel trigger default");
 includes(main, "ghostOpacity: 0", "ghost opacity default");
 includes(main, "next.ghostOpacity = 0", "ghost opacity is fixed hidden");
-includes(main, "runInBackground: true", "run-in-background default setting");
 includes(main, "showTrayIcon: true", "tray icon visible default setting");
-includes(main, "next.runInBackground = src.runInBackground === undefined", "run-in-background is normalized");
 includes(main, "next.showTrayIcon = src.showTrayIcon === undefined", "tray icon visibility is normalized");
 includes(main, "settings.showTrayIcon === false", "tray icon can be hidden from the menu bar/system tray");
-includes(main, "settings.runInBackground === false", "closing the window quits when background mode is off");
+// The run-in-background toggle was removed — the overlay always keeps the app
+// alive and quitting is explicit. Guard against the feature creeping back.
+assert(!main.includes("runInBackground"), "run-in-background feature is fully removed from main");
+assert(!settings.includes("runInBackground"), "run-in-background toggle is removed from settings UI");
 assert(!main.includes("if (!next.shortcuts.length) next.shortcuts"), "empty shortcut lists must stay empty");
 includes(preload, "getSystemStats", "preload exposes system stats");
 includes(main, "clamp(next.fps, 10, 120", "fps can be set up to 120");
@@ -192,7 +224,6 @@ includes(settings, "settings.ghostDelaySeconds = value", "settings saves ghost d
 includes(settings, "settings.ghostTriggerMouse = ghostTriggerMouse.checked", "settings saves ghost mouse trigger");
 includes(settings, "settings.ghostTriggerKeyboard = ghostTriggerKeyboard.checked", "settings saves ghost keyboard trigger");
 includes(settings, "settings.ghostTriggerWheel = ghostTriggerWheel.checked", "settings saves ghost wheel trigger");
-includes(settings, "settings.runInBackground = runInBackground.checked", "settings saves run-in-background toggle");
 includes(settings, "settings.showTrayIcon = showTrayIcon.checked", "settings saves tray icon toggle");
 assert(!settings.includes("ghostOpacity"), "settings UI must not expose hidden opacity controls");
 includes(settings, "async function chooseAppShortcut(index)", "app picker helper takes a slot index");
@@ -201,6 +232,22 @@ includes(settings, "const current = settings.shortcuts[index]", "app picker can 
 assert(!settings.includes("await new Promise((resolve) => setTimeout(resolve, 80))"), "app type change must not race a delayed save before opening the picker");
 assert(!settings.includes("chooseAppShortcut(shortcut)"), "app type change must not require a second selection");
 includes(settings, "shortcut-app-select", "app shortcut select button");
+// behavior(slot) must return a STABLE reference: control handlers capture it
+// once at render, so reassigning a fresh object on later calls would orphan the
+// capture and silently drop per-character edits (the "doesn't apply" bug).
+assert(
+  !settings.includes("slot.behavior = { ...clone(BEHAVIOR_DEFAULT), ...(slot.behavior || {}) }"),
+  "behavior(slot) must not reassign a fresh object every call (orphans control captures)",
+);
+includes(
+  settings,
+  "if (slot.behavior[key] === undefined) slot.behavior[key] = defaults[key]",
+  "behavior(slot) backfills defaults in place to keep a stable reference",
+);
+// Per-character effect-position controls were removed by request.
+assert(!settings.includes("function makeEffectAnchorPicker"), "per-character effect point picker is removed");
+assert(!settings.includes("effect-anchor-canvas"), "effect anchor picker canvas is removed");
+includes(main, "delete merged.effectAnchor", "normalizeBehavior strips stale per-slot effect anchors");
 
 includes(characters, "function tri(", "triangle ear helper for the new animal sprites");
 includes(characters, 'name: "Pengu"', "penguin replaces the old hamster");

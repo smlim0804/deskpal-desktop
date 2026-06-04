@@ -1,4 +1,4 @@
-// BusyPet — 픽셀 도트 캐릭터 (24×24)
+// DeskPal — 픽셀 도트 캐릭터 (24×24)
 // 모든 캐릭터: 떠다니는(flyer) 타입
 // 컬렉션: UFO/로켓/자동차/슬라임/혜성/별 + 동물(시바/고양이/토끼/레서판다/펭귄) + 토성/보석/도넛/해골/안구/에너지볼/벌레/탱크
 
@@ -444,143 +444,6 @@ function buildTank(frame) {
   return g;
 }
 
-// 옛 buildFighter 본체는 아래에 더 있지만 사용 안 됨
-function _unused_buildFighter(frame) {
-  const g = blank();
-  const f = frame % 4;
-  const cx = 12;
-  // === 노즈 (뾰족한 앞부분) ===
-  px(g, cx, 1, "K");
-  px(g, cx, 2, "B"); px(g, cx - 1, 3, "K"); px(g, cx + 1, 3, "K");
-  px(g, cx, 3, "B");
-  // 노즈 아래쪽 (살짝 넓어짐)
-  px(g, cx - 1, 4, "B"); px(g, cx, 4, "B"); px(g, cx + 1, 4, "B");
-  px(g, cx - 2, 4, "K"); px(g, cx + 2, 4, "K");
-
-  // === 콕핏 (유리 돔, 청록색) ===
-  // 메인 바디
-  for (let dy = 0; dy < 4; dy++) {
-    for (let dx = -2; dx <= 2; dx++) px(g, cx + dx, 5 + dy, "C");
-  }
-  // 콕핏 외곽
-  px(g, cx - 3, 5, "K"); px(g, cx + 3, 5, "K");
-  px(g, cx - 3, 6, "K"); px(g, cx + 3, 6, "K");
-  px(g, cx - 3, 7, "K"); px(g, cx + 3, 7, "K");
-  px(g, cx - 3, 8, "K"); px(g, cx + 3, 8, "K");
-  // 콕핏 음영 (오른쪽 어둡게)
-  for (let dy = 0; dy < 4; dy++) px(g, cx + 2, 5 + dy, "CD");
-  // 콕핏 하이라이트 (왼쪽 위)
-  px(g, cx - 2, 5, "CL"); px(g, cx - 1, 5, "CL");
-  px(g, cx - 2, 6, "CL");
-
-  // === 동체 (콕핏 뒤쪽 ~ 후방) ===
-  // 메인 동체
-  for (let dy = 0; dy < 9; dy++) {
-    for (let dx = -3; dx <= 3; dx++) px(g, cx + dx, 9 + dy, "B");
-  }
-  // 동체 음영 (오른쪽)
-  for (let dy = 0; dy < 9; dy++) {
-    px(g, cx + 2, 9 + dy, "D");
-    px(g, cx + 3, 9 + dy, "D");
-  }
-  // 동체 하이라이트 (왼쪽 중앙선)
-  for (let dy = 0; dy < 9; dy++) px(g, cx - 2, 9 + dy, "L");
-  // 동체 가운데 라인
-  for (let dy = 0; dy < 9; dy++) px(g, cx, 9 + dy, "B");
-  // 외곽선
-  for (let dy = 0; dy < 9; dy++) {
-    px(g, cx - 4, 9 + dy, "K");
-    px(g, cx + 4, 9 + dy, "K");
-  }
-
-  // === 빨간 마킹 (동체 가운데) ===
-  px(g, cx, 11, "R"); px(g, cx, 12, "R");
-  px(g, cx - 1, 11, "R"); px(g, cx + 1, 11, "R");
-
-  // === 날개 (sweep-back, 좌우 넓게) ===
-  // 메인 윙 (수평으로 길게)
-  for (let dx = -10; dx <= 10; dx++) {
-    if (Math.abs(dx) <= 4) continue; // 동체랑 겹치지 않게
-    px(g, cx + dx, 10, "B");
-    px(g, cx + dx, 11, "B");
-  }
-  // 날개 후미 (살짝 뒤로 굽음)
-  for (let dx = -9; dx <= 9; dx++) {
-    if (Math.abs(dx) <= 4) continue;
-    px(g, cx + dx, 12, "D");
-  }
-  // 날개 외곽선
-  for (let dx = -10; dx <= 10; dx++) {
-    if (Math.abs(dx) <= 4) continue;
-    px(g, cx + dx, 9, "K"); // 앞 가장자리
-  }
-  // 날개 끝
-  px(g, cx - 10, 10, "K"); px(g, cx + 10, 10, "K");
-  px(g, cx - 10, 11, "K"); px(g, cx + 10, 11, "K");
-  // 날개 뒤 가장자리
-  for (let dx = -9; dx <= 9; dx++) {
-    if (Math.abs(dx) <= 4) continue;
-    px(g, cx + dx, 13, "K");
-  }
-  // 날개 끝 사선 (sweep-back)
-  px(g, cx - 9, 12, "K"); px(g, cx + 9, 12, "K");
-
-  // === 날개 위 캐논 (양쪽 끝 — 한 자루씩) ===
-  // 좌측 캐논
-  px(g, cx - 10, 8, "G"); px(g, cx - 10, 7, "G");
-  px(g, cx - 10, 6, "GM"); // 총구
-  px(g, cx - 11, 8, "K"); px(g, cx - 9, 8, "K");
-  px(g, cx - 11, 7, "K"); px(g, cx - 9, 7, "K");
-  px(g, cx - 10, 5, "K");
-  // 우측 캐논 (미러)
-  px(g, cx + 10, 8, "G"); px(g, cx + 10, 7, "G");
-  px(g, cx + 10, 6, "GM");
-  px(g, cx + 11, 8, "K"); px(g, cx + 9, 8, "K");
-  px(g, cx + 11, 7, "K"); px(g, cx + 9, 7, "K");
-  px(g, cx + 10, 5, "K");
-
-  // === 발사 깜빡임 (캐논 끝 펄스, 비주얼 효과) ===
-  if (f % 2 === 0) {
-    px(g, cx - 10, 4, "F");
-    px(g, cx + 10, 4, "F");
-  }
-
-  // === 꼬리 (수평 안정익 — V자 작은 윙) ===
-  px(g, cx - 6, 17, "B"); px(g, cx - 5, 17, "B");
-  px(g, cx + 5, 17, "B"); px(g, cx + 6, 17, "B");
-  px(g, cx - 7, 17, "K"); px(g, cx + 7, 17, "K");
-  px(g, cx - 6, 18, "D"); px(g, cx + 6, 18, "D");
-  px(g, cx - 7, 18, "K"); px(g, cx + 7, 18, "K");
-  px(g, cx - 6, 18, "K"); // simplified
-
-  // === 트윈 엔진 + 화염 분사 ===
-  // 엔진 노즐 (어두운 동그라미)
-  px(g, cx - 2, 18, "GM"); px(g, cx - 1, 18, "GM");
-  px(g, cx + 1, 18, "GM"); px(g, cx + 2, 18, "GM");
-  px(g, cx - 2, 19, "K"); px(g, cx + 2, 19, "K");
-  // 좌측 화염 (그라데이션 W → F → FO → FR)
-  const flameRows = [
-    { y: 19, w: 1, c: "FW" },
-    { y: 20, w: 1, c: "F" },
-    { y: 21 + flameLen, w: 1, c: "FO" },
-    { y: 22 + flameLen, w: 0, c: "FR" },
-  ];
-  for (const fr of flameRows) {
-    if (fr.y >= H) continue;
-    // 좌측 엔진 (cx-1.5)
-    for (let dx = -fr.w; dx <= fr.w; dx++) {
-      px(g, cx - 2 + dx, fr.y, fr.c);
-    }
-    // 우측 엔진 (cx+1.5)
-    for (let dx = -fr.w; dx <= fr.w; dx++) {
-      px(g, cx + 2 + dx, fr.y, fr.c);
-    }
-  }
-
-  return g;
-}
-
-// (buildGunner는 위에 이미 정의됨)
 
 // 마우스 위치 받아서 동공 그리는 안구 (옵션 안에서)
 function buildEyeballWithLook(frame, opts) {
@@ -1422,9 +1285,8 @@ export const CHARACTERS = {
     id: "rocket", name: "Rocket", premium: true, type: "flyer",
     render: makeRender(buildRocket, ROCKET_PAL), build: buildRocket, palette: ROCKET_PAL,
     frames: 8, orientToMovement: true,
-    // Rocket sprite is symmetric around column 11.5 (body 8-15, fins 5-7/16-18),
-    // so the exhaust centre is 11.5/24, not the grid centre 12/24.
-    effectAnchor: { x: 0.479, y: 0.86 },
+    // Emit from the exhaust flame, just left of the body centre (cols 9-13).
+    effectAnchor: { x: 0.47, y: 0.86 },
     movement: { speed: 3.0, accel: 0.18, damping: 0.94, changeMs: [1200, 3000], area: { x: [0.05, 0.95], y: [0.05, 0.85] }, wobble: 0.04 },
   },
   saturn: {
