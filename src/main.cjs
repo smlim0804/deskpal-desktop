@@ -23,9 +23,9 @@ const FREE_WEB_SHORTCUT_LIMIT = 1;
 const FREE_APP_SHORTCUT_LIMIT = 1;
 const LICENSE_API_URL = process.env.DESKPAL_LICENSE_API_URL || "https://www.aidogam.com/api/deskpal-license";
 const UPDATE_API_URL =
-  process.env.DESKPAL_UPDATE_API_URL || "https://api.github.com/repos/smlim0804/deskpal-desktop/releases/latest";
+  process.env.DESKPAL_UPDATE_API_URL || "https://api.github.com/repos/smlim0804/deskpal-downloads/releases/latest";
 const UPDATE_PAGE_URL =
-  process.env.DESKPAL_UPDATE_PAGE_URL || "https://github.com/smlim0804/deskpal-desktop/releases/latest";
+  process.env.DESKPAL_UPDATE_PAGE_URL || "https://github.com/smlim0804/deskpal-downloads/releases/latest";
 const CARE_MEMORY_LIMIT = 12;
 const CHARACTER_IDS = [
   "ufo",
