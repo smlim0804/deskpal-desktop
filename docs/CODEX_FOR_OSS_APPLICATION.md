@@ -16,7 +16,7 @@ smlim0804
 https://github.com/smlim0804/deskpal-desktop
 ```
 
-Important: the repository must be public before submitting the form.
+Status: public repository, MIT license detected by GitHub.
 
 ### Role
 
@@ -27,7 +27,7 @@ Primary maintainer
 ### Why is this repository a good fit? (500 characters max)
 
 ```text
-DeskPal is an open-source Electron desktop app that brings small pixel companions, shortcut launching, and local companion-game systems to macOS and Windows. It is actively maintained, has a real user-facing product surface, and needs careful work across Electron security, performance, packaging, UI, animation, and cross-platform behavior. Codex can help review risky desktop changes, improve tests, and keep the project safer for users.
+DeskPal is a public MIT Electron desktop app inspired by BusyPet. It brings pixel companions, app/web shortcuts, and local companion-game systems to macOS and Windows. The project has a real user-facing surface and needs careful maintenance across Electron security, overlay click-through behavior, packaging, UI, animation, and performance. Codex can help review risky changes, expand tests, and keep the app safer for users.
 ```
 
 ### Interest
@@ -56,14 +56,14 @@ DeskPal grew from the BusyPet browser-extension idea into a desktop companion ap
 
 - Last name / Family name: likely `Lim`, but confirm before submitting.
 - First name / Given name: likely `Sungmin`, but confirm before submitting.
-- Email address: use the same email attached to the OpenAI account.
+- Email address: use the same email attached to the OpenAI account. Git is currently configured with `smlim0804@users.noreply.github.com`, but the form should use your real contact email if possible.
 - OpenAI organization ID: copy from OpenAI Platform organization settings.
 
 ## Pre-submit checklist
 
-- [ ] Repository visibility is public.
-- [ ] GitHub license detection shows MIT.
-- [ ] README, SECURITY, CONTRIBUTING, and CODE_OF_CONDUCT are present.
-- [ ] `npm run check` passes.
-- [ ] No secrets are committed.
+- [x] Repository visibility is public.
+- [x] GitHub license detection shows MIT.
+- [x] README, SECURITY, CONTRIBUTING, and CODE_OF_CONDUCT are present.
+- [x] `npm run check` passes.
+- [x] No obvious secrets found with local `rg` scan.
 - [ ] Owner confirms name, email, and OpenAI organization ID.
