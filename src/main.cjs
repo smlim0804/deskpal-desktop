@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, ipcMain, screen, shell, dialog, nativeImage, Tray, powerMonitor, clipboard, Notification } = require("electron");
+const { app, BrowserWindow, Menu, ipcMain, screen, shell, dialog, nativeImage, Tray, powerMonitor, clipboard, Notification, session } = require("electron");
 const crypto = require("crypto");
 const fs = require("fs");
 const os = require("os");
@@ -131,6 +131,8 @@ const DEFAULT_UPDATE = Object.freeze({
   latestVersion: "",
   downloadUrl: "",
   pageUrl: UPDATE_PAGE_URL,
+  downloading: false,
+  downloadedPath: "",
   checkedAt: 0,
   message: "",
 });
@@ -588,6 +590,10 @@ function appRoots() {
   const home = app.getPath("home");
   if (process.platform === "win32") {
     return [
+      home,
+      app.getPath("desktop"),
+      app.getPath("downloads"),
+      path.join(process.env.PUBLIC || "C:\\Users\\Public", "Desktop"),
       process.env.ProgramFiles,
       process.env["ProgramFiles(x86)"],
       process.env.LOCALAPPDATA,
@@ -732,10 +738,10 @@ function appPickerOptions() {
   if (process.platform === "win32") {
     return {
       title: "Choose an app",
-      defaultPath: process.env.ProgramFiles || app.getPath("home"),
+      defaultPath: app.getPath("downloads") || app.getPath("home"),
       properties: ["openFile"],
       filters: [{ name: "Applications", extensions: ["exe", "lnk"] }],
-      error: "Choose an .exe or .lnk inside Program Files, AppData, or the Start Menu.",
+      error: "Choose an .exe or .lnk inside your user folder, Desktop, Downloads, Program Files, AppData, or the Start Menu.",
     };
   }
   if (process.platform === "linux") {
@@ -842,8 +848,10 @@ function normalizeUpdate(source) {
     latestVersion: String(src.latestVersion || "").trim().slice(0, 40),
     downloadUrl: String(src.downloadUrl || "").trim().slice(0, 500),
     pageUrl: String(src.pageUrl || UPDATE_PAGE_URL).trim().slice(0, 500),
+    downloading: src.downloading === true,
+    downloadedPath: String(src.downloadedPath || "").trim().slice(0, 500),
     checkedAt: Math.round(clamp(src.checkedAt, 0, Date.now(), 0)),
-    message: String(src.message || "").trim().slice(0, 180),
+    message: String(src.message || "").trim().slice(0, 240),
   };
 }
 
@@ -1481,8 +1489,122 @@ function updateTargetUrl() {
   return settings.update?.downloadUrl || settings.update?.pageUrl || UPDATE_PAGE_URL;
 }
 
+function trustedUpdateDownloadUrl(value) {
+  const url = safeHttpUrl(value);
+  if (!url) return "";
+  try {
+    const parsed = new URL(url);
+    const host = parsed.hostname.toLowerCase();
+    const allowedHost =
+      host === "github.com" ||
+      host === "objects.githubusercontent.com" ||
+      host === "github-releases.githubusercontent.com";
+    const filename = decodeURIComponent(parsed.pathname.split("/").pop() || "");
+    const expected = UPDATE_ASSET_BY_PLATFORM[process.platform] || "";
+    const expectedFile = expected && filename === expected;
+    const directReleaseFile = parsed.pathname.includes("/releases/download/") && /\.(dmg|exe)$/i.test(filename);
+    return allowedHost && (expectedFile || directReleaseFile) ? url : "";
+  } catch {
+    return "";
+  }
+}
+
+function updateDownloadFileName(url) {
+  const expected = UPDATE_ASSET_BY_PLATFORM[process.platform] || "";
+  if (expected) return expected;
+  try {
+    const filename = decodeURIComponent(new URL(url).pathname.split("/").pop() || "");
+    return filename || "DeskPal-update";
+  } catch {
+    return "DeskPal-update";
+  }
+}
+
+function uniqueDownloadPath(filePath) {
+  if (!fs.existsSync(filePath)) return filePath;
+  const dir = path.dirname(filePath);
+  const ext = path.extname(filePath);
+  const base = path.basename(filePath, ext);
+  for (let index = 1; index < 100; index += 1) {
+    const candidate = path.join(dir, `${base} (${index})${ext}`);
+    if (!fs.existsSync(candidate)) return candidate;
+  }
+  return path.join(dir, `${base}-${Date.now()}${ext}`);
+}
+
+function setUpdateMessage(message, extra = {}) {
+  settings.update = normalizeUpdate({
+    ...settings.update,
+    ...extra,
+    message,
+  });
+  saveSettings();
+  broadcastSettings();
+  refreshTrayMenu();
+}
+
+function downloadUpdateFile(url) {
+  const downloadUrl = trustedUpdateDownloadUrl(url);
+  if (!downloadUrl) return Promise.reject(new Error("Update download file is not ready."));
+  const savePath = uniqueDownloadPath(path.join(app.getPath("downloads"), updateDownloadFileName(downloadUrl)));
+  const downloadSession = session.defaultSession;
+  setUpdateMessage(settings.language === "ko" ? "업데이트 파일을 다운로드하는 중..." : "Downloading update file...", {
+    downloading: true,
+    downloadedPath: "",
+  });
+
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const cleanup = () => {
+      downloadSession.removeListener("will-download", onWillDownload);
+      clearTimeout(timeout);
+    };
+    const finish = (result) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      resolve(result);
+    };
+    const fail = (error) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      setUpdateMessage(error?.message || "Update download failed.", { downloading: false });
+      reject(error);
+    };
+    const timeout = setTimeout(() => {
+      fail(new Error("Update download did not start."));
+    }, 15000);
+    const onWillDownload = (_event, item) => {
+      item.setSavePath(savePath);
+      item.once("done", (_doneEvent, state) => {
+        if (state === "completed") {
+          setUpdateMessage(
+            settings.language === "ko"
+              ? `다운로드 완료: ${path.basename(savePath)}`
+              : `Downloaded: ${path.basename(savePath)}`,
+            { downloading: false, downloadedPath: savePath },
+          );
+          finish({ ok: true, mode: "download", path: savePath });
+          return;
+        }
+        fail(new Error(`Update download ${state}.`));
+      });
+    };
+    downloadSession.once("will-download", onWillDownload);
+    try {
+      downloadSession.downloadURL(downloadUrl);
+    } catch (error) {
+      fail(error);
+    }
+  });
+}
+
 async function openUpdateTarget() {
+  const downloadUrl = trustedUpdateDownloadUrl(settings.update?.downloadUrl);
+  if (downloadUrl) return downloadUpdateFile(downloadUrl);
   await shell.openExternal(updateTargetUrl());
+  return { ok: true, mode: "page", url: updateTargetUrl() };
 }
 
 function notifyUpdateAvailable(update) {
@@ -1577,6 +1699,8 @@ async function checkForUpdates({ manual = false } = {}) {
       latestVersion,
       downloadUrl: releaseDownloadUrl(release),
       pageUrl: release.html_url || UPDATE_PAGE_URL,
+      downloading: false,
+      downloadedPath: "",
       checkedAt: Date.now(),
       message: available ? "Update available." : "DeskPal is up to date.",
     });
@@ -1993,8 +2117,7 @@ ipcMain.handle("license:checkout", async (_event, plan) => {
 ipcMain.handle("updates:check", async () => checkForUpdates({ manual: true }));
 
 ipcMain.handle("updates:open", async () => {
-  await openUpdateTarget();
-  return { ok: true };
+  return openUpdateTarget();
 });
 
 ipcMain.handle("shortcut:open", async (_event, shortcut) => {

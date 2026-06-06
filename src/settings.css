@@ -188,11 +188,163 @@ main {
   gap: 10px;
 }
 
+.license-panel,
+.update-panel {
+  background:
+    radial-gradient(circle at 18% 20%, rgba(66, 215, 197, 0.16), transparent 30%),
+    radial-gradient(circle at 88% 18%, rgba(242, 189, 47, 0.18), transparent 34%),
+    linear-gradient(135deg, rgba(255, 253, 246, 0.98), rgba(255, 248, 232, 0.96));
+}
+
+.promo-window {
+  position: relative;
+  min-height: 112px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  overflow: hidden;
+  padding: 12px;
+  border: 3px solid var(--line);
+  background:
+    linear-gradient(90deg, rgba(32, 32, 36, 0.045) 1px, transparent 1px) 0 0 / 12px 12px,
+    linear-gradient(rgba(32, 32, 36, 0.045) 1px, transparent 1px) 0 0 / 12px 12px,
+    linear-gradient(135deg, #fffdf6, #fff3d6);
+  box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.16);
+}
+
+.promo-logo {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 72px;
+  height: 72px;
+}
+
+.promo-logo::after {
+  content: "";
+  position: absolute;
+  inset: 14px;
+  border-radius: 999px;
+  background: rgba(255, 126, 58, 0.24);
+  filter: blur(18px);
+}
+
+.promo-logo img {
+  position: relative;
+  z-index: 1;
+  width: 72px;
+  height: 72px;
+  object-fit: contain;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 10px 10px rgba(32, 32, 36, 0.22));
+}
+
+.promo-copy {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.promo-copy strong {
+  color: var(--ink);
+  font-size: clamp(17px, 3vw, 24px);
+  font-weight: 1000;
+  line-height: 1.05;
+  letter-spacing: 0;
+}
+
+.promo-copy span {
+  max-width: 320px;
+  color: #4d463f;
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1.4;
+}
+
+.promo-flyer,
+.promo-trail {
+  position: absolute;
+  z-index: 1;
+  pointer-events: none;
+  image-rendering: pixelated;
+  will-change: transform;
+}
+
+.promo-rocket {
+  width: 52px;
+  right: 12%;
+  bottom: 8px;
+  opacity: 0.9;
+  animation: promoRocketFly 5.4s linear infinite;
+}
+
+.promo-cat {
+  width: 42px;
+  right: 7%;
+  top: 8px;
+  opacity: 0.86;
+  animation: promoCatFloat 6.8s ease-in-out infinite;
+}
+
+.promo-trail {
+  right: 14%;
+  bottom: 14px;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  opacity: 0.42;
+  animation: promoTrailFly 5.4s linear infinite;
+}
+
+.promo-trail.one {
+  background: #ff7e3a;
+  box-shadow: 0 0 12px rgba(255, 126, 58, 0.5);
+}
+
+.promo-trail.two {
+  width: 13px;
+  height: 13px;
+  background: #ff4e9c;
+  animation-delay: -0.18s;
+}
+
+.promo-trail.three {
+  width: 14px;
+  height: 14px;
+  background: #42d7c5;
+  animation-delay: -0.34s;
+}
+
+@keyframes promoRocketFly {
+  0% { transform: translate(-8px, 18px) rotate(-22deg) scale(0.9); }
+  28% { transform: translate(-120px, -22px) rotate(28deg) scale(1); }
+  58% { transform: translate(-40px, -48px) rotate(98deg) scale(0.96); }
+  78% { transform: translate(12px, -8px) rotate(176deg) scale(1); }
+  100% { transform: translate(-8px, 18px) rotate(338deg) scale(0.9); }
+}
+
+@keyframes promoCatFloat {
+  0%, 100% { transform: translate(0, 0) rotate(5deg); }
+  38% { transform: translate(-26px, 18px) rotate(-8deg); }
+  72% { transform: translate(-62px, -4px) rotate(4deg); }
+}
+
+@keyframes promoTrailFly {
+  0% { transform: translate(82%, 78%) scale(0.45); opacity: 0.02; }
+  28% { transform: translate(58%, 42%) scale(0.9); opacity: 0.52; }
+  58% { transform: translate(80%, 22%) scale(0.7); opacity: 0.34; }
+  100% { transform: translate(82%, 78%) scale(0.45); opacity: 0.02; }
+}
+
 .mini-note {
-  color: var(--muted);
-  font-size: 11px;
-  font-weight: 800;
-  line-height: 1.45;
+  color: #3c3935;
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1.5;
 }
 
 #licenseBadge,

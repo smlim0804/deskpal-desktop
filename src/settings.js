@@ -119,6 +119,8 @@ const I18N = {
     licenseLifetime: "Lifetime",
     licenseHelpFree: "Free: 2 characters, 1 app shortcut, 1 web shortcut, no custom sprites or effects.",
     licenseHelpPro: "Premium active: all character slots, custom sprites, shortcuts, and effects are unlocked.",
+    promoTitle: "Unlock DeskPal",
+    promoDesc: "More companions, shortcuts, custom sprites, and effects.",
     licensePlaceholder: "LICENSE-KEY",
     activateLicense: "Activate",
     buyPro: "Buy Pro",
@@ -131,13 +133,16 @@ const I18N = {
     updatesTitle: "Updates",
     updateReady: "Ready",
     updateAvailable: "Update",
+    updateDownloading: "Downloading",
     updateCurrent: "Up to date",
     updateChecking: "Checking...",
     updateStatusReady: "Check for DeskPal updates.",
     updateStatusCurrent: "DeskPal is up to date.",
     updateStatusAvailable: "New version {version} is available.",
+    updateStatusDownloading: "Downloading update file...",
+    updateStatusDownloaded: "Downloaded to Downloads.",
     checkUpdates: "Check",
-    openUpdate: "Update",
+    openUpdate: "Download",
     characters: "Characters",
     characterHint: "Per-character settings",
     pixelMaker: "Pixel Maker",
@@ -239,6 +244,8 @@ const I18N = {
     licenseLifetime: "Lifetime",
     licenseHelpFree: "무료: 캐릭터 2개, 앱 바로가기 1개, 웹 바로가기 1개. 커스텀과 이펙트는 잠겨 있어.",
     licenseHelpPro: "프리미엄 활성화됨: 모든 캐릭터 슬롯, 커스텀, 바로가기, 이펙트가 열렸어.",
+    promoTitle: "DeskPal 잠금 해제",
+    promoDesc: "캐릭터, 바로가기, 커스텀, 이펙트를 더 많이 사용할 수 있어.",
     licensePlaceholder: "라이선스 키",
     activateLicense: "활성화",
     buyPro: "Pro 구매",
@@ -251,13 +258,16 @@ const I18N = {
     updatesTitle: "업데이트",
     updateReady: "대기",
     updateAvailable: "업데이트",
+    updateDownloading: "다운로드 중",
     updateCurrent: "최신",
     updateChecking: "확인 중...",
     updateStatusReady: "DeskPal 업데이트를 확인할 수 있어.",
     updateStatusCurrent: "지금 최신 버전이야.",
     updateStatusAvailable: "새 버전 {version}이 있어.",
+    updateStatusDownloading: "업데이트 파일을 다운로드하는 중...",
+    updateStatusDownloaded: "다운로드 폴더에 저장 완료.",
     checkUpdates: "확인",
-    openUpdate: "업데이트",
+    openUpdate: "다운로드",
     characters: "캐릭터",
     characterHint: "캐릭터별 설정",
     pixelMaker: "픽셀 메이커",
@@ -1492,20 +1502,24 @@ function renderUpdatePanel() {
   const update = settings.update || {};
   updateBadge.textContent = update.checking
     ? t("updateChecking")
-    : update.available
+    : update.downloading
+      ? t("updateDownloading")
+      : update.available
       ? t("updateAvailable")
       : update.checkedAt
         ? t("updateCurrent")
         : t("updateReady");
-  updateBadge.dataset.tone = update.available ? "update" : "ready";
+  updateBadge.dataset.tone = update.available || update.downloading ? "update" : "ready";
   updateStatus.textContent = update.checking
     ? t("updateChecking")
-    : update.available
+    : update.downloading
+      ? (update.message || t("updateStatusDownloading"))
+      : update.available
       ? t("updateStatusAvailable").replace("{version}", update.latestVersion || "")
       : update.checkedAt
         ? (update.message || t("updateStatusCurrent"))
         : t("updateStatusReady");
-  openUpdate.disabled = !update.available && !update.downloadUrl && !update.pageUrl;
+  openUpdate.disabled = update.downloading || (!update.available && !update.downloadUrl && !update.pageUrl);
 }
 
 function render() {
@@ -1640,8 +1654,19 @@ checkUpdates.addEventListener("click", async () => {
   }
 });
 
-openUpdate.addEventListener("click", () => {
-  api.openUpdate();
+openUpdate.addEventListener("click", async () => {
+  openUpdate.disabled = true;
+  updateStatus.textContent = t("updateStatusDownloading");
+  try {
+    const result = await api.openUpdate();
+    if (result?.mode === "download") {
+      updateStatus.textContent = t("updateStatusDownloaded");
+    }
+  } catch (error) {
+    updateStatus.textContent = error?.message || "Update download failed.";
+  } finally {
+    renderUpdatePanel();
+  }
 });
 
 for (const button of tabButtons) {

@@ -12,6 +12,8 @@ const css = readText("src", "overlay.css");
 const main = readText("src", "main.cjs");
 const preload = readText("src", "preload.cjs");
 const settings = readText("src", "settings.js");
+const settingsCss = readText("src", "settings.css");
+const settingsHtml = readText("src", "settings.html");
 const characters = readText("src", "characters.js");
 const interaction = readText("src", "interaction-variety.js");
 
@@ -232,6 +234,20 @@ includes(settings, "const current = settings.shortcuts[index]", "app picker can 
 assert(!settings.includes("await new Promise((resolve) => setTimeout(resolve, 80))"), "app type change must not race a delayed save before opening the picker");
 assert(!settings.includes("chooseAppShortcut(shortcut)"), "app type change must not require a second selection");
 includes(settings, "shortcut-app-select", "app shortcut select button");
+includes(main, "app.getPath(\"downloads\")", "Windows app picker accepts downloaded .exe files");
+includes(main, "app.getPath(\"desktop\")", "Windows app picker accepts Desktop .exe/.lnk files");
+includes(main, "process.env.PUBLIC", "Windows app picker accepts Public Desktop shortcuts");
+includes(main, "session.defaultSession", "update downloads through Electron session");
+includes(main, "downloadSession.downloadURL(downloadUrl)", "update button downloads directly instead of opening GitHub");
+includes(main, "function trustedUpdateDownloadUrl", "update downloads are restricted to trusted release assets");
+includes(settings, "update.downloading", "settings exposes update download progress");
+includes(settingsHtml, "promo-window", "promotion window exists in license panel");
+includes(settingsHtml, "../build/icon.svg", "promotion uses the DeskPal rocket logo");
+includes(settingsHtml, "./nabi.svg", "promotion includes the flying cat sprite");
+includes(settingsCss, ".promo-window", "promotion window matches settings visual system");
+includes(settingsCss, ".promo-rocket", "promotion rocket flies in the window");
+includes(settingsCss, ".promo-cat", "promotion cat flies in the window");
+includes(settingsCss, ".promo-trail", "promotion trail particles are styled");
 // behavior(slot) must return a STABLE reference: control handlers capture it
 // once at render, so reassigning a fresh object on later calls would orphan the
 // capture and silently drop per-character edits (the "doesn't apply" bug).

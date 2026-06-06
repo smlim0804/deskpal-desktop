@@ -87,6 +87,7 @@ async function main() {
   const preloadSource = readText("src", "preload.cjs");
   const settingsHtml = readText("src", "settings.html");
   const settingsJs = readText("src", "settings.js");
+  const settingsCss = readText("src", "settings.css");
   const characters = readText("src", "characters.js");
   const iconSvg = readText("build", "icon.svg");
 
@@ -110,8 +111,16 @@ async function main() {
   includes(functionBody(mainSource, "releaseDownloadUrl"), "String(item?.name || \"\") === wanted", "update resolver uses exact asset names");
   includes(mainSource, "Notification", "native update notification support");
   includes(mainSource, "function updateTargetUrl", "shared update download target");
+  includes(mainSource, "session.defaultSession", "Electron update download session");
+  includes(mainSource, "function trustedUpdateDownloadUrl", "trusted update download URL guard");
+  includes(mainSource, "downloadSession.downloadURL(downloadUrl)", "update button downloads release asset");
+  includes(mainSource, "downloading: false", "update download state default");
+  includes(mainSource, "downloadedPath: \"\"", "update downloaded path state");
   includes(mainSource, "function notifyUpdateAvailable", "update notification handler");
   includes(mainSource, "trayLabel(\"update\")", "tray update download item");
+  includes(mainSource, "app.getPath(\"desktop\")", "Windows app picker accepts Desktop apps");
+  includes(mainSource, "app.getPath(\"downloads\")", "Windows app picker accepts downloaded installers");
+  includes(mainSource, "process.env.PUBLIC", "Windows app picker accepts Public Desktop shortcuts");
   includes(mainSource, "function resolveLicenseCheckoutUrl", "app-driven checkout resolver");
   includes(mainSource, "action: \"checkout\"", "checkout API action");
   includes(mainSource, "plan: targetPlan", "selected checkout plan is sent to API");
@@ -121,8 +130,18 @@ async function main() {
   includes(preloadSource, "openLicenseCheckout: (plan)", "preload passes selected checkout plan");
   includes(settingsHtml, "id=\"buyPro\"", "Pro checkout button");
   includes(settingsHtml, "id=\"buyLifetime\"", "Lifetime checkout button");
+  includes(settingsHtml, "class=\"promo-window\"", "license promotional window");
+  includes(settingsHtml, "src=\"../build/icon.svg\"", "promo uses the rocket logo asset");
+  includes(settingsHtml, "src=\"./nabi.svg\"", "promo uses the floating cat sprite");
   includes(settingsJs, "api.openLicenseCheckout(\"pro\")", "Pro button opens Pro checkout");
   includes(settingsJs, "api.openLicenseCheckout(\"lifetime\")", "Lifetime button opens Lifetime checkout");
+  includes(settingsJs, "update.downloading", "settings update download state");
+  includes(settingsJs, "api.openUpdate()", "settings update download button action");
+  includes(settingsCss, ".promo-window", "promo window visual style");
+  includes(settingsCss, ".promo-rocket", "promo flying rocket style");
+  includes(settingsCss, ".promo-cat", "promo flying cat style");
+  includes(settingsCss, ".promo-trail", "promo trail style");
+  assert(fileSize("src", "nabi.svg") > 500, "promo cat sprite is missing or empty");
 
   includes(mainSource, "const FREE_CHARACTER_LIMIT = 2", "free character limit");
   includes(mainSource, "const FREE_WEB_SHORTCUT_LIMIT = 1", "free web shortcut limit");
