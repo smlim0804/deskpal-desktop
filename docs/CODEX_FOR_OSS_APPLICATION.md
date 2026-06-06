@@ -27,7 +27,7 @@ Primary maintainer
 ### Why is this repository a good fit? (500 characters max)
 
 ```text
-DeskPal은 BusyPet 아이디어에서 출발한 공개 MIT Electron 데스크톱 앱입니다. 작은 픽셀 캐릭터가 화면 위를 부드럽게 돌아다니고, 클릭하면 자주 쓰는 웹사이트와 로컬 앱 바로가기를 바로 열 수 있습니다. 캐릭터/이펙트/이동 영역을 사용자가 조절하고, CPU·RAM 같은 벤치마킹 상태를 말풍선으로 보여줍니다. 앞으로는 사용자가 명시적으로 켠 AI를 캐릭터에 연결하는 것이 목표라 Electron 보안, 클릭 통과, 성능, 패키징, UX 검토가 중요합니다.
+DeskPal은 BusyPet에서 출발한 공개 MIT Electron 데스크톱 앱입니다. 투명 오버레이 위에서 픽셀 캐릭터가 작업 화면을 부드럽게 돌아다니고, 클릭하면 사용자가 등록한 웹사이트나 로컬 앱을 바로 열 수 있습니다. 캐릭터별 속도·크기·마우스 반응·이동 영역·이펙트 위치를 조절할 수 있고, CPU/RAM 같은 벤치마킹 상태를 작은 말풍선으로 보여줍니다. 실제 데스크톱과 상호작용하는 앱이라 안정성, 성능, 보안 검토가 계속 필요합니다.
 ```
 
 ### Interest
@@ -49,13 +49,13 @@ org-hk8WAPrFjq3WS72DsSrEoJOZ
 ### API credit usage plan (500 characters max)
 
 ```text
-API 크레딧은 런타임 사용자 기능이 아니라 오픈소스 유지보수에 쓰겠습니다. Codex로 PR 리뷰, Electron 보안 점검, 오버레이 클릭 통과 회귀 테스트, 성능 병목 분석, macOS/Windows 패키징 문제, 문서와 이슈 분류를 처리하고 싶습니다. 향후 AI 캐릭터 기능을 설계할 때도 기본 앱은 로컬 우선·토큰 안전 구조를 유지하고, AI는 명시적 opt-in과 투명한 권한 흐름으로만 실험하겠습니다.
+API 크레딧은 사용자 런타임 기능이 아니라 오픈소스 유지보수에 쓰겠습니다. Codex로 PR 리뷰, Electron preload IPC 점검, 클릭 통과/오버레이 회귀 테스트, 업데이트 다운로드 검증, macOS/Windows 패키징 분석, 성능 병목 찾기, README와 보안 문서 보강을 진행하고 싶습니다. 향후 AI 캐릭터 기능도 기본 앱은 로컬 우선으로 유지하고, 명시적 opt-in·권한 설명·데이터 전송 제한을 지키는 방향으로 설계하겠습니다.
 ```
 
 ### Additional information (500 characters max)
 
 ```text
-Codex Security가 필요한 이유는 DeskPal이 Electron 데스크톱 앱이라 preload IPC, 투명 오버레이의 클릭 통과, 로컬 앱 바로가기 실행, 업데이트 다운로드 같은 보안 표면이 있기 때문입니다. 현재 공개 버전은 클라우드 AI 없이 로컬에서 동작하지만, 장기적으로 사용자가 선택한 AI를 캐릭터에 연결하려면 권한 흐름과 데이터 전송 범위를 엄격하게 설계해야 합니다.
+Codex Security가 필요한 이유는 DeskPal이 일반 웹앱이 아니라 사용자의 데스크톱 위에서 동작하는 Electron 앱이기 때문입니다. preload IPC, 로컬 앱 바로가기 실행, 투명 오버레이 클릭 통과, 업데이트 다운로드, 시스템 벤치마킹 표시가 모두 보안 검토 대상입니다. 현재 공개 버전은 AI와 화면 읽기 없이 동작하지만, 장기적으로 사용자가 선택한 AI를 캐릭터에 연결하려면 권한 흐름과 데이터 범위를 미리 안전하게 설계해야 합니다.
 ```
 
 ## Fields that need owner confirmation
