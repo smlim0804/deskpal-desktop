@@ -2,6 +2,18 @@
 
 Desktop version of DeskPal. It runs as a transparent always-on-top overlay, so pixel companions can walk around the computer screen instead of only inside Chrome.
 
+DeskPal is the open-source desktop edition of the original BusyPet idea: small pixel companions, local customization, and shortcut helpers that stay on the user's own computer. The default app does not include cloud AI, prompt boxes, API keys, or screen-reading features.
+
+## Open source
+
+- License: MIT
+- Repository: https://github.com/smlim0804/deskpal-desktop
+- Primary maintainer: Sungmin Lim (`smlim0804`)
+- Security notes: see `SECURITY.md`
+- Contributing guide: see `CONTRIBUTING.md`
+
+The project is built to be safe for local-first desktop use. It stores settings locally, exposes a small Electron preload IPC surface, and keeps shortcut opening restricted to safe web URLs or OS-specific app paths.
+
 ## Run
 
 ```bash

@@ -35,10 +35,20 @@
     "desktop",
     "electron",
     "pixel",
-    "pet"
+    "pet",
+    "open-source",
+    "productivity"
   ],
-  "author": "",
-  "license": "UNLICENSED",
+  "author": "Sungmin Lim",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/smlim0804/deskpal-desktop.git"
+  },
+  "homepage": "https://github.com/smlim0804/deskpal-desktop#readme",
+  "bugs": {
+    "url": "https://github.com/smlim0804/deskpal-desktop/issues"
+  },
   "devDependencies": {
     "electron": "^42.2.0",
     "electron-builder": "^26.8.1",
