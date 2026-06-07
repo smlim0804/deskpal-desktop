@@ -361,8 +361,7 @@ main {
   box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.14);
 }
 
-#licenseBadge[data-tone="pro"],
-#updateBadge[data-tone="update"] {
+#licenseBadge[data-tone="pro"] {
   background: var(--gold);
 }
 
@@ -424,6 +423,112 @@ main {
 
 .is-pro-locked {
   opacity: 0.72;
+}
+
+/* ===== Free/Pro lock treatment ===== */
+/* A locked container is greyed out with a centred lock badge. Free users see
+   exactly which features Pro unlocks without being able to touch them. */
+.is-locked {
+  position: relative;
+  isolation: isolate;
+}
+
+.is-locked > *:not(.lock-badge) {
+  filter: grayscale(1);
+  opacity: 0.5;
+  pointer-events: none;
+  user-select: none;
+}
+
+.lock-badge {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 5;
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  color: #fff;
+  background: rgba(20, 24, 34, 0.82);
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.28);
+  cursor: pointer;
+}
+
+.lock-badge:hover {
+  background: rgba(20, 24, 34, 0.92);
+}
+
+.lock-badge::after {
+  content: attr(data-tip);
+  position: absolute;
+  bottom: calc(100% + 9px);
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  padding: 5px 10px;
+  border-radius: 8px;
+  background: rgba(20, 24, 34, 0.94);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 540;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.16s ease, transform 0.16s ease;
+  transition-delay: 0s;
+}
+
+.lock-badge:hover::after {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+  /* 0.5s dwell before the tooltip appears, as requested. */
+  transition-delay: 0.5s;
+}
+
+.lock-badge.shake {
+  animation: lock-shake 0.42s cubic-bezier(0.36, 0.07, 0.19, 0.97);
+}
+
+@keyframes lock-shake {
+  10%, 90% { transform: translate(-50%, -50%) rotate(-7deg); }
+  20%, 80% { transform: translate(-50%, -50%) rotate(7deg); }
+  30%, 50%, 70% { transform: translate(-50%, -50%) rotate(-11deg); }
+  40%, 60% { transform: translate(-50%, -50%) rotate(11deg); }
+}
+
+.pro-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 22px;
+  transform: translateX(-50%) translateY(10px);
+  z-index: 999;
+  padding: 8px 16px;
+  border-radius: 999px;
+  background: rgba(20, 24, 34, 0.92);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 580;
+  box-shadow: 0 10px 26px rgba(15, 23, 42, 0.3);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.pro-toast.is-visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+.ghost-hint {
+  margin: 2px 2px 0;
+  color: var(--muted);
+  font-size: 10.5px;
+  font-weight: 500;
+  line-height: 1.4;
 }
 
 .section-head {
@@ -921,17 +1026,23 @@ input[type="range"] {
   }
 }
 
-.shortcut-actions {
+/* Centered add button at the foot of each shortcut section. */
+.shortcut-section-foot {
   display: flex;
-  gap: 8px;
-  align-items: center;
-  justify-content: flex-end;
+  justify-content: center;
+  padding-top: 2px;
 }
 
 .shortcut-add-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   width: auto;
-  min-width: 62px;
-  padding: 0 10px;
+  min-width: 96px;
+  min-height: 32px;
+  padding: 0 16px;
+  border-radius: 999px;
   white-space: nowrap;
 }
 
@@ -939,6 +1050,24 @@ input[type="range"] {
   display: grid;
   gap: 8px;
   min-width: 0;
+  padding: 10px;
+  border-radius: 16px;
+  background: rgba(247, 249, 252, 0.6);
+  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.05);
+}
+
+/* Distinct accent so Web vs App shortcut groups read clearly. */
+.shortcut-section--web {
+  box-shadow: inset 0 0 0 1px rgba(58, 135, 255, 0.22), inset 4px 0 0 var(--teal);
+}
+
+.shortcut-section--app {
+  box-shadow: inset 0 0 0 1px rgba(242, 189, 47, 0.3), inset 4px 0 0 var(--gold);
+}
+
+.shortcut-section--app .shortcut-section-head span {
+  background: rgba(242, 189, 47, 0.18);
+  color: #9a6a00;
 }
 
 .shortcut-section-head {
@@ -990,7 +1119,7 @@ input[type="range"] {
 
 .shortcut-row {
   display: grid;
-  grid-template-columns: 82px minmax(0, 1fr) 38px;
+  grid-template-columns: minmax(0, 1fr) 38px;
   gap: 8px;
   padding: 8px;
   border: 2px solid var(--line);
@@ -1702,8 +1831,19 @@ input[type="checkbox"]:checked::after {
   background: var(--teal);
   transition: width 0.25s ease;
 }
+/* Update badge: a subtle pill, never a hard colored box (fixes the blue-box
+   bug where the shared [data-tone] gold/blue background leaked through). */
+#updateBadge {
+  border-radius: 999px;
+}
 #updateBadge[data-tone="update"] {
+  background: color-mix(in srgb, var(--teal) 14%, transparent);
   color: var(--teal);
+  border: 1px solid color-mix(in srgb, var(--teal) 34%, transparent);
+  box-shadow: none;
+  min-height: 0;
+  padding: 3px 10px;
+  font-size: 11px;
   font-weight: 500;
 }
 

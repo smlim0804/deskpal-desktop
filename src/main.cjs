@@ -262,7 +262,6 @@ const DEFAULT_SETTINGS = Object.freeze({
   ghostDelaySeconds: 3,
   ghostTriggerMouse: true,
   ghostTriggerKeyboard: true,
-  ghostTriggerWheel: true,
   ghostOpacity: 0,
   fps: 16,
   license: clone(DEFAULT_LICENSE),
@@ -1293,7 +1292,6 @@ function normalizeSettings(source) {
   next.ghostTriggerMouse = src.ghostTriggerMouse === undefined ? DEFAULT_SETTINGS.ghostTriggerMouse : src.ghostTriggerMouse === true;
   next.ghostTriggerKeyboard =
     src.ghostTriggerKeyboard === undefined ? DEFAULT_SETTINGS.ghostTriggerKeyboard : src.ghostTriggerKeyboard === true;
-  next.ghostTriggerWheel = src.ghostTriggerWheel === undefined ? DEFAULT_SETTINGS.ghostTriggerWheel : src.ghostTriggerWheel === true;
   next.ghostOpacity = 0;
   next.showTrayIcon = src.showTrayIcon === undefined ? DEFAULT_SETTINGS.showTrayIcon : src.showTrayIcon === true;
   next.shortcutDisplayMode = ["both", "image", "name"].includes(src.shortcutDisplayMode)

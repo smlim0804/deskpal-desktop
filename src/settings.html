@@ -62,17 +62,14 @@
             <input id="ghostDelaySeconds" type="range" min="1" max="15" step="1" />
           </label>
           <label class="switch-row compact-switch">
-            <span><span class="inline-icon">⌁</span><span data-i18n="ghostMouse">Mouse movement</span></span>
+            <span><span class="inline-icon">⌁</span><span data-i18n="ghostMouse">Mouse / wheel</span></span>
             <input id="ghostTriggerMouse" type="checkbox" />
           </label>
           <label class="switch-row compact-switch">
-            <span><span class="inline-icon">⌨</span><span data-i18n="ghostKeyboard">Keyboard / wheel</span></span>
+            <span><span class="inline-icon">⌨</span><span data-i18n="ghostKeyboard">Keyboard</span></span>
             <input id="ghostTriggerKeyboard" type="checkbox" />
           </label>
-          <label class="switch-row compact-switch">
-            <span><span class="inline-icon">⌁</span><span data-i18n="ghostWheel">Wheel</span></span>
-            <input id="ghostTriggerWheel" type="checkbox" />
-          </label>
+          <p class="field-hint ghost-hint" data-i18n="ghostHint">When the inputs you enable above are detected, the companions quietly disappear, then return after the delay.</p>
         </div>
         <label class="switch-row">
           <span><span class="inline-icon">▾</span><span data-i18n="showTrayIcon">Show tray icon</span></span>
@@ -192,10 +189,7 @@
       <section class="panel" data-tab-panel="links" hidden>
         <div class="section-head">
           <h2><span class="section-icon">↗</span><span data-i18n="shortcuts">Shortcuts</span></h2>
-          <div class="shortcut-actions">
-            <button id="addShortcut" class="mini-button shortcut-add-button" type="button">+ Web</button>
-            <button id="addAppShortcut" class="mini-button shortcut-add-button" type="button">+ App</button>
-          </div>
+          <span data-i18n="shortcutHint">Web &amp; app launchers</span>
         </div>
         <label class="field full shortcut-display-field">
           <span data-i18n="shortcutDisplay">Shortcut display</span>

@@ -104,6 +104,7 @@ let mouseY = -9999;
 let mouseLastX = -9999;
 let mouseLastY = -9999;
 let mouseLastAt = 0;
+let lastMouseMoveAt = -1e9;
 let mouseVx = 0;
 let mouseVy = 0;
 let ghostHidden = false;
@@ -13997,10 +13998,9 @@ function updateGhostMode(now = performance.now()) {
 }
 
 function ghostTriggerEnabled(source) {
-  if (source === "mouse") return settings?.ghostTriggerMouse !== false;
+  // Wheel is merged into the mouse trigger; keyboard is its own trigger.
+  if (source === "mouse" || source === "wheel") return settings?.ghostTriggerMouse !== false;
   if (source === "keyboard") return settings?.ghostTriggerKeyboard !== false;
-  if (source === "wheel") return settings?.ghostTriggerWheel !== false;
-  if (source === "global") return settings?.ghostTriggerKeyboard !== false || settings?.ghostTriggerWheel !== false;
   return true;
 }
 
@@ -14897,12 +14897,19 @@ function updateMotion(pet, now, step) {
     pet.vy += (pet.targetY - pet.y) * 0.002 * step;
   }
 
-  if (!flying && !aiDrive && behavior.mouseMode === "avoid" && mdist < MOUSE_PROXIMITY && mdist > Math.max(30, size * 0.7)) {
-    const grabHalo = Math.max(30, size * 0.7);
-    const range = Math.max(1, MOUSE_PROXIMITY - grabHalo);
-    const force = (1 - (mdist - grabHalo) / range) * 0.18;
-    pet.vx -= (mdx / mdist) * force * step;
-    pet.vy -= (mdy / mdist) * force * step;
+  if (!flying && !aiDrive && !pet.dragging && behavior.mouseMode === "avoid" && mouseOnScreen) {
+    // Start backing away well before the cursor arrives, and push hard enough
+    // that the pet visibly flees instead of being overtaken.
+    const fleeRange = MOUSE_PROXIMITY * 2.1;
+    if (mdist < fleeRange) {
+      const proximity = 1 - mdist / fleeRange; // 0 (far) .. 1 (touching)
+      const force = 0.55 + proximity * 1.25;
+      pet.vx -= (mdx / mdist) * force * step;
+      pet.vy -= (mdy / mdist) * force * step;
+      // Commit a flee target directly away from the cursor so it actually runs off.
+      pet.targetX = clamp(pet.x - (mdx / mdist) * 150, 0, maxX);
+      pet.targetY = clamp(pet.y - (mdy / mdist) * 150, 0, maxY);
+    }
   }
 
   const speed = Math.hypot(pet.vx, pet.vy);
@@ -16161,8 +16168,18 @@ function handleCursorPoint(point) {
   const now = performance.now();
   const validPrevious = mouseLastAt > 0 && mouseLastX > -9990 && mouseLastY > -9990;
   const moved = validPrevious && Math.hypot(point.x - mouseLastX, point.y - mouseLastY) >= GHOST_MOVE_THRESHOLD;
-  registerSystemIdle(point.idleMs, moved ? "mouse" : "global", now);
-  registerPointerPoint(point.x, point.y, now, moved);
+  if (moved) lastMouseMoveAt = now;
+  // The OS idle timer is reset by ANY input. Only attribute a low idle to the
+  // keyboard when it's lower than the time since the cursor last moved (so a
+  // non-mouse input must have reset it). Otherwise the recent cursor movement
+  // explains it — preventing a false keyboard trigger right after the mouse stops.
+  const mouseStillFor = now - lastMouseMoveAt;
+  let idleSource;
+  if (moved) idleSource = "mouse";
+  else if (Number(point.idleMs) + 120 < mouseStillFor) idleSource = "keyboard";
+  else idleSource = "mouse";
+  registerSystemIdle(point.idleMs, idleSource, now);
+  registerPointerPoint(point.x, point.y, now);
   const target = document.elementFromPoint(point.x, point.y);
   const panelOpen = activePet && !panel.hidden;
   const overInteractive = !!target?.closest(".interactive");

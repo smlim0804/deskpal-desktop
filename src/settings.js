@@ -9,7 +9,6 @@ const ghostDelaySeconds = document.getElementById("ghostDelaySeconds");
 const ghostDelayValue = document.getElementById("ghostDelayValue");
 const ghostTriggerMouse = document.getElementById("ghostTriggerMouse");
 const ghostTriggerKeyboard = document.getElementById("ghostTriggerKeyboard");
-const ghostTriggerWheel = document.getElementById("ghostTriggerWheel");
 const showTrayIcon = document.getElementById("showTrayIcon");
 const fps = document.getElementById("fps");
 const fpsValue = document.getElementById("fpsValue");
@@ -34,8 +33,6 @@ const shortcutDisplayMode = document.getElementById("shortcutDisplayMode");
 const languageButton = document.getElementById("languageButton");
 const languagePopover = document.getElementById("languagePopover");
 const languageSelect = document.getElementById("languageSelect");
-const addShortcut = document.getElementById("addShortcut");
-const addAppShortcut = document.getElementById("addAppShortcut");
 const resetSettings = document.getElementById("resetSettings");
 const applyButton = document.getElementById("openOverlaySettings");
 const quitApp = document.getElementById("quitApp");
@@ -110,9 +107,11 @@ const I18N = {
     companions: "Companions",
     ghostMode: "Ghost Mode",
     ghostDelay: "Reappear after",
-    ghostMouse: "Mouse",
+    ghostMouse: "Mouse / wheel",
     ghostKeyboard: "Keyboard",
-    ghostWheel: "Wheel",
+    ghostHint: "When the inputs enabled above are detected, the companions quietly disappear, then return after the delay.",
+    proFeatureToast: "Pro feature",
+    proFeatureTooltip: "Pro-only feature",
     showTrayIcon: "Show tray icon",
     effectQuality: "Effect quality",
     licenseTitle: "DeskPal Plans",
@@ -154,6 +153,7 @@ const I18N = {
     shortcuts: "Shortcuts",
     webShortcuts: "Web shortcuts",
     appShortcuts: "App shortcuts",
+    shortcutHint: "Web & app launchers",
     shortcutDisplay: "Shortcut display",
     movement: "Movement",
     heading: "Heading",
@@ -236,9 +236,11 @@ const I18N = {
     companions: "캐릭터 켜기",
     ghostMode: "유령 모드",
     ghostDelay: "복귀 대기",
-    ghostMouse: "마우스",
+    ghostMouse: "마우스 / 휠",
     ghostKeyboard: "키보드",
-    ghostWheel: "휠",
+    ghostHint: "위에서 켠 입력이 감지되면 캐릭터가 살짝 사라졌다가, 대기 시간이 지나면 다시 나타나요.",
+    proFeatureToast: "Pro 기능",
+    proFeatureTooltip: "프로에서만 제공되는 기능",
     showTrayIcon: "상태바에 표시",
     effectQuality: "이펙트 품질",
     licenseTitle: "DeskPal 플랜",
@@ -280,6 +282,7 @@ const I18N = {
     shortcuts: "바로가기",
     webShortcuts: "웹 바로가기",
     appShortcuts: "앱 바로가기",
+    shortcutHint: "웹 · 앱 바로가기",
     shortcutDisplay: "바로가기 표시",
     movement: "움직임",
     heading: "머리방향",
@@ -407,6 +410,7 @@ const UI_ICONS = {
   mouse: '<rect x="6" y="2" width="12" height="20" rx="6"/><path d="M12 6v4"/>',
   keyboard: '<rect width="20" height="14" x="2" y="5" rx="2"/><path d="M6 9h.01M10 9h.01M14 9h.01M18 9h.01M7 13h10"/>',
   panel: '<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/>',
+  lock: '<rect width="14" height="10" x="5" y="11" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
   sparkles: '<path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3z"/>',
   globe: '<circle cx="12" cy="12" r="9"/><path d="M12 3a14 14 0 0 0 0 18 14 14 0 0 0 0-18"/><path d="M3 12h18"/>',
   link: '<path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/>',
@@ -473,6 +477,54 @@ function proLock(node, locked, title = freeLimitText()) {
   node.classList.toggle("is-pro-locked", !!locked);
 }
 
+let proToastTimer = null;
+function showProToast() {
+  let toast = document.getElementById("proToast");
+  if (!toast) {
+    toast = document.createElement("div");
+    toast.id = "proToast";
+    toast.className = "pro-toast";
+    document.body.appendChild(toast);
+  }
+  toast.textContent = t("proFeatureToast");
+  // restart the entrance animation
+  toast.classList.remove("is-visible");
+  void toast.offsetWidth;
+  toast.classList.add("is-visible");
+  if (proToastTimer) clearTimeout(proToastTimer);
+  proToastTimer = setTimeout(() => toast.classList.remove("is-visible"), 1700);
+}
+
+// Give a container the Pro-locked treatment: grayscale + a centered lock badge
+// that shakes and shows a "Pro feature" toast on click, plus a 0.5s-delayed
+// hover tooltip. Idempotent — safe to call on every re-render.
+function applyLock(container, locked) {
+  if (!container) return;
+  container.classList.toggle("is-locked", !!locked);
+  let badge = container.querySelector(":scope > .lock-badge");
+  if (locked) {
+    if (!badge) {
+      badge = document.createElement("button");
+      badge.type = "button";
+      badge.className = "lock-badge";
+      badge.innerHTML = svgIcon("lock", 16);
+      badge.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        badge.classList.remove("shake");
+        void badge.offsetWidth;
+        badge.classList.add("shake");
+        showProToast();
+      });
+      container.appendChild(badge);
+    }
+    badge.dataset.tip = t("proFeatureTooltip");
+    badge.setAttribute("aria-label", t("proFeatureTooltip"));
+  } else if (badge) {
+    badge.remove();
+  }
+}
+
 function appPathPlaceholder() {
   if (api.platform === "win32") return "C:\\Program Files\\App\\App.exe";
   if (api.platform === "linux") return "/usr/share/applications/app.desktop";
@@ -514,12 +566,6 @@ function renderLanguage() {
     up: modeLabel("up"),
     down: modeLabel("down"),
   });
-  addShortcut.innerHTML = iconText("+", "addWebShortcut");
-  addShortcut.title = t("addWebShortcut");
-  addShortcut.setAttribute("aria-label", t("addWebShortcut"));
-  addAppShortcut.innerHTML = iconText("+", "addAppShortcut");
-  addAppShortcut.title = t("addAppShortcut");
-  addAppShortcut.setAttribute("aria-label", t("addAppShortcut"));
   addCustom.innerHTML = svgIcon("plus", 16);
   addCustom.title = t("add");
   addCustom.setAttribute("aria-label", t("add"));
@@ -1081,6 +1127,7 @@ function renderCustomEditor() {
   if (!["left", "right", "up", "down"].includes(character.effectDirection)) character.effectDirection = "down";
   effectDirection.value = character.effectDirection || "down";
   const locked = !isPro();
+  applyLock(document.querySelector(".custom-panel"), locked);
   customName.disabled = locked;
   customSelect.disabled = locked;
   customImagePick.disabled = locked;
@@ -1117,7 +1164,7 @@ function renderSlots() {
 
     const card = document.createElement("article");
     card.className = "slot-card";
-    card.classList.toggle("is-pro-locked", slotLocked);
+    applyLock(card, slotLocked);
 
     const top = document.createElement("div");
     top.className = "slot-top";
@@ -1277,8 +1324,8 @@ function renderSlots() {
         },
       );
     effectSelect.disabled = !pro;
-    proLock(effectSelect, !pro);
     effect.appendChild(effectSelect);
+    if (!slotLocked) applyLock(effect, !pro);
 
     const speed = makeRange(0.2, 3, 0.1, b.speedMultiplier, (v) => `${v.toFixed(1)}x`, (value, immediate) => {
       b.speedMultiplier = value;
@@ -1297,7 +1344,8 @@ function renderSlots() {
       scheduleSlotSave(index, immediate);
     });
     intensity.label.textContent = t("trail");
-    proLock(intensity.input, !pro);
+    intensity.input.disabled = !pro;
+    if (!slotLocked) applyLock(intensity.wrap, !pro);
 
     // Per-character effect-position controls were removed by request: built-in
     // characters use their own default effect anchor and custom characters set
@@ -1349,19 +1397,6 @@ async function chooseAppShortcut(index) {
   return true;
 }
 
-function switchShortcutToWeb(shortcut) {
-  shortcut.type = "web";
-  delete shortcut.appPath;
-  delete shortcut.imagePath;
-  shortcut.url ||= "https://";
-}
-
-function switchShortcutToAppDraft(shortcut) {
-  shortcut.type = "app";
-  delete shortcut.url;
-  shortcut.appPath ||= "";
-}
-
 function shortcutImagePlaceholder(shortcut) {
   const icon = document.createElement("span");
   icon.className = "shortcut-image-placeholder";
@@ -1379,29 +1414,6 @@ function renderShortcutRow(shortcut, index) {
   const row = document.createElement("div");
   row.className = "shortcut-row";
   row.dataset.kind = shortcut.type;
-
-  const type = document.createElement("select");
-  type.append(makeOption("web", t("web")), makeOption("app", t("app")));
-  type.value = shortcut.type;
-  type.addEventListener("change", async () => {
-    if (type.value === "app") {
-      switchShortcutToAppDraft(shortcut);
-      renderShortcuts();
-      const picked = await chooseAppShortcut(index);
-      if (!picked) {
-        const current = settings.shortcuts[index];
-        if (current) {
-          switchShortcutToWeb(current);
-          renderShortcuts();
-          scheduleSave(true);
-        }
-      }
-      return;
-    }
-    switchShortcutToWeb(shortcut);
-    renderShortcuts();
-    scheduleSave();
-  });
 
   const name = document.createElement("input");
   name.type = "text";
@@ -1502,7 +1514,7 @@ function renderShortcutRow(shortcut, index) {
     scheduleSave(true);
   });
 
-  row.append(type, name, remove, target, tools);
+  row.append(name, remove, target, tools);
   return row;
 }
 
@@ -1532,6 +1544,25 @@ function renderShortcutSection(kind, entries) {
     rows.appendChild(empty);
   }
   section.appendChild(rows);
+
+  // Centered add button inside each section so Web / App stay clearly separate.
+  const foot = document.createElement("div");
+  foot.className = "shortcut-section-foot";
+  const addBtn = document.createElement("button");
+  addBtn.type = "button";
+  addBtn.className = "shortcut-add-button mini-button";
+  addBtn.innerHTML = iconText("+", kind === "app" ? "addAppShortcut" : "addWebShortcut");
+  const limit = kind === "app" ? FREE_APP_SHORTCUT_LIMIT : FREE_WEB_SHORTCUT_LIMIT;
+  const atLimit = !isPro() && shortcutCount(kind) >= limit;
+  if (atLimit) {
+    addBtn.disabled = true;
+    applyLock(foot, true);
+  } else {
+    addBtn.title = t(kind === "app" ? "addAppShortcut" : "addWebShortcut");
+    addBtn.addEventListener("click", kind === "app" ? handleAddApp : handleAddWeb);
+  }
+  foot.appendChild(addBtn);
+  section.appendChild(foot);
   return section;
 }
 
@@ -1549,10 +1580,6 @@ function renderShortcuts() {
     renderShortcutSection("web", entries.filter((entry) => entry.shortcut.type !== "app")),
     renderShortcutSection("app", entries.filter((entry) => entry.shortcut.type === "app")),
   );
-  addShortcut.disabled = !isPro() && shortcutCount("web") >= FREE_WEB_SHORTCUT_LIMIT;
-  addAppShortcut.disabled = !isPro() && shortcutCount("app") >= FREE_APP_SHORTCUT_LIMIT;
-  addShortcut.title = addShortcut.disabled ? freeLimitText() : t("addWebShortcut");
-  addAppShortcut.title = addAppShortcut.disabled ? freeLimitText() : t("addAppShortcut");
 }
 
 function renderLicensePanel() {
@@ -1615,7 +1642,6 @@ function render() {
   ghostDelayValue.textContent = `${nextGhostDelay}s`;
   ghostTriggerMouse.checked = settings.ghostTriggerMouse !== false;
   ghostTriggerKeyboard.checked = settings.ghostTriggerKeyboard !== false;
-  ghostTriggerWheel.checked = settings.ghostTriggerWheel !== false;
   showTrayIcon.checked = settings.showTrayIcon !== false;
   const nextFps = Math.round(Number(settings.fps || 16));
   fps.value = String(nextFps);
@@ -1666,11 +1692,6 @@ ghostTriggerMouse.addEventListener("change", () => {
 
 ghostTriggerKeyboard.addEventListener("change", () => {
   settings.ghostTriggerKeyboard = ghostTriggerKeyboard.checked;
-  scheduleSave(true);
-});
-
-ghostTriggerWheel.addEventListener("change", () => {
-  settings.ghostTriggerWheel = ghostTriggerWheel.checked;
   scheduleSave(true);
 });
 
@@ -1792,14 +1813,14 @@ shortcutDisplayMode.addEventListener("change", () => {
   scheduleSave(true);
 });
 
-addShortcut.addEventListener("click", () => {
+function handleAddWeb() {
   if (!isPro() && shortcutCount("web") >= FREE_WEB_SHORTCUT_LIMIT) return;
   settings.shortcuts.push({ type: "web", name: t("newLink"), url: "https://", imagePath: "" });
   renderShortcuts();
   scheduleSave();
-});
+}
 
-addAppShortcut.addEventListener("click", async () => {
+async function handleAddApp() {
   if (!isPro() && shortcutCount("app") >= FREE_APP_SHORTCUT_LIMIT) return;
   const index = settings.shortcuts.length;
   settings.shortcuts.push({ type: "app", name: t("app"), appPath: "", imagePath: "" });
@@ -1813,7 +1834,7 @@ addAppShortcut.addEventListener("click", async () => {
       scheduleSave(true);
     }
   }
-});
+}
 
 customSelect.addEventListener("change", () => {
   selectedCustomIndex = Number(customSelect.value) || 0;

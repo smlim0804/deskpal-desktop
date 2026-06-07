@@ -63,9 +63,10 @@ includes(overlay, "bubble.classList.toggle(\"is-ghost-hidden\", ghostHidden)", "
 includes(overlay, "effectParticles = []", "ghost mode clears live effects");
 includes(overlay, "character.effectAnchor", "character trail anchors are used");
 includes(overlay, "const visualRotation = (shouldOrient(pet) ? pet.rotation || 0 : 0) + (pet.spin || 0)", "trail anchors rotate with oriented pets");
-includes(overlay, "registerSystemIdle(point.idleMs, moved ? \"mouse\" : \"global\", now)", "cursor payload drives global input idle");
+includes(overlay, "registerSystemIdle(point.idleMs, idleSource, now)", "cursor payload feeds system idle tracker");
+includes(overlay, "else if (Number(point.idleMs) + 120 < mouseStillFor) idleSource = \"keyboard\"", "keyboard idle only attributed when mouse has been still longer");
 includes(overlay, "[\"keydown\", \"keyboard\"]", "keyboard activity fallback");
-includes(overlay, "[\"wheel\", \"wheel\"]", "wheel activity fallback");
+includes(overlay, "[\"wheel\", \"wheel\"]", "wheel activity fallback (merged into mouse trigger)");
 includes(overlay, "const followRadius = clamp(size * 1.7", "mouse-follow targets an invisible circle around the cursor");
 includes(overlay, "const followFar = followMode && mdist > followRadius", "follow speeds up to catch the cursor when outside the circle");
 includes(overlay, "function refreshSystemStats", "system stats refresh");
@@ -193,7 +194,6 @@ includes(main, "ghostMode: true", "ghost mode default setting");
 includes(main, "ghostDelaySeconds: 3", "ghost delay default setting");
 includes(main, "ghostTriggerMouse: true", "ghost mouse trigger default");
 includes(main, "ghostTriggerKeyboard: true", "ghost keyboard trigger default");
-includes(main, "ghostTriggerWheel: true", "ghost wheel trigger default");
 includes(main, "ghostOpacity: 0", "ghost opacity default");
 includes(main, "next.ghostOpacity = 0", "ghost opacity is fixed hidden");
 includes(main, "showTrayIcon: true", "tray icon visible default setting");
@@ -223,7 +223,6 @@ includes(settings, "const ghostDelaySeconds = document.getElementById(\"ghostDel
 includes(settings, "settings.ghostDelaySeconds = value", "settings saves ghost delay");
 includes(settings, "settings.ghostTriggerMouse = ghostTriggerMouse.checked", "settings saves ghost mouse trigger");
 includes(settings, "settings.ghostTriggerKeyboard = ghostTriggerKeyboard.checked", "settings saves ghost keyboard trigger");
-includes(settings, "settings.ghostTriggerWheel = ghostTriggerWheel.checked", "settings saves ghost wheel trigger");
 includes(settings, "settings.showTrayIcon = showTrayIcon.checked", "settings saves tray icon toggle");
 assert(!settings.includes("ghostOpacity"), "settings UI must not expose hidden opacity controls");
 includes(settings, "async function chooseAppShortcut(index)", "app picker helper takes a slot index");
