@@ -862,8 +862,9 @@ function normalizeUpdate(source) {
   };
 }
 
-function hasProLicense(value = settings) {
-  return value?.license?.plan === "pro" && value?.license?.status === "active";
+function hasProLicense() {
+  // DeskPal is fully free — no feature limits are ever applied.
+  return true;
 }
 
 function isCustomCharacterId(characterId) {

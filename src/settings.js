@@ -114,16 +114,16 @@ const I18N = {
     proFeatureTooltip: "Pro-only feature",
     showTrayIcon: "Show tray icon",
     effectQuality: "Effect quality",
-    licenseTitle: "DeskPal Plans",
+    licenseTitle: "DeskPal",
     licenseFree: "Free",
     licensePro: "Pro",
-    licenseHelpFree: "Free: 2 characters, 1 app shortcut, 1 web shortcut, no custom sprites or effects.",
-    licenseHelpPro: "Pro active: all character slots, custom sprites, shortcuts, and effects are unlocked. One key can activate up to 2 devices.",
-    promoTitle: "Unlock DeskPal",
-    promoDesc: "More companions, shortcuts, custom sprites, and effects.",
+    licenseHelpFree: "Everything's unlocked — DeskPal is completely free. If you enjoy it, a little support helps a lot ♥",
+    licenseHelpPro: "Everything's unlocked — DeskPal is completely free.",
+    promoTitle: "DeskPal is free",
+    promoDesc: "Every character, shortcut, custom sprite, and effect — all free.",
     licensePlaceholder: "LICENSE-KEY",
     activateLicense: "Activate",
-    buyPro: "Buy Pro",
+    buyPro: "Support ♥",
     deviceId: "Device ID",
     copyDeviceId: "Copy",
     deviceIdCopied: "Device ID copied.",
@@ -243,16 +243,16 @@ const I18N = {
     proFeatureTooltip: "프로에서만 제공되는 기능",
     showTrayIcon: "상태바에 표시",
     effectQuality: "이펙트 품질",
-    licenseTitle: "DeskPal 플랜",
-    licenseFree: "Free",
+    licenseTitle: "DeskPal",
+    licenseFree: "무료",
     licensePro: "Pro",
-    licenseHelpFree: "무료: 캐릭터 2개, 앱 바로가기 1개, 웹 바로가기 1개. 커스텀과 이펙트는 잠겨 있어.",
-    licenseHelpPro: "Pro 활성화됨: 모든 캐릭터 슬롯, 커스텀, 바로가기, 이펙트가 열렸어. 키 1개로 최대 2대까지 활성화돼.",
-    promoTitle: "DeskPal 잠금 해제",
-    promoDesc: "캐릭터, 바로가기, 커스텀, 이펙트를 더 많이 사용할 수 있어.",
+    licenseHelpFree: "모든 기능이 무료로 열려 있어요. 마음에 들면 개발자에게 후원 한 번 ♥",
+    licenseHelpPro: "모든 기능이 무료로 열려 있어요.",
+    promoTitle: "DeskPal은 무료예요",
+    promoDesc: "캐릭터·바로가기·커스텀·이펙트까지 전부 무료로 써요.",
     licensePlaceholder: "라이선스 키",
     activateLicense: "활성화",
-    buyPro: "Pro 구매",
+    buyPro: "후원하기 ♥",
     deviceId: "기기 ID",
     copyDeviceId: "복사",
     deviceIdCopied: "기기 ID를 복사했어.",
@@ -458,7 +458,8 @@ function renderUiIcons() {
 }
 
 function isPro() {
-  return settings?.license?.plan === "pro" && settings?.license?.status === "active";
+  // DeskPal is fully free — every feature is unlocked for everyone.
+  return true;
 }
 
 function freeLimitText() {
@@ -1600,13 +1601,16 @@ function renderShortcuts() {
 }
 
 function renderLicensePanel() {
-  const pro = isPro();
-  licenseBadge.textContent = pro ? t("licensePro") : t("licenseFree");
-  licenseBadge.dataset.tone = pro ? "pro" : "free";
-  licenseHelp.textContent = freeLimitText();
-  licenseKey.value = pro ? "" : licenseKey.value;
-  activateLicense.disabled = pro;
-  licenseStatus.textContent = settings.license?.message || "";
+  // DeskPal is fully free — no plans/keys. Show a friendly note + a support link.
+  licenseBadge.textContent = t("licenseFree");
+  licenseBadge.dataset.tone = "free";
+  licenseHelp.textContent = t("licenseHelpFree");
+  licenseStatus.textContent = "";
+  // Hide the now-unused license key / activation / device rows.
+  const licenseRow = document.querySelector(".license-row");
+  if (licenseRow) licenseRow.style.display = "none";
+  const deviceRow = document.querySelector(".device-id-row");
+  if (deviceRow) deviceRow.style.display = "none";
 }
 
 function renderUpdatePanel() {
