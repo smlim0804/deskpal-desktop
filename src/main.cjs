@@ -1464,6 +1464,103 @@ async function syncOwnerLicense() {
   }
 }
 
+// Offline grace: keep a previously-verified Pro license working without the network
+// for this long before forcing a fresh server check.
+const LICENSE_RECHECK_GRACE_MS = 14 * 24 * 60 * 60 * 1000;
+
+// Re-verify a stored Pro license against the server so a hand-edited settings.json
+// (plan:"pro") can't unlock Pro for free. Confirmed -> keep; server says this device
+// isn't licensed -> downgrade to Free; offline/ambiguous -> keep within the grace
+// window, otherwise downgrade until a successful check.
+async function revalidateStoredLicense() {
+  const lic = settings.license;
+  if (!lic || lic.plan !== "pro" || lic.status !== "active") return { ok: true, skipped: true };
+
+  const key = sanitizeLicenseKey(lic.key || "");
+  const hasRealKey = /^[A-Z0-9][A-Z0-9-]{7,80}$/i.test(key) && key !== "OWNER-DESKPAL-PRO";
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 4000);
+  try {
+    const response = await fetch(LICENSE_API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      signal: controller.signal,
+      body: JSON.stringify(
+        hasRealKey
+          ? {
+              action: "status",
+              product: "deskpal",
+              plan: "pro",
+              licenseKey: key,
+              machineId: getMachineId(),
+              appVersion: app.getVersion(),
+              platform: process.platform,
+            }
+          : {
+              action: "owner-status",
+              product: "deskpal",
+              plan: "pro",
+              machineId: getMachineId(),
+              appVersion: app.getVersion(),
+              platform: process.platform,
+            },
+      ),
+    });
+    const result = await response.json().catch(() => ({}));
+    const reached = response.ok && result && result.ok === true;
+    const confirmed =
+      reached && result.status === "active" && (hasRealKey ? result.plan === "pro" : result.owner === true);
+
+    if (confirmed) {
+      settings.license = normalizeLicense({ ...lic, plan: "pro", status: "active", lastCheckedAt: Date.now() });
+      settings = normalizeSettings(settings);
+      saveSettings();
+      broadcastSettings();
+      return { ok: true, confirmed: true };
+    }
+    if (reached) {
+      // The server is reachable and says this device is NOT licensed -> revoke.
+      downgradeLicenseToFree(false);
+      return { ok: true, revoked: true };
+    }
+    // Couldn't reach the server cleanly -> stay on the grace window.
+    return enforceLicenseGrace(lic);
+  } catch {
+    return enforceLicenseGrace(lic);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function enforceLicenseGrace(lic) {
+  const last = Number(lic.lastCheckedAt) || Number(lic.activatedAt) || 0;
+  if (last && Date.now() - last <= LICENSE_RECHECK_GRACE_MS) {
+    // Still inside the offline window — don't punish a paying user with no network.
+    return { ok: true, grace: true };
+  }
+  downgradeLicenseToFree(true);
+  return { ok: true, revoked: true };
+}
+
+function downgradeLicenseToFree(recheck) {
+  settings.license = normalizeLicense({
+    plan: "free",
+    status: "inactive",
+    key: "",
+    message: recheck
+      ? settings.language === "ko"
+        ? "Pro 라이선스를 다시 확인해야 해요. 인터넷 연결 후 다시 활성화해줘."
+        : "Re-verify your Pro license — reconnect and activate again."
+      : settings.language === "ko"
+        ? "이 기기에서 Pro 라이선스가 확인되지 않았어요."
+        : "Pro license could not be verified on this device.",
+  });
+  settings = normalizeSettings(settings); // re-applies free limits automatically
+  saveSettings();
+  broadcastSettings();
+}
+
 function normalizeVersion(value) {
   return String(value || "").trim().replace(/^v/i, "").split(/[+-]/)[0];
 }
@@ -2234,9 +2331,17 @@ if (gotSingleInstanceLock) {
 
   app.whenReady().then(async () => {
     loadSettings();
-    await syncOwnerLicense().catch((error) => {
-      console.warn("Owner license sync failed", error?.message || error);
-    });
+    // A stored Pro license is re-verified against the server (so an edited
+    // settings.json can't fake Pro); otherwise we check if this is the owner's device.
+    if (hasProLicense(settings)) {
+      await revalidateStoredLicense().catch((error) => {
+        console.warn("License revalidation failed", error?.message || error);
+      });
+    } else {
+      await syncOwnerLicense().catch((error) => {
+        console.warn("Owner license sync failed", error?.message || error);
+      });
+    }
     applyAppIcon();
     refreshSystemStatsCache({ force: true });
     buildMenu();
@@ -2255,6 +2360,15 @@ if (gotSingleInstanceLock) {
       checkForUpdates().catch((error) => {
         console.warn("Periodic update check failed", error?.message || error);
       });
+    }, 6 * 60 * 60 * 1000);
+    // Periodically re-verify a stored Pro license so a long-running session can't
+    // keep a revoked/edited license indefinitely.
+    setInterval(() => {
+      if (hasProLicense(settings)) {
+        revalidateStoredLicense().catch((error) => {
+          console.warn("Periodic license revalidation failed", error?.message || error);
+        });
+      }
     }, 6 * 60 * 60 * 1000);
     if (firstRunDetected || !settings.enabled || !settings.slots.some((slot) => slot.enabled !== false)) {
       // Defer slightly so the overlay is up first; on first run this makes sure
