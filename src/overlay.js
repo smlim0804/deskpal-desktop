@@ -21,7 +21,12 @@ const MOUSE_PROXIMITY = 92;
 const MOUSE_COLLISION_RADIUS = 12;
 const MOUSE_BUMP_SPEED = 1.15;
 const MAX_IMPACT_SPEED = 8.5;
-const MAX_THROW_SPEED = 18;
+const MAX_THROW_SPEED = 42;
+// Raw per-frame drag velocity is sampled up to this (higher) cap so a fast flick
+// is actually captured; the launch speed is then scaled by THROW_POWER and capped
+// at MAX_THROW_SPEED. The wide gap keeps the throw proportional to drag speed
+// across the whole range instead of saturating after a gentle flick.
+const MAX_DRAG_SAMPLE = 60;
 const THROW_POWER = 2.15;
 const WALL_BOUNCE = 0.92;
 const SIDE_VIEW_CHARACTER_IDS = new Set(["car", "pup", "kit", "bunny", "fox", "hamster"]);
@@ -14710,10 +14715,12 @@ window.addEventListener("pointermove", (event) => {
     const frameVelocity = clampMagnitude(
       ((event.clientX - pet.dragLastX) / dt) * 16.67,
       ((event.clientY - pet.dragLastY) / dt) * 16.67,
-      MAX_THROW_SPEED,
+      MAX_DRAG_SAMPLE,
     );
-    pet.dragVx = pet.dragVx * 0.45 + frameVelocity.x * 0.55;
-    pet.dragVy = pet.dragVy * 0.45 + frameVelocity.y * 0.55;
+    // Weight the most recent motion so a quick flick at release registers its
+    // real speed (a heavier average would smear a fast flick into a slow toss).
+    pet.dragVx = pet.dragVx * 0.35 + frameVelocity.x * 0.65;
+    pet.dragVy = pet.dragVy * 0.35 + frameVelocity.y * 0.65;
     pet.dragLastX = event.clientX;
     pet.dragLastY = event.clientY;
     pet.dragLastT = now;

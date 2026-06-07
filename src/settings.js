@@ -110,7 +110,7 @@ const I18N = {
     ghostMouse: "Mouse / wheel",
     ghostKeyboard: "Keyboard",
     ghostHint: "When the inputs enabled above are detected, the companions quietly disappear, then return after the delay.",
-    proFeatureToast: "Pro feature",
+    proFeatureToast: "Pro feature — opening checkout",
     proFeatureTooltip: "Pro-only feature",
     showTrayIcon: "Show tray icon",
     effectQuality: "Effect quality",
@@ -239,7 +239,7 @@ const I18N = {
     ghostMouse: "마우스 / 휠",
     ghostKeyboard: "키보드",
     ghostHint: "위에서 켠 입력이 감지되면 캐릭터가 살짝 사라졌다가, 대기 시간이 지나면 다시 나타나요.",
-    proFeatureToast: "Pro 기능",
+    proFeatureToast: "Pro 기능 — 결제 페이지를 열게요",
     proFeatureTooltip: "프로에서만 제공되는 기능",
     showTrayIcon: "상태바에 표시",
     effectQuality: "이펙트 품질",
@@ -516,6 +516,14 @@ function applyLock(container, locked) {
         void badge.offsetWidth;
         badge.classList.add("shake");
         showProToast();
+        // Clicking a locked Pro feature takes you straight to the Gumroad checkout.
+        if (!isPro()) {
+          try {
+            api.openLicenseCheckout("pro");
+          } catch {
+            /* checkout open failed; the toast still explains it's Pro-only */
+          }
+        }
       });
       container.appendChild(badge);
     }
