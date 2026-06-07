@@ -1792,6 +1792,10 @@ function applyOverlayMousePassthrough(ignore, options = {}) {
   if (!overlayWindow || overlayWindow.isDestroyed()) return;
   if (typeof overlayWindow.setFocusable === "function" && !options.preserveFocus) {
     overlayWindow.setFocusable(!ignore);
+    // macOS silently resets a window's always-on-top level back to normal whenever
+    // its focusability changes — which drops the overlay behind other apps. Re-assert
+    // the screen-saver level right after (unless settings is intentionally on top).
+    if (!settingsWindowActive()) overlayWindow.setAlwaysOnTop(true, "screen-saver");
   }
   if (process.platform === "linux") {
     overlayWindow.setIgnoreMouseEvents(ignore);
