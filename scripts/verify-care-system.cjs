@@ -177,10 +177,9 @@ includes(main, "immediateSystemStats({ allowStorageFallback: !systemStatsCache }
 includes(main, "options.allowStorageFallback === false && systemStatsCache?.storage", "system stats avoid repeated sync storage fallback");
 includes(main, "storage = (await storageStatsAsync()) || storage", "stats refresh updates storage asynchronously");
 assert(!main.includes("execFileSync"), "main process must not use synchronous shell commands");
-// child_process is allowed ONLY for the one-shot in-place update helper (spawnDetached);
-// it must never be used to poll system stats. Guard the stats-spawning patterns precisely.
-assert(!main.includes("spawnSync("), "main process must not spawn synchronous processes for system stats");
-assert(main.includes("function spawnDetached"), "child_process use is limited to the detached update helper");
+// The main process must not spawn external processes at all (no system-stat polling,
+// no self-update helper scripts — updates just open the GitHub releases page).
+assert(!main.includes("child_process"), "main process must not spawn external processes");
 assert(!main.includes("execFile("), "main process must not exec external system stat commands");
 assert(!main.includes("execFileText(\"top\""), "system stats must not spawn top");
 assert(!main.includes("execFileText(\"df\""), "system stats must not spawn df");
@@ -237,9 +236,9 @@ includes(settings, "shortcut-app-select", "app shortcut select button");
 includes(main, "app.getPath(\"downloads\")", "Windows app picker accepts downloaded .exe files");
 includes(main, "app.getPath(\"desktop\")", "Windows app picker accepts Desktop .exe/.lnk files");
 includes(main, "process.env.PUBLIC", "Windows app picker accepts Public Desktop shortcuts");
-includes(main, "session.defaultSession", "update downloads through Electron session");
-includes(main, "downloadSession.downloadURL(downloadUrl)", "update button downloads directly instead of opening GitHub");
-includes(main, "function trustedUpdateDownloadUrl", "update downloads are restricted to trusted release assets");
+includes(main, "async function openUpdateTarget", "update target handler exists");
+includes(main, "await shell.openExternal(target)", "update button opens the GitHub releases page (no in-app download)");
+includes(main, "function updateIsActionable", "update download is version-gated");
 includes(settings, "update.downloading", "settings exposes update download progress");
 includes(settingsHtml, "promo-window", "promotion window exists in license panel");
 includes(settingsHtml, "../build/icon.svg", "promotion uses the DeskPal rocket logo");

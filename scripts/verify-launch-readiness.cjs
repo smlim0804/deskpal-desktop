@@ -114,10 +114,9 @@ async function main() {
   includes(mainSource, "DeskPal-Windows-x64.exe", "Windows direct update asset name");
   includes(functionBody(mainSource, "releaseDownloadUrl"), "String(item?.name || \"\") === wanted", "update resolver uses exact asset names");
   includes(mainSource, "Notification", "native update notification support");
-  includes(mainSource, "function updateTargetUrl", "shared update download target");
-  includes(mainSource, "session.defaultSession", "Electron update download session");
-  includes(mainSource, "function trustedUpdateDownloadUrl", "trusted update download URL guard");
-  includes(mainSource, "downloadSession.downloadURL(downloadUrl)", "update button downloads release asset");
+  includes(mainSource, "async function openUpdateTarget", "shared update target handler");
+  includes(mainSource, "await shell.openExternal(target)", "update button opens the GitHub releases page");
+  includes(mainSource, "function updateIsActionable", "update is version-gated to newer releases");
   includes(mainSource, "downloading: false", "update download state default");
   includes(mainSource, "downloadedPath: \"\"", "update downloaded path state");
   includes(mainSource, "function notifyUpdateAvailable", "update notification handler");
