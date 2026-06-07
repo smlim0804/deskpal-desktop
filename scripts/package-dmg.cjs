@@ -1,4 +1,5 @@
 const fs = require("fs");
+const os = require("os");
 const path = require("path");
 const { execFileSync } = require("child_process");
 
@@ -20,10 +21,21 @@ if (!fs.existsSync(APP_PATH)) {
 fs.mkdirSync(RELEASE_DIR, { recursive: true });
 fs.rmSync(OUTPUT, { force: true });
 
-execFileSync(
-  "hdiutil",
-  ["create", "-volname", APP_NAME, "-srcfolder", APP_PATH, "-ov", "-format", "UDZO", OUTPUT],
-  { stdio: "inherit" },
-);
+// Stage the app next to an /Applications symlink so the DMG opens as a familiar
+// "drag DeskPal into Applications" installer. Without this the app lands in
+// Downloads (or stays on the read-only DMG) and never shows up in Spotlight.
+const stage = fs.mkdtempSync(path.join(os.tmpdir(), "deskpal-dmg-"));
+try {
+  execFileSync("ditto", [APP_PATH, path.join(stage, `${APP_NAME}.app`)], { stdio: "inherit" });
+  fs.symlinkSync("/Applications", path.join(stage, "Applications"));
+
+  execFileSync(
+    "hdiutil",
+    ["create", "-volname", APP_NAME, "-srcfolder", stage, "-ov", "-format", "UDZO", OUTPUT],
+    { stdio: "inherit" },
+  );
+} finally {
+  fs.rmSync(stage, { recursive: true, force: true });
+}
 
 console.log(`Wrote DMG: ${path.relative(ROOT, OUTPUT)}`);
