@@ -135,6 +135,7 @@ const DEFAULT_UPDATE = Object.freeze({
   downloadedPath: "",
   progress: 0,
   readyToInstall: false,
+  promptedVersion: "",
   checkedAt: 0,
   message: "",
 });
@@ -856,6 +857,7 @@ function normalizeUpdate(source) {
     downloadedPath: String(src.downloadedPath || "").trim().slice(0, 500),
     progress: Math.round(clamp(src.progress, 0, 100, 0)),
     readyToInstall: src.readyToInstall === true,
+    promptedVersion: String(src.promptedVersion || "").trim().slice(0, 40),
     checkedAt: Math.round(clamp(src.checkedAt, 0, Date.now(), 0)),
     message: String(src.message || "").trim().slice(0, 240),
   };
@@ -1769,6 +1771,7 @@ async function checkForUpdates({ manual = false } = {}) {
       pageUrl: release.html_url || UPDATE_PAGE_URL,
       downloading: false,
       downloadedPath: "",
+      promptedVersion: settings.update?.promptedVersion || "",
       checkedAt: Date.now(),
       message: available ? "Update available." : "DeskPal is up to date.",
     });
@@ -1784,8 +1787,24 @@ async function checkForUpdates({ manual = false } = {}) {
   saveSettings();
   broadcastSettings();
   refreshTrayMenu();
-  if (!manual) notifyUpdateAvailable(settings.update);
+  if (!manual) {
+    notifyUpdateAvailable(settings.update);
+    maybeAutoOpenSettingsForUpdate();
+  }
   return settings.update;
+}
+
+// On an automatic check, surface the update once per new version by opening the
+// settings window (the in-overlay update pill + notification also show it). The
+// prompted version is persisted so the same release never re-opens settings.
+function maybeAutoOpenSettingsForUpdate() {
+  const update = settings.update;
+  if (!update?.available || !update.latestVersion) return;
+  if (update.promptedVersion === update.latestVersion) return;
+  if (settingsWindowActive()) return;
+  settings.update.promptedVersion = update.latestVersion;
+  saveSettings();
+  showSettingsWindow();
 }
 
 function trayIcon() {
