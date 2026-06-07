@@ -27,6 +27,10 @@ function includes(source, needle, label) {
   assert(source.includes(needle), `missing ${label || needle}`);
 }
 
+function excludes(source, needle, label) {
+  assert(!source.includes(needle), `unexpected ${label || needle}`);
+}
+
 function fileSize(...segments) {
   try {
     return fs.statSync(path.join(root, ...segments)).size;
@@ -102,7 +106,7 @@ async function main() {
   includes(iconSvg, "shape-rendering=\"crispEdges\"", "pixel rocket SVG rendering");
   includes(iconSvg, "#e63b3b", "rocket red app icon body");
   includes(iconSvg, "#ff7e3a", "rocket flame app icon");
-  includes(characters, "effectAnchor: { x: 0.47, y: 0.86 }", "rocket exhaust effect anchor");
+  includes(characters, "effectAnchor: { x: 0.47, y: 0.80 }", "rocket exhaust effect anchor");
 
   includes(mainSource, "https://www.aidogam.com/api/deskpal-license", "DeskPal license API URL");
   includes(mainSource, "https://api.github.com/repos/smlim0804/deskpal-downloads/releases/latest", "DeskPal update release API");
@@ -129,12 +133,12 @@ async function main() {
   includes(mainSource, "url.searchParams.set(\"machineId\", machineId)", "fallback checkout preserves Device ID");
   includes(preloadSource, "openLicenseCheckout: (plan)", "preload passes selected checkout plan");
   includes(settingsHtml, "id=\"buyPro\"", "Pro checkout button");
-  includes(settingsHtml, "id=\"buyLifetime\"", "Lifetime checkout button");
   includes(settingsHtml, "class=\"promo-window\"", "license promotional window");
   includes(settingsHtml, "src=\"../build/icon.svg\"", "promo uses the rocket logo asset");
   includes(settingsHtml, "src=\"./nabi.svg\"", "promo uses the floating cat sprite");
   includes(settingsJs, "api.openLicenseCheckout(\"pro\")", "Pro button opens Pro checkout");
-  includes(settingsJs, "api.openLicenseCheckout(\"lifetime\")", "Lifetime button opens Lifetime checkout");
+  excludes(settingsHtml, "id=\"buyLifetime\"", "Lifetime checkout button removed");
+  excludes(settingsJs, "api.openLicenseCheckout(\"lifetime\")", "Lifetime checkout action removed");
   includes(settingsJs, "update.downloading", "settings update download state");
   includes(settingsJs, "api.openUpdate()", "settings update download button action");
   includes(settingsCss, ".promo-window", "promo window visual style");

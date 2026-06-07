@@ -118,7 +118,6 @@
         </div>
         <div class="license-actions">
           <button id="buyPro" class="mini-button" type="button">↗ Pro</button>
-          <button id="buyLifetime" class="mini-button" type="button">∞ Lifetime</button>
           <span id="licenseStatus" role="status" aria-live="polite"></span>
         </div>
         <div class="device-id-row">
@@ -134,9 +133,13 @@
           <span id="updateBadge">Ready</span>
         </div>
         <p id="updateStatus" class="mini-note">Check for DeskPal updates.</p>
+        <div id="updateProgress" class="update-progress" hidden>
+          <div id="updateProgressBar" class="update-progress-bar"></div>
+        </div>
         <div class="license-actions">
           <button id="checkUpdates" class="mini-button" type="button">↻ Check</button>
           <button id="openUpdate" class="primary-button" type="button">⬇ Update</button>
+          <button id="installUpdate" class="primary-button" type="button" hidden>✓ Install</button>
         </div>
       </section>
 

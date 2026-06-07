@@ -2,7 +2,7 @@
 
 Desktop version of DeskPal. It runs as a transparent always-on-top overlay, so pixel companions can walk around the computer screen instead of only inside Chrome.
 
-DeskPal is the open-source desktop edition of the original BusyPet idea: small pixel companions, local customization, and shortcut helpers that stay on the user's own computer. The default app does not include cloud AI, prompt boxes, API keys, or screen-reading features.
+DeskPal is a desktop pixel companion app: small characters, local customization, and shortcut helpers that stay on the user's own computer. The default app does not include cloud AI, prompt boxes, API keys, or screen-reading features.
 
 ## Open source
 

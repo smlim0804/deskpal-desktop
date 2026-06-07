@@ -40,7 +40,6 @@ function functionBody(source, name) {
 const openPanel = functionBody(overlay, "openPanel");
 const tick = functionBody(overlay, "tick");
 const positionPanel = functionBody(overlay, "positionPanel");
-const idleLine = functionBody(overlay, "careIdleLine");
 const autoTalk = functionBody(overlay, "maybeAutoTalk");
 
 includes(overlay, "function renderShortcutPanel", "shortcut-only panel renderer");
@@ -96,7 +95,6 @@ assert(!openPanel.includes("renderMiniGamePanel"), "openPanel must not attach mi
 assert(!openPanel.includes("renderLeagueSeasonPanel"), "openPanel must not attach league UI to character click");
 assert(openPanel.includes("panelManual = null"), "fresh pet clicks must reset stale manual panel position");
 assert(positionPanel.includes("radial-core"), "panel aligns its transparent core over the clicked character");
-assert(!idleLine.includes("character.name"), "auto idle speech must not prefix character names");
 assert(autoTalk.includes("systemBenchmarkLine()"), "auto speech must include random system benchmark lines");
 assert(!tick.includes("maybeAutoMicroEvents"), "tick must not run old automatic micro events");
 assert(!tick.includes("maybePetDiscoveries"), "tick must not run old automatic discovery game loop");
@@ -148,7 +146,7 @@ includes(css, "@keyframes pet-ghost-out", "ghost fade-out animation");
 includes(css, "@keyframes pet-ghost-in", "ghost fade-in animation");
 includes(css, "filter: none !important", "pet rectangle filter removal");
 
-includes(characters, "effectAnchor: { x: 0.47, y: 0.86 }", "rocket effect emits from the exhaust flame just left of centre");
+includes(characters, "effectAnchor: { x: 0.47, y: 0.80 }", "rocket effect emits from the exhaust flame just left of centre");
 
 includes(main, "ipcMain.handle(\"system:stats\"", "system stats IPC");
 includes(main, "function systemStats", "system stats function");

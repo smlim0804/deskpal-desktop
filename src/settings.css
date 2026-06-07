@@ -90,7 +90,7 @@ button {
   border: 2px solid var(--line);
   background: #fff;
   color: var(--ink);
-  font-weight: 900;
+  font-weight: 580;
 }
 
 h1,
@@ -139,7 +139,7 @@ main {
   border: 3px solid var(--line);
   background: #fffdf6;
   color: var(--ink);
-  font-weight: 900;
+  font-weight: 580;
   box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.16);
 }
 
@@ -252,7 +252,7 @@ main {
 .promo-copy strong {
   color: var(--ink);
   font-size: clamp(17px, 3vw, 24px);
-  font-weight: 1000;
+  font-weight: 680;
   line-height: 1.05;
   letter-spacing: 0;
 }
@@ -261,7 +261,7 @@ main {
   max-width: 320px;
   color: #4d463f;
   font-size: 12px;
-  font-weight: 900;
+  font-weight: 580;
   line-height: 1.4;
 }
 
@@ -343,7 +343,7 @@ main {
 .mini-note {
   color: #3c3935;
   font-size: 12px;
-  font-weight: 900;
+  font-weight: 580;
   line-height: 1.5;
 }
 
@@ -357,7 +357,7 @@ main {
   background: #fffdf6;
   color: var(--ink);
   font-size: 10px;
-  font-weight: 900;
+  font-weight: 580;
   box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.14);
 }
 
@@ -379,7 +379,7 @@ main {
   background: #fff;
   color: var(--ink);
   padding: 0 10px;
-  font-weight: 900;
+  font-weight: 580;
 }
 
 .license-actions {
@@ -402,7 +402,7 @@ main {
 #deviceIdLabel {
   color: var(--muted);
   font-size: 10px;
-  font-weight: 900;
+  font-weight: 580;
 }
 
 #deviceId {
@@ -411,7 +411,7 @@ main {
   color: var(--ink);
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 10px;
-  font-weight: 900;
+  font-weight: 580;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -419,7 +419,7 @@ main {
 #licenseStatus {
   color: var(--muted);
   font-size: 10px;
-  font-weight: 900;
+  font-weight: 580;
 }
 
 .is-pro-locked {
@@ -454,7 +454,7 @@ main {
   justify-content: space-between;
   gap: 12px;
   min-height: 34px;
-  font-weight: 800;
+  font-weight: 540;
 }
 
 .field {
@@ -469,7 +469,7 @@ main {
 .field span {
   color: var(--muted);
   font-size: 9px;
-  font-weight: 900;
+  font-weight: 580;
   text-transform: uppercase;
 }
 
@@ -482,7 +482,7 @@ main {
   background: #fff;
   color: var(--ink);
   padding: 0 8px;
-  font-weight: 800;
+  font-weight: 540;
 }
 
 .field input[type="range"] {
@@ -558,7 +558,7 @@ input[type="checkbox"]:focus-visible {
   background: #fffdf6;
   color: var(--muted);
   font-size: 10px;
-  font-weight: 900;
+  font-weight: 580;
   line-height: 1.35;
   white-space: pre-wrap;
 }
@@ -600,7 +600,7 @@ input[type="checkbox"]:active {
   border: 3px solid var(--line);
   background: #fffdf6;
   color: var(--ink);
-  font-weight: 900;
+  font-weight: 580;
   box-shadow: var(--button-shadow);
   transition:
     transform 100ms ease,
@@ -667,7 +667,7 @@ input[type="checkbox"]:active {
   background: var(--gold);
   color: var(--ink);
   font-size: 10px;
-  font-weight: 900;
+  font-weight: 580;
 }
 
 .primary-button,
@@ -795,7 +795,7 @@ input[type="checkbox"]:active {
   background: #fff;
   color: var(--ink);
   padding: 0 8px;
-  font-weight: 800;
+  font-weight: 540;
 }
 
 .slot-select,
@@ -830,7 +830,7 @@ input[type="checkbox"]:active {
 .control label {
   color: var(--muted);
   font-size: 9px;
-  font-weight: 900;
+  font-weight: 580;
   text-transform: uppercase;
 }
 
@@ -844,7 +844,7 @@ input[type="checkbox"]:active {
   border: 2px solid var(--line);
   background: #fff;
   padding: 0 7px;
-  font-weight: 800;
+  font-weight: 540;
 }
 
 .area-row {
@@ -861,7 +861,7 @@ input[type="range"] {
   justify-self: end;
   color: var(--muted);
   font-size: 10px;
-  font-weight: 800;
+  font-weight: 540;
 }
 
 .effect-anchor-picker {
@@ -902,7 +902,7 @@ input[type="range"] {
   min-width: 0;
   color: var(--muted);
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 540;
   line-height: 1.35;
 }
 
@@ -948,7 +948,7 @@ input[type="range"] {
   gap: 8px;
   color: var(--muted);
   font-size: 11px;
-  font-weight: 900;
+  font-weight: 580;
 }
 
 .shortcut-section-head strong {
@@ -981,7 +981,7 @@ input[type="range"] {
   padding: 12px;
   color: var(--muted);
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 540;
 }
 
 .shortcut-display-field {
@@ -1007,7 +1007,7 @@ input[type="range"] {
   background: #fff;
   color: var(--ink);
   padding: 0 9px;
-  font-weight: 800;
+  font-weight: 540;
   line-height: 1.1;
 }
 
@@ -1101,7 +1101,7 @@ input[type="range"] {
   background: rgba(58, 135, 255, 0.1);
   color: #1d5ed8;
   font-size: 15px;
-  font-weight: 900;
+  font-weight: 580;
   line-height: 1;
 }
 
@@ -1134,7 +1134,7 @@ input[type="range"] {
   min-height: 32px;
   padding: 0 7px;
   font-size: 12px;
-  font-weight: 900;
+  font-weight: 580;
   line-height: 1.1;
   text-overflow: clip;
   white-space: normal;
@@ -1182,7 +1182,7 @@ input[type="range"] {
   overflow: visible;
   color: var(--muted);
   font-size: 10px;
-  font-weight: 900;
+  font-weight: 580;
   overflow-wrap: anywhere;
   text-overflow: clip;
   white-space: normal;
@@ -1197,7 +1197,7 @@ input[type="range"] {
   background: #fff;
   color: var(--ink);
   padding: 0 8px;
-  font-weight: 800;
+  font-weight: 540;
 }
 
 .custom-toolbar select,
@@ -1232,7 +1232,7 @@ input[type="range"] {
   background: #fffdf6;
   color: var(--ink);
   font-size: clamp(10px, 3.05vw, 13px);
-  font-weight: 900;
+  font-weight: 580;
   line-height: 1.12;
   white-space: normal;
 }
@@ -1354,23 +1354,29 @@ body {
   letter-spacing: 0;
 }
 
+/* Blend the title bar into the page background — no card/box look, but stay
+   sticky (and opaque) so the close button is always reachable while scrolling. */
 .topbar {
-  padding: 18px 18px 16px;
+  position: sticky;
+  top: 0;
+  z-index: 6;
+  padding: 16px 18px 8px;
   border-bottom: 0;
-  background: rgba(255, 255, 255, 0.78);
-  backdrop-filter: blur(20px) saturate(1.14);
-  box-shadow: 0 10px 34px rgba(15, 23, 42, 0.055);
+  background: #ffffff;
+  backdrop-filter: none;
+  box-shadow: none;
 }
 
 h1 {
-  font-size: 30px;
-  font-weight: 760;
+  font-size: 26px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
 }
 
 .topbar p {
   color: var(--muted);
   font-size: 13px;
-  font-weight: 520;
+  font-weight: 440;
 }
 
 main {
@@ -1379,7 +1385,7 @@ main {
 }
 
 .section-tabs {
-  top: 82px;
+  top: 68px;
   gap: 7px;
   padding: 4px;
   border-radius: 18px;
@@ -1395,7 +1401,7 @@ main {
   background: transparent;
   color: var(--muted);
   font-size: 13px;
-  font-weight: 680;
+  font-weight: 490;
   box-shadow: none;
 }
 
@@ -1420,7 +1426,7 @@ main {
 
 .section-head h2 {
   font-size: 15px;
-  font-weight: 760;
+  font-weight: 520;
   text-transform: none;
 }
 
@@ -1429,7 +1435,7 @@ main {
 .control label {
   color: var(--muted);
   font-size: 11px;
-  font-weight: 680;
+  font-weight: 490;
   text-transform: none;
 }
 
@@ -1451,7 +1457,7 @@ main {
   background: rgba(247, 249, 252, 0.9);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.86), 0 8px 18px rgba(15, 23, 42, 0.035);
   color: var(--ink);
-  font-weight: 620;
+  font-weight: 470;
 }
 
 .field input[type="text"],
@@ -1496,7 +1502,7 @@ input[type="checkbox"]:focus-visible {
   border: 0;
   border-radius: 14px;
   box-shadow: var(--button-shadow);
-  font-weight: 720;
+  font-weight: 510;
 }
 
 .primary-button,
@@ -1546,7 +1552,7 @@ input[type="checkbox"]:checked {
   background: rgba(247, 249, 252, 0.9);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.86);
   font-size: 12px;
-  font-weight: 620;
+  font-weight: 470;
 }
 
 .shortcut-row,
@@ -1679,3 +1685,46 @@ input[type="checkbox"]:checked::after {
   max-height: 100%;
   object-fit: contain;
 }
+
+/* Update download progress bar */
+.update-progress {
+  width: 100%;
+  height: 6px;
+  margin: 8px 0 10px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.12);
+  overflow: hidden;
+}
+.update-progress-bar {
+  height: 100%;
+  width: 0%;
+  border-radius: 999px;
+  background: var(--teal);
+  transition: width 0.25s ease;
+}
+#updateBadge[data-tone="update"] {
+  color: var(--teal);
+  font-weight: 500;
+}
+
+/* ===== Line-icon rendering (replaces old unicode glyphs) ===== */
+.ui-icon { flex: 0 0 auto; }
+.tab-icon,
+.section-icon,
+.inline-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.inline-icon {
+  margin-right: 7px;
+  color: var(--muted);
+}
+.section-icon { margin-right: 3px; }
+button .ui-icon {
+  vertical-align: middle;
+  margin-right: 6px;
+}
+.btn-label { vertical-align: middle; }
+.icon-button .ui-icon,
+.add-custom-button .ui-icon { margin-right: 0; }

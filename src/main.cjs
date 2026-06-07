@@ -133,6 +133,8 @@ const DEFAULT_UPDATE = Object.freeze({
   pageUrl: UPDATE_PAGE_URL,
   downloading: false,
   downloadedPath: "",
+  progress: 0,
+  readyToInstall: false,
   checkedAt: 0,
   message: "",
 });
@@ -284,6 +286,7 @@ const DEFAULT_SETTINGS = Object.freeze({
 
 let overlayWindow = null;
 let settingsWindow = null;
+let firstRunDetected = false;
 let settings = clone(DEFAULT_SETTINGS);
 let cursorTimer = null;
 let cursorWatchIdle = false;
@@ -822,8 +825,9 @@ function normalizeCustomCharacter(item, index) {
 
 function normalizeLicense(source) {
   const src = source && typeof source === "object" ? source : {};
-  const requestedPlan = src.plan === "lifetime" ? "lifetime" : src.plan === "pro" ? "pro" : "free";
+  const requestedPlan = src.plan === "pro" || src.plan === "lifetime" ? "pro" : "free";
   const plan = requestedPlan !== "free" && src.status === "active" ? requestedPlan : "free";
+  const rawDeviceLimit = Number(src.deviceLimit) || DEFAULT_LICENSE.deviceLimit;
   return {
     ...clone(DEFAULT_LICENSE),
     plan,
@@ -832,7 +836,7 @@ function normalizeLicense(source) {
     email: String(src.email || "").trim().slice(0, 160),
     activatedAt: Math.round(clamp(src.activatedAt, 0, Date.now(), 0)),
     lastCheckedAt: Math.round(clamp(src.lastCheckedAt, 0, Date.now(), 0)),
-    deviceLimit: plan === "lifetime" ? 0 : Math.round(clamp(src.deviceLimit, 1, 10, DEFAULT_LICENSE.deviceLimit)),
+    deviceLimit: Math.round(clamp(rawDeviceLimit, 1, 2, DEFAULT_LICENSE.deviceLimit)),
     activatedDevices: Math.round(clamp(src.activatedDevices, 0, 10, 0)),
     message: String(src.message || "").trim().slice(0, 180),
   };
@@ -850,13 +854,15 @@ function normalizeUpdate(source) {
     pageUrl: String(src.pageUrl || UPDATE_PAGE_URL).trim().slice(0, 500),
     downloading: src.downloading === true,
     downloadedPath: String(src.downloadedPath || "").trim().slice(0, 500),
+    progress: Math.round(clamp(src.progress, 0, 100, 0)),
+    readyToInstall: src.readyToInstall === true,
     checkedAt: Math.round(clamp(src.checkedAt, 0, Date.now(), 0)),
     message: String(src.message || "").trim().slice(0, 240),
   };
 }
 
 function hasProLicense(value = settings) {
-  return ["pro", "lifetime"].includes(value?.license?.plan) && value?.license?.status === "active";
+  return value?.license?.plan === "pro" && value?.license?.status === "active";
 }
 
 function isCustomCharacterId(characterId) {
@@ -1313,11 +1319,15 @@ function normalizeSettings(source) {
 
 function loadSettings() {
   migratePreviousSettings();
+  // Fresh install (no settings file yet) → first run. Used to surface the
+  // settings window on first launch (notably reliable on Windows).
+  firstRunDetected = !fs.existsSync(getSettingsPath());
   try {
     const file = fs.readFileSync(getSettingsPath(), "utf8");
     settings = normalizeSettings(JSON.parse(file));
   } catch {
     settings = clone(DEFAULT_SETTINGS);
+    firstRunDetected = true;
   }
   saveSettings();
 }
@@ -1392,13 +1402,13 @@ async function activateLicenseKey(licenseKey) {
   }
 
   settings.license = normalizeLicense({
-    plan: result.plan === "lifetime" ? "lifetime" : "pro",
+    plan: "pro",
     status: "active",
     key,
     email: result.email || "",
     activatedAt: Date.now(),
     lastCheckedAt: Date.now(),
-    deviceLimit: result.plan === "lifetime" ? 0 : (result.deviceLimit ?? 2),
+    deviceLimit: result.deviceLimit ?? 2,
     activatedDevices: result.activatedDevices || 1,
     message: result.message || "",
   });
@@ -1577,14 +1587,32 @@ function downloadUpdateFile(url) {
     }, 15000);
     const onWillDownload = (_event, item) => {
       item.setSavePath(savePath);
+      let lastBroadcast = 0;
+      item.on("updated", (_updatedEvent, state) => {
+        if (state !== "progressing") return;
+        const total = item.getTotalBytes();
+        const received = item.getReceivedBytes();
+        const pct = total > 0 ? Math.min(99, Math.round((received / total) * 100)) : 0;
+        // Throttle: only broadcast every 5% to avoid settings churn.
+        if (pct - lastBroadcast < 5 && pct !== 0) return;
+        lastBroadcast = pct;
+        setUpdateMessage(
+          settings.language === "ko"
+            ? `업데이트 다운로드 중... ${pct}%`
+            : `Downloading update... ${pct}%`,
+          { downloading: true, progress: pct, readyToInstall: false },
+        );
+      });
       item.once("done", (_doneEvent, state) => {
         if (state === "completed") {
           setUpdateMessage(
             settings.language === "ko"
-              ? `다운로드 완료: ${path.basename(savePath)}`
-              : `Downloaded: ${path.basename(savePath)}`,
-            { downloading: false, downloadedPath: savePath },
+              ? "다운로드 완료 — 설치 프로그램을 여는 중..."
+              : "Downloaded — opening the installer...",
+            { downloading: false, progress: 100, downloadedPath: savePath, readyToInstall: true },
           );
+          // Auto-launch the installer so the update applies in one click (Claude/Codex style).
+          launchInstaller(savePath);
           finish({ ok: true, mode: "download", path: savePath });
           return;
         }
@@ -1605,6 +1633,46 @@ async function openUpdateTarget() {
   if (downloadUrl) return downloadUpdateFile(downloadUrl);
   await shell.openExternal(updateTargetUrl());
   return { ok: true, mode: "page", url: updateTargetUrl() };
+}
+
+// Open the downloaded installer (mounts the .dmg on macOS, runs the .exe on Windows).
+function launchInstaller(savePath) {
+  if (!savePath || !fs.existsSync(savePath)) return Promise.resolve({ ok: false });
+  return shell
+    .openPath(savePath)
+    .then((error) => {
+      if (error) {
+        setUpdateMessage(
+          settings.language === "ko"
+            ? "설치 프로그램을 열지 못했어요. 다운로드 폴더에서 직접 실행해줘."
+            : "Could not open the installer. Run it from your Downloads folder.",
+          { readyToInstall: true },
+        );
+        return { ok: false, error };
+      }
+      setUpdateMessage(
+        settings.language === "ko"
+          ? "설치 프로그램을 열었어요. 안내에 따라 설치한 뒤 DeskPal을 종료해줘."
+          : "Installer opened. Follow the steps, then quit DeskPal to finish.",
+        { readyToInstall: true },
+      );
+      return { ok: true };
+    })
+    .catch((error) => {
+      console.warn("Launch installer failed", error?.message || error);
+      return { ok: false, error: error?.message || String(error) };
+    });
+}
+
+// Re-open the already-downloaded installer (used by the "install" button).
+async function installDownloadedUpdate() {
+  const savePath = settings.update?.downloadedPath;
+  if (savePath && fs.existsSync(savePath)) {
+    const result = await launchInstaller(savePath);
+    return { ok: result.ok !== false, mode: "install", path: savePath };
+  }
+  // Nothing downloaded yet — fall back to downloading first.
+  return openUpdateTarget();
 }
 
 function notifyUpdateAvailable(update) {
@@ -1629,7 +1697,7 @@ function notifyUpdateAvailable(update) {
 }
 
 function checkoutPlan(value) {
-  return value === "lifetime" ? "lifetime" : "pro";
+  return "pro";
 }
 
 function fallbackCheckoutUrl(plan, machineId = "") {
@@ -1848,6 +1916,19 @@ function applyOverlayMousePassthrough(ignore, options = {}) {
   overlayWindow.setIgnoreMouseEvents(ignore, { forward: true });
 }
 
+// The overlay sits at the "screen-saver" always-on-top level. On Windows that
+// reliably covers a freshly-opened settings window. Drop the overlay below
+// while settings is visible so the settings window is never hidden behind it.
+function setOverlayTopmost(on) {
+  if (!overlayWindow || overlayWindow.isDestroyed()) return;
+  if (on) overlayWindow.setAlwaysOnTop(true, "screen-saver");
+  else overlayWindow.setAlwaysOnTop(false);
+}
+
+function settingsWindowActive() {
+  return Boolean(settingsWindow && !settingsWindow.isDestroyed() && settingsWindow.isVisible());
+}
+
 function createOverlayWindow() {
   const display = screen.getPrimaryDisplay();
   overlayWindow = new BrowserWindow({
@@ -1910,6 +1991,8 @@ function createSettingsWindow() {
   });
   settingsWindow.on("closed", () => {
     settingsWindow = null;
+    // Restore the overlay to the top once settings is gone.
+    setOverlayTopmost(true);
   });
 }
 
@@ -1919,8 +2002,12 @@ function showSettingsWindow() {
   const reveal = () => {
     if (revealed || !settingsWindow || settingsWindow.isDestroyed()) return;
     revealed = true;
+    // Lower the always-on-top overlay so the settings window isn't trapped
+    // behind it (the cause of "settings won't open" on Windows).
+    setOverlayTopmost(false);
     settingsWindow.show();
     settingsWindow.focus();
+    settingsWindow.moveTop();
     if (app.dock) app.dock.show();
   };
   if (settingsWindow.webContents.isLoading()) {
@@ -1942,7 +2029,8 @@ function setOverlayClickThrough(ignore, options = {}) {
   applyOverlayMousePassthrough(next, options);
   if (!next) {
     overlayWindow.showInactive();
-    overlayWindow.focus();
+    // Don't steal focus from an open settings window (pets roam over it too).
+    if (!settingsWindowActive()) overlayWindow.focus();
   }
 }
 
@@ -2120,6 +2208,10 @@ ipcMain.handle("updates:open", async () => {
   return openUpdateTarget();
 });
 
+ipcMain.handle("updates:install", async () => {
+  return installDownloadedUpdate();
+});
+
 ipcMain.handle("shortcut:open", async (_event, shortcut) => {
   const safeShortcut = normalizeShortcut(shortcut);
   if (!safeShortcut) return { ok: false, error: "Invalid shortcut" };
@@ -2270,8 +2362,16 @@ if (gotSingleInstanceLock) {
         console.warn("Update check failed", error?.message || error);
       });
     }, 5000);
-    if (!settings.enabled || !settings.slots.some((slot) => slot.enabled !== false)) {
-      showSettingsWindow();
+    // Re-check periodically so a running app surfaces new releases on its own.
+    setInterval(() => {
+      checkForUpdates().catch((error) => {
+        console.warn("Periodic update check failed", error?.message || error);
+      });
+    }, 6 * 60 * 60 * 1000);
+    if (firstRunDetected || !settings.enabled || !settings.slots.some((slot) => slot.enabled !== false)) {
+      // Defer slightly so the overlay is up first; on first run this makes sure
+      // new users (especially on Windows) actually see the settings window.
+      setTimeout(showSettingsWindow, 600);
     }
     startCursorWatch();
     screen.on("display-metrics-changed", updateOverlayBounds);

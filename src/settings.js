@@ -19,7 +19,6 @@ const licenseHelp = document.getElementById("licenseHelp");
 const licenseKey = document.getElementById("licenseKey");
 const activateLicense = document.getElementById("activateLicense");
 const buyPro = document.getElementById("buyPro");
-const buyLifetime = document.getElementById("buyLifetime");
 const licenseStatus = document.getElementById("licenseStatus");
 const deviceIdLabel = document.getElementById("deviceIdLabel");
 const deviceId = document.getElementById("deviceId");
@@ -28,6 +27,9 @@ const updateBadge = document.getElementById("updateBadge");
 const updateStatus = document.getElementById("updateStatus");
 const checkUpdates = document.getElementById("checkUpdates");
 const openUpdate = document.getElementById("openUpdate");
+const installUpdate = document.getElementById("installUpdate");
+const updateProgress = document.getElementById("updateProgress");
+const updateProgressBar = document.getElementById("updateProgressBar");
 const shortcutDisplayMode = document.getElementById("shortcutDisplayMode");
 const languageButton = document.getElementById("languageButton");
 const languagePopover = document.getElementById("languagePopover");
@@ -116,15 +118,13 @@ const I18N = {
     licenseTitle: "DeskPal Plans",
     licenseFree: "Free",
     licensePro: "Pro",
-    licenseLifetime: "Lifetime",
     licenseHelpFree: "Free: 2 characters, 1 app shortcut, 1 web shortcut, no custom sprites or effects.",
-    licenseHelpPro: "Premium active: all character slots, custom sprites, shortcuts, and effects are unlocked.",
+    licenseHelpPro: "Pro active: all character slots, custom sprites, shortcuts, and effects are unlocked. One key can activate up to 2 devices.",
     promoTitle: "Unlock DeskPal",
     promoDesc: "More companions, shortcuts, custom sprites, and effects.",
     licensePlaceholder: "LICENSE-KEY",
     activateLicense: "Activate",
     buyPro: "Buy Pro",
-    buyLifetime: "Lifetime",
     deviceId: "Device ID",
     copyDeviceId: "Copy",
     deviceIdCopied: "Device ID copied.",
@@ -141,6 +141,9 @@ const I18N = {
     updateStatusAvailable: "New version {version} is available.",
     updateStatusDownloading: "Downloading update file...",
     updateStatusDownloaded: "Downloaded to Downloads.",
+    updateStatusReadyInstall: "Installer opened — finish setup, then quit DeskPal.",
+    updateInstall: "Install",
+    updateInstalling: "Installer opened. Quit DeskPal to finish updating.",
     checkUpdates: "Check",
     openUpdate: "Download",
     characters: "Characters",
@@ -241,15 +244,13 @@ const I18N = {
     licenseTitle: "DeskPal 플랜",
     licenseFree: "Free",
     licensePro: "Pro",
-    licenseLifetime: "Lifetime",
     licenseHelpFree: "무료: 캐릭터 2개, 앱 바로가기 1개, 웹 바로가기 1개. 커스텀과 이펙트는 잠겨 있어.",
-    licenseHelpPro: "프리미엄 활성화됨: 모든 캐릭터 슬롯, 커스텀, 바로가기, 이펙트가 열렸어.",
+    licenseHelpPro: "Pro 활성화됨: 모든 캐릭터 슬롯, 커스텀, 바로가기, 이펙트가 열렸어. 키 1개로 최대 2대까지 활성화돼.",
     promoTitle: "DeskPal 잠금 해제",
     promoDesc: "캐릭터, 바로가기, 커스텀, 이펙트를 더 많이 사용할 수 있어.",
     licensePlaceholder: "라이선스 키",
     activateLicense: "활성화",
     buyPro: "Pro 구매",
-    buyLifetime: "평생권",
     deviceId: "기기 ID",
     copyDeviceId: "복사",
     deviceIdCopied: "기기 ID를 복사했어.",
@@ -266,6 +267,9 @@ const I18N = {
     updateStatusAvailable: "새 버전 {version}이 있어.",
     updateStatusDownloading: "업데이트 파일을 다운로드하는 중...",
     updateStatusDownloaded: "다운로드 폴더에 저장 완료.",
+    updateStatusReadyInstall: "설치 프로그램을 열었어 — 설치를 마친 뒤 DeskPal을 종료해줘.",
+    updateInstall: "설치",
+    updateInstalling: "설치 프로그램을 열었어. DeskPal을 종료하면 업데이트가 끝나.",
     checkUpdates: "확인",
     openUpdate: "다운로드",
     characters: "캐릭터",
@@ -379,12 +383,77 @@ function modeLabel(value) {
   return I18N[lang()]?.modes?.[value] ?? I18N.en.modes[value] ?? value;
 }
 
+// ===== Clean line-icon set (Lucide-style), replacing the old unicode glyphs =====
+const UI_ICONS = {
+  plus: '<path d="M5 12h14"/><path d="M12 5v14"/>',
+  minus: '<path d="M5 12h14"/>',
+  x: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+  check: '<path d="M20 6 9 17l-5-5"/>',
+  pencil: '<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/>',
+  eraser: '<path d="m7 21-4.3-4.3a1 1 0 0 1 0-1.4l9.6-9.6a2 2 0 0 1 2.8 0l5.5 5.5a1 1 0 0 1 0 1.4L13 21"/><path d="M22 21H7"/><path d="m5 11 9 9"/>',
+  target: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5"/>',
+  play: '<polygon points="6 4 19 12 6 20 6 4"/>',
+  star: '<path d="m12 3 2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8L3.5 9.2l5.9-.9z"/>',
+  arrowUpRight: '<path d="M7 7h10v10"/><path d="M7 17 17 7"/>',
+  infinity: '<path d="M12 12c-2-2.7-4-4-6-4a4 4 0 0 0 0 8c2 0 4-1.3 6-4Zm0 0c2 2.7 4 4 6 4a4 4 0 0 0 0-8c-2 0-4 1.3-6 4Z"/>',
+  refresh: '<path d="M3 12a9 9 0 0 1 15.3-6.4L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15.3 6.4L3 16"/><path d="M3 21v-5h5"/>',
+  download: '<path d="M12 15V3"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/>',
+  rotateCcw: '<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/>',
+  power: '<path d="M12 2v10"/><path d="M18.4 6.6a9 9 0 1 1-12.8 0"/>',
+  frame: '<line x1="22" x2="2" y1="6" y2="6"/><line x1="22" x2="2" y1="18" y2="18"/><line x1="6" x2="6" y1="2" y2="22"/><line x1="18" x2="18" y1="2" y2="22"/>',
+  smile: '<circle cx="12" cy="12" r="9"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><path d="M9 9h.01"/><path d="M15 9h.01"/>',
+  ghost: '<path d="M12 2a8 8 0 0 0-8 8v11l3-2 2.5 2 2.5-2 2.5 2 2.5-2 3 2V10a8 8 0 0 0-8-8z"/><path d="M9 10h.01"/><path d="M15 10h.01"/>',
+  clock: '<circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 16 14"/>',
+  mouse: '<rect x="6" y="2" width="12" height="20" rx="6"/><path d="M12 6v4"/>',
+  keyboard: '<rect width="20" height="14" x="2" y="5" rx="2"/><path d="M6 9h.01M10 9h.01M14 9h.01M18 9h.01M7 13h10"/>',
+  panel: '<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/>',
+  sparkles: '<path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3z"/>',
+  globe: '<circle cx="12" cy="12" r="9"/><path d="M12 3a14 14 0 0 0 0 18 14 14 0 0 0 0-18"/><path d="M3 12h18"/>',
+  link: '<path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/>',
+};
+
+const SYMBOL_ICON = {
+  '+': 'plus', '−': 'minus', '×': 'x', '✓': 'check',
+  '■': 'pencil', '◇': 'eraser', '↓': 'target', '▶': 'play',
+  '★': 'star', '↗': 'arrowUpRight', '∞': 'infinity',
+  '↻': 'refresh', '⬇': 'download', '↺': 'rotateCcw', '⏻': 'power',
+  '▣': 'frame', '◆': 'smile', '◌': 'ghost', '◷': 'clock',
+  '⌁': 'mouse', '⌨': 'keyboard', '▾': 'panel', '✦': 'sparkles',
+};
+
+function svgIcon(name, size = 15) {
+  const path = UI_ICONS[name];
+  if (!path) return '';
+  return `<svg class="ui-icon" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${path}</svg>`;
+}
+
+function escapeHtml(value) {
+  return String(value).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+}
+
+// Returns "<svg/> <label>" HTML. Callers assign via innerHTML.
 function iconText(icon, key) {
-  return `${icon} ${t(key)}`;
+  const name = SYMBOL_ICON[icon];
+  const svg = name ? svgIcon(name) : '';
+  return `${svg}<span class="btn-label">${escapeHtml(t(key))}</span>`;
+}
+
+// Convert the static unicode glyphs in the markup (tabs, section heads, inline
+// labels, top-bar buttons) into the line icons above. Idempotent.
+function renderUiIcons() {
+  document.querySelectorAll('.tab-icon, .section-icon, .inline-icon').forEach((el) => {
+    if (!el.dataset.sym) el.dataset.sym = (el.textContent || '').trim();
+    const name = SYMBOL_ICON[el.dataset.sym];
+    if (name) el.innerHTML = svgIcon(name, el.classList.contains('section-icon') ? 16 : 14);
+  });
+  const langBtn = document.getElementById('languageButton');
+  if (langBtn) langBtn.innerHTML = svgIcon('globe', 17);
+  const quitBtn = document.getElementById('quitApp');
+  if (quitBtn) quitBtn.innerHTML = svgIcon('x', 16);
 }
 
 function isPro() {
-  return ["pro", "lifetime"].includes(settings?.license?.plan) && settings?.license?.status === "active";
+  return settings?.license?.plan === "pro" && settings?.license?.status === "active";
 }
 
 function freeLimitText() {
@@ -445,36 +514,35 @@ function renderLanguage() {
     up: modeLabel("up"),
     down: modeLabel("down"),
   });
-  addShortcut.textContent = t("addWebShortcut");
+  addShortcut.innerHTML = iconText("+", "addWebShortcut");
   addShortcut.title = t("addWebShortcut");
   addShortcut.setAttribute("aria-label", t("addWebShortcut"));
-  addAppShortcut.textContent = t("addAppShortcut");
+  addAppShortcut.innerHTML = iconText("+", "addAppShortcut");
   addAppShortcut.title = t("addAppShortcut");
   addAppShortcut.setAttribute("aria-label", t("addAppShortcut"));
-  addCustom.textContent = "+";
+  addCustom.innerHTML = svgIcon("plus", 16);
   addCustom.title = t("add");
   addCustom.setAttribute("aria-label", t("add"));
-  customImagePick.textContent = iconText("+", "image");
-  customImageClear.textContent = `− ${t("clearImage")}`;
-  paintBrush.textContent = iconText("■", "draw");
-  paintErase.textContent = iconText("◇", "erase");
-  setEffectPoint.textContent = iconText("↓", "point");
-  clearCustom.textContent = iconText("×", "clear");
-  testEffect.textContent = iconText("▶", "test");
-  activateLicense.textContent = iconText("★", "activateLicense");
-  buyPro.textContent = iconText("↗", "buyPro");
+  customImagePick.innerHTML = iconText("+", "image");
+  customImageClear.innerHTML = iconText("−", "clearImage");
+  paintBrush.innerHTML = iconText("■", "draw");
+  paintErase.innerHTML = iconText("◇", "erase");
+  setEffectPoint.innerHTML = iconText("↓", "point");
+  clearCustom.innerHTML = iconText("×", "clear");
+  testEffect.innerHTML = iconText("▶", "test");
+  activateLicense.innerHTML = iconText("★", "activateLicense");
+  buyPro.innerHTML = iconText("↗", "buyPro");
   buyPro.title = t("buyPro");
   buyPro.setAttribute("aria-label", t("buyPro"));
-  buyLifetime.textContent = iconText("∞", "buyLifetime");
-  buyLifetime.title = t("buyLifetime");
-  buyLifetime.setAttribute("aria-label", t("buyLifetime"));
   deviceIdLabel.textContent = t("deviceId");
   copyDeviceId.textContent = t("copyDeviceId");
-  checkUpdates.textContent = iconText("↻", "checkUpdates");
-  openUpdate.textContent = iconText("⬇", "openUpdate");
-  resetSettings.textContent = iconText("↺", "reset");
-  programExit.textContent = iconText("⏻", "exit");
-  applyButton.textContent = iconText("✓", "apply");
+  checkUpdates.innerHTML = iconText("↻", "checkUpdates");
+  openUpdate.innerHTML = iconText("⬇", "openUpdate");
+  if (installUpdate) installUpdate.innerHTML = iconText("✓", "updateInstall");
+  resetSettings.innerHTML = iconText("↺", "reset");
+  programExit.innerHTML = iconText("⏻", "exit");
+  applyButton.innerHTML = iconText("✓", "apply");
+  renderUiIcons();
 }
 
 function setActiveTab(tab) {
@@ -1171,7 +1239,7 @@ function renderSlots() {
     const drawButton = document.createElement("button");
     drawButton.className = "draw-button";
     drawButton.type = "button";
-    drawButton.textContent = iconText("▣", "drawAreaShort");
+    drawButton.innerHTML = iconText("▣", "drawAreaShort");
     drawButton.title = t("drawArea");
     drawButton.addEventListener("click", async () => {
       drawButton.disabled = true;
@@ -1300,7 +1368,7 @@ function shortcutImagePlaceholder(shortcut) {
   icon.setAttribute("aria-hidden", "true");
   if (shortcut.type !== "app") {
     icon.classList.add("is-web-shortcut");
-    icon.textContent = "↗";
+    icon.innerHTML = svgIcon("link", 14);
   }
   return icon;
 }
@@ -1390,7 +1458,7 @@ function renderShortcutRow(shortcut, index) {
   const imagePick = document.createElement("button");
   imagePick.className = "pick-button";
   imagePick.type = "button";
-  imagePick.textContent = iconText("+", "image");
+  imagePick.innerHTML = iconText("+", "image");
   imagePick.title = t("image");
   imagePick.addEventListener("click", async () => {
     const result = await api.pickShortcutImage();
@@ -1413,7 +1481,7 @@ function renderShortcutRow(shortcut, index) {
   const pick = document.createElement("button");
   pick.className = "pick-button";
   pick.type = "button";
-  pick.textContent = iconText("+", "app");
+  pick.innerHTML = iconText("+", "app");
   pick.title = t("pick");
   pick.classList.toggle("is-invisible", shortcut.type !== "app");
   pick.disabled = shortcut.type !== "app";
@@ -1489,8 +1557,7 @@ function renderShortcuts() {
 
 function renderLicensePanel() {
   const pro = isPro();
-  const lifetime = pro && settings.license?.plan === "lifetime";
-  licenseBadge.textContent = lifetime ? t("licenseLifetime") : pro ? t("licensePro") : t("licenseFree");
+  licenseBadge.textContent = pro ? t("licensePro") : t("licenseFree");
   licenseBadge.dataset.tone = pro ? "pro" : "free";
   licenseHelp.textContent = freeLimitText();
   licenseKey.value = pro ? "" : licenseKey.value;
@@ -1500,26 +1567,42 @@ function renderLicensePanel() {
 
 function renderUpdatePanel() {
   const update = settings.update || {};
+  const readyToInstall = update.readyToInstall && update.downloadedPath;
   updateBadge.textContent = update.checking
     ? t("updateChecking")
     : update.downloading
       ? t("updateDownloading")
-      : update.available
-      ? t("updateAvailable")
-      : update.checkedAt
-        ? t("updateCurrent")
-        : t("updateReady");
-  updateBadge.dataset.tone = update.available || update.downloading ? "update" : "ready";
+      : readyToInstall
+        ? t("updateInstall")
+        : update.available
+        ? t("updateAvailable")
+        : update.checkedAt
+          ? t("updateCurrent")
+          : t("updateReady");
+  updateBadge.dataset.tone = update.available || update.downloading || readyToInstall ? "update" : "ready";
   updateStatus.textContent = update.checking
     ? t("updateChecking")
     : update.downloading
       ? (update.message || t("updateStatusDownloading"))
-      : update.available
-      ? t("updateStatusAvailable").replace("{version}", update.latestVersion || "")
-      : update.checkedAt
-        ? (update.message || t("updateStatusCurrent"))
-        : t("updateStatusReady");
+      : readyToInstall
+        ? (update.message || t("updateStatusReadyInstall"))
+        : update.available
+        ? t("updateStatusAvailable").replace("{version}", update.latestVersion || "")
+        : update.checkedAt
+          ? (update.message || t("updateStatusCurrent"))
+          : t("updateStatusReady");
+
+  // Progress bar while downloading.
+  if (updateProgress && updateProgressBar) {
+    const showProgress = update.downloading || (readyToInstall && update.progress >= 100);
+    updateProgress.hidden = !showProgress;
+    updateProgressBar.style.width = `${Math.max(0, Math.min(100, update.progress || 0))}%`;
+  }
+
+  // Download button is hidden once the installer is ready; Install button takes over.
+  openUpdate.hidden = !!readyToInstall;
   openUpdate.disabled = update.downloading || (!update.available && !update.downloadUrl && !update.pageUrl);
+  if (installUpdate) installUpdate.hidden = !readyToInstall;
 }
 
 function render() {
@@ -1612,10 +1695,6 @@ buyPro.addEventListener("click", () => {
   api.openLicenseCheckout("pro");
 });
 
-buyLifetime.addEventListener("click", () => {
-  api.openLicenseCheckout("lifetime");
-});
-
 copyDeviceId.addEventListener("click", async () => {
   const value = deviceId.textContent.trim();
   if (!value || value === "loading" || value === "unavailable") return;
@@ -1660,7 +1739,7 @@ openUpdate.addEventListener("click", async () => {
   try {
     const result = await api.openUpdate();
     if (result?.mode === "download") {
-      updateStatus.textContent = t("updateStatusDownloaded");
+      updateStatus.textContent = t("updateStatusReadyInstall");
     }
   } catch (error) {
     updateStatus.textContent = error?.message || "Update download failed.";
@@ -1668,6 +1747,21 @@ openUpdate.addEventListener("click", async () => {
     renderUpdatePanel();
   }
 });
+
+if (installUpdate) {
+  installUpdate.addEventListener("click", async () => {
+    installUpdate.disabled = true;
+    updateStatus.textContent = t("updateInstalling");
+    try {
+      await api.installUpdate();
+    } catch (error) {
+      updateStatus.textContent = error?.message || "Install failed.";
+    } finally {
+      installUpdate.disabled = false;
+      renderUpdatePanel();
+    }
+  });
+}
 
 for (const button of tabButtons) {
   button.addEventListener("click", () => setActiveTab(button.dataset.tab));

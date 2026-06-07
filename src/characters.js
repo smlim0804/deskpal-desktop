@@ -1286,7 +1286,7 @@ export const CHARACTERS = {
     render: makeRender(buildRocket, ROCKET_PAL), build: buildRocket, palette: ROCKET_PAL,
     frames: 8, orientToMovement: true,
     // Emit from the exhaust flame, just left of the body centre (cols 9-13).
-    effectAnchor: { x: 0.47, y: 0.86 },
+    effectAnchor: { x: 0.47, y: 0.80 },
     movement: { speed: 3.0, accel: 0.18, damping: 0.94, changeMs: [1200, 3000], area: { x: [0.05, 0.95], y: [0.05, 0.85] }, wobble: 0.04 },
   },
   saturn: {

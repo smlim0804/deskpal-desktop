@@ -184,21 +184,24 @@ function makeIcon(size) {
   };
   const grid = rocketSprite();
   const angle = -0.42;
-  const scale = size / 29;
+  // Larger rocket so the transparent "cutout" reads strongly on its own
+  // (no background tile — just the rocket).
+  const scale = size / 22;
+  // Soft contact shadow, slightly offset, kept subtle so it stays a clean cutout.
   renderSprite(data, size, grid, palette, {
     angle,
     scale,
-    cx: size * 0.52,
-    cy: size * 0.48,
-    offsetX: size * 0.035,
-    offsetY: size * 0.055,
-    tint: color("#000000", 76),
+    cx: size * 0.5,
+    cy: size * 0.5,
+    offsetX: size * 0.03,
+    offsetY: size * 0.05,
+    tint: color("#000000", 40),
   });
   renderSprite(data, size, grid, palette, {
     angle,
     scale,
-    cx: size * 0.52,
-    cy: size * 0.48,
+    cx: size * 0.5,
+    cy: size * 0.5,
   });
 
   return png(size, size, data);

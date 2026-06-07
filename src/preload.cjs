@@ -13,6 +13,7 @@ contextBridge.exposeInMainWorld("deskPal", {
   openLicenseCheckout: (plan) => ipcRenderer.invoke("license:checkout", plan),
   checkForUpdates: () => ipcRenderer.invoke("updates:check"),
   openUpdate: () => ipcRenderer.invoke("updates:open"),
+  installUpdate: () => ipcRenderer.invoke("updates:install"),
   pickArea: (slotIndex) => ipcRenderer.invoke("area:pick", slotIndex),
   completeAreaPick: (result) => ipcRenderer.invoke("area:pick-complete", result),
   openShortcut: (shortcut) => ipcRenderer.invoke("shortcut:open", shortcut),
