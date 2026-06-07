@@ -140,9 +140,9 @@ const I18N = {
     updateStatusAvailable: "New version {version} is available.",
     updateStatusDownloading: "Downloading update file...",
     updateStatusDownloaded: "Downloaded to Downloads.",
-    updateStatusReadyInstall: "Installer opened — finish setup, then quit DeskPal.",
+    updateStatusReadyInstall: "Update downloaded — applying and restarting DeskPal.",
     updateInstall: "Install",
-    updateInstalling: "Installer opened. Quit DeskPal to finish updating.",
+    updateInstalling: "Applying update — DeskPal will restart...",
     checkUpdates: "Check",
     openUpdate: "Download",
     characters: "Characters",
@@ -269,9 +269,9 @@ const I18N = {
     updateStatusAvailable: "새 버전 {version}이 있어.",
     updateStatusDownloading: "업데이트 파일을 다운로드하는 중...",
     updateStatusDownloaded: "다운로드 폴더에 저장 완료.",
-    updateStatusReadyInstall: "설치 프로그램을 열었어 — 설치를 마친 뒤 DeskPal을 종료해줘.",
+    updateStatusReadyInstall: "업데이트를 받았어 — 적용하고 DeskPal을 다시 시작할게.",
     updateInstall: "설치",
-    updateInstalling: "설치 프로그램을 열었어. DeskPal을 종료하면 업데이트가 끝나.",
+    updateInstalling: "업데이트 적용 중 — DeskPal을 다시 시작할게...",
     checkUpdates: "확인",
     openUpdate: "다운로드",
     characters: "캐릭터",
@@ -414,6 +414,7 @@ const UI_ICONS = {
   sparkles: '<path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3z"/>',
   globe: '<circle cx="12" cy="12" r="9"/><path d="M12 3a14 14 0 0 0 0 18 14 14 0 0 0 0-18"/><path d="M3 12h18"/>',
   link: '<path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/>',
+  appWindow: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/><path d="M7 6.5h.01M10 6.5h.01"/>',
 };
 
 const SYMBOL_ICON = {
@@ -1524,11 +1525,19 @@ function renderShortcutSection(kind, entries) {
 
   const heading = document.createElement("div");
   heading.className = "shortcut-section-head";
+  const titleWrap = document.createElement("span");
+  titleWrap.className = "shortcut-section-title";
+  const kindIcon = document.createElement("span");
+  kindIcon.className = "shortcut-kind-icon";
+  kindIcon.setAttribute("aria-hidden", "true");
+  kindIcon.innerHTML = svgIcon(kind === "app" ? "appWindow" : "link", 15);
   const title = document.createElement("strong");
   title.textContent = t(kind === "app" ? "appShortcuts" : "webShortcuts");
+  titleWrap.append(kindIcon, title);
   const count = document.createElement("span");
+  count.className = "shortcut-count";
   count.textContent = String(entries.length);
-  heading.append(title, count);
+  heading.append(titleWrap, count);
   section.appendChild(heading);
 
   const rows = document.createElement("div");
@@ -1626,9 +1635,11 @@ function renderUpdatePanel() {
     updateProgressBar.style.width = `${Math.max(0, Math.min(100, update.progress || 0))}%`;
   }
 
-  // Download button is hidden once the installer is ready; Install button takes over.
-  openUpdate.hidden = !!readyToInstall;
-  openUpdate.disabled = update.downloading || (!update.available && !update.downloadUrl && !update.pageUrl);
+  // Download button only appears when a newer version actually exists (not every
+  // session). Once downloaded it's replaced by the Install button. The separate
+  // Check button is always available to look for updates.
+  openUpdate.hidden = !!readyToInstall || !update.available;
+  openUpdate.disabled = !!update.downloading;
   if (installUpdate) installUpdate.hidden = !readyToInstall;
 }
 

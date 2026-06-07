@@ -3,6 +3,7 @@ const crypto = require("crypto");
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
+const { spawn } = require("child_process");
 
 if (process.platform === "linux") {
   // X11 gives Electron reliable transparent-window click-through on Ubuntu 22.04.
@@ -1495,6 +1496,15 @@ function releaseDownloadUrl(release) {
   return asset?.browser_download_url || release?.html_url || UPDATE_PAGE_URL;
 }
 
+// Only download/apply when there is genuinely a newer release than what is
+// installed. Re-checks the semver comparison at action time so a stale
+// "available" flag can never trigger a pointless same-version download.
+function updateIsActionable() {
+  const update = settings.update;
+  if (!update || update.available !== true) return false;
+  return !!update.latestVersion && isVersionNewer(update.latestVersion, app.getVersion());
+}
+
 function updateTargetUrl() {
   return settings.update?.downloadUrl || settings.update?.pageUrl || UPDATE_PAGE_URL;
 }
@@ -1554,6 +1564,7 @@ function setUpdateMessage(message, extra = {}) {
 }
 
 function downloadUpdateFile(url) {
+  if (!updateIsActionable()) return Promise.reject(new Error("No newer version available."));
   const downloadUrl = trustedUpdateDownloadUrl(url);
   if (!downloadUrl) return Promise.reject(new Error("Update download file is not ready."));
   const savePath = uniqueDownloadPath(path.join(app.getPath("downloads"), updateDownloadFileName(downloadUrl)));
@@ -1607,12 +1618,13 @@ function downloadUpdateFile(url) {
         if (state === "completed") {
           setUpdateMessage(
             settings.language === "ko"
-              ? "다운로드 완료 — 설치 프로그램을 여는 중..."
-              : "Downloaded — opening the installer...",
+              ? "업데이트 적용 중 — DeskPal을 다시 시작할게요..."
+              : "Applying update — DeskPal will restart...",
             { downloading: false, progress: 100, downloadedPath: savePath, readyToInstall: true },
           );
-          // Auto-launch the installer so the update applies in one click (Claude/Codex style).
-          launchInstaller(savePath);
+          // Apply in place to the existing app and relaunch (Claude/Codex style),
+          // instead of opening the downloaded file as a separate installer/app.
+          applyUpdateInPlace(savePath);
           finish({ ok: true, mode: "download", path: savePath });
           return;
         }
@@ -1629,49 +1641,171 @@ function downloadUpdateFile(url) {
 }
 
 async function openUpdateTarget() {
+  // Version gate: never download unless a newer version actually exists.
+  if (!updateIsActionable()) {
+    setUpdateMessage(
+      settings.language === "ko" ? "이미 최신 버전이에요." : "DeskPal is already up to date.",
+      { downloading: false, readyToInstall: false },
+    );
+    return { ok: false, mode: "noop" };
+  }
   const downloadUrl = trustedUpdateDownloadUrl(settings.update?.downloadUrl);
   if (downloadUrl) return downloadUpdateFile(downloadUrl);
   await shell.openExternal(updateTargetUrl());
   return { ok: true, mode: "page", url: updateTargetUrl() };
 }
 
-// Open the downloaded installer (mounts the .dmg on macOS, runs the .exe on Windows).
-function launchInstaller(savePath) {
+// Fallback only: open the downloaded file with the OS (mounts dmg / runs exe).
+// Used when an automatic in-place replace isn't possible (dev build, unknown
+// app path, or a spawn failure) so the user is never left stranded.
+function openDownloadedFile(savePath) {
   if (!savePath || !fs.existsSync(savePath)) return Promise.resolve({ ok: false });
   return shell
     .openPath(savePath)
     .then((error) => {
-      if (error) {
-        setUpdateMessage(
-          settings.language === "ko"
-            ? "설치 프로그램을 열지 못했어요. 다운로드 폴더에서 직접 실행해줘."
-            : "Could not open the installer. Run it from your Downloads folder.",
-          { readyToInstall: true },
-        );
-        return { ok: false, error };
-      }
       setUpdateMessage(
-        settings.language === "ko"
-          ? "설치 프로그램을 열었어요. 안내에 따라 설치한 뒤 DeskPal을 종료해줘."
-          : "Installer opened. Follow the steps, then quit DeskPal to finish.",
+        error
+          ? settings.language === "ko"
+            ? "업데이트 파일을 열지 못했어요. 다운로드 폴더에서 직접 실행해줘."
+            : "Could not open the update. Run it from your Downloads folder."
+          : settings.language === "ko"
+            ? "다운로드 폴더의 업데이트 파일을 열었어요."
+            : "Opened the downloaded update file.",
         { readyToInstall: true },
       );
-      return { ok: true };
+      return { ok: !error, error };
     })
     .catch((error) => {
-      console.warn("Launch installer failed", error?.message || error);
+      console.warn("Open downloaded file failed", error?.message || error);
       return { ok: false, error: error?.message || String(error) };
     });
 }
 
-// Re-open the already-downloaded installer (used by the "install" button).
+// Resolve the installed app currently running so the update can replace it in
+// place rather than spawning a second copy. Returns null for dev builds.
+function runningAppTarget() {
+  if (!app.isPackaged) return null;
+  const exe = process.execPath;
+  if (process.platform === "darwin") {
+    // .../DeskPal.app/Contents/MacOS/DeskPal -> .../DeskPal.app
+    const appRoot = path.resolve(exe, "..", "..", "..");
+    return appRoot.endsWith(".app") ? appRoot : null;
+  }
+  if (process.platform === "win32") return exe;
+  return null;
+}
+
+function spawnDetached(command, args) {
+  const child = spawn(command, args, { detached: true, stdio: "ignore", windowsHide: true });
+  child.unref();
+}
+
+// Fully exit shortly after, so the detached helper can replace the (locked)
+// running bundle/exe. The delay lets the renderer show the "restarting" copy.
+function quitForUpdate() {
+  setTimeout(() => {
+    try {
+      app.removeAllListeners("window-all-closed");
+    } catch {}
+    app.exit(0);
+  }, 1200);
+}
+
+function announceApplying() {
+  setUpdateMessage(
+    settings.language === "ko"
+      ? "업데이트 적용 중 — DeskPal을 다시 시작할게요..."
+      : "Applying update — DeskPal will restart...",
+    { readyToInstall: true },
+  );
+}
+
+// Replace the EXISTING installed app with the freshly downloaded build and
+// relaunch it (in-place update), instead of opening a separate installer.
+function applyUpdateInPlace(savePath) {
+  if (!savePath || !fs.existsSync(savePath)) return Promise.resolve({ ok: false });
+  const target = runningAppTarget();
+  if (!target) return openDownloadedFile(savePath); // dev / unknown layout
+  try {
+    if (process.platform === "darwin") return macApplyInPlace(savePath, target);
+    if (process.platform === "win32") return winApplyInPlace(savePath, target);
+  } catch (error) {
+    console.warn("In-place update failed; opening file instead", error?.message || error);
+    return openDownloadedFile(savePath);
+  }
+  return openDownloadedFile(savePath);
+}
+
+function macApplyInPlace(dmgPath, appPath) {
+  const pid = process.pid;
+  const tmp = path.join(os.tmpdir(), `deskpal-update-${Date.now()}.sh`);
+  const q = (value) => `'${String(value).replace(/'/g, `'\\''`)}'`;
+  const script = [
+    "#!/bin/sh",
+    `APP=${q(appPath)}`,
+    `DMG=${q(dmgPath)}`,
+    `PID=${pid}`,
+    "# Wait for DeskPal to fully quit so its bundle is no longer locked.",
+    "i=0",
+    'while kill -0 "$PID" 2>/dev/null && [ $i -lt 100 ]; do sleep 0.3; i=$((i+1)); done',
+    'MNT=$(hdiutil attach -nobrowse -noverify -noautoopen "$DMG" | grep -o "/Volumes/.*" | tail -1)',
+    'SRC=$(ls -d "$MNT"/*.app 2>/dev/null | head -1)',
+    'if [ -n "$SRC" ] && [ -d "$SRC" ]; then',
+    '  rm -rf "$APP.bak"',
+    '  if mv "$APP" "$APP.bak" 2>/dev/null; then',
+    '    if ditto "$SRC" "$APP"; then',
+    '      xattr -dr com.apple.quarantine "$APP" 2>/dev/null',
+    '      rm -rf "$APP.bak"',
+    "    else",
+    '      rm -rf "$APP"; mv "$APP.bak" "$APP" 2>/dev/null',
+    "    fi",
+    "  fi",
+    "fi",
+    '[ -n "$MNT" ] && hdiutil detach "$MNT" 2>/dev/null',
+    'open "$APP"',
+    'rm -f "$0"',
+  ].join("\n");
+  fs.writeFileSync(tmp, script, { mode: 0o755 });
+  announceApplying();
+  spawnDetached("/bin/sh", [tmp]);
+  quitForUpdate();
+  return Promise.resolve({ ok: true, mode: "in-place" });
+}
+
+function winApplyInPlace(exeSrc, exeDest) {
+  const pid = process.pid;
+  const tmp = path.join(os.tmpdir(), `deskpal-update-${Date.now()}.cmd`);
+  const script = [
+    "@echo off",
+    "setlocal",
+    `set "PID=${pid}"`,
+    `set "SRC=${exeSrc}"`,
+    `set "DEST=${exeDest}"`,
+    ":wait",
+    'tasklist /FI "PID eq %PID%" /NH 2>nul | find "%PID%" >nul',
+    "if not errorlevel 1 (",
+    "  timeout /t 1 /nobreak >nul",
+    "  goto wait",
+    ")",
+    'move /Y "%SRC%" "%DEST%" >nul',
+    'start "" "%DEST%"',
+    'del "%~f0"',
+  ].join("\r\n");
+  fs.writeFileSync(tmp, script);
+  announceApplying();
+  spawnDetached("cmd.exe", ["/c", tmp]);
+  quitForUpdate();
+  return Promise.resolve({ ok: true, mode: "in-place" });
+}
+
+// Apply the already-downloaded update (used by the "install" button).
 async function installDownloadedUpdate() {
   const savePath = settings.update?.downloadedPath;
   if (savePath && fs.existsSync(savePath)) {
-    const result = await launchInstaller(savePath);
+    const result = await applyUpdateInPlace(savePath);
     return { ok: result.ok !== false, mode: "install", path: savePath };
   }
-  // Nothing downloaded yet — fall back to downloading first.
+  // Nothing downloaded yet — fall back to downloading first (version-gated).
   return openUpdateTarget();
 }
 

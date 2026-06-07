@@ -1,6 +1,6 @@
 {
   "name": "deskpal-desktop",
-  "version": "0.3.5",
+  "version": "0.3.6",
   "description": "Desktop pixel companions for DeskPal.",
   "type": "module",
   "main": "src/main.cjs",

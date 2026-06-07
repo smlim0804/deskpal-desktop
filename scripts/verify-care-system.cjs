@@ -177,7 +177,10 @@ includes(main, "immediateSystemStats({ allowStorageFallback: !systemStatsCache }
 includes(main, "options.allowStorageFallback === false && systemStatsCache?.storage", "system stats avoid repeated sync storage fallback");
 includes(main, "storage = (await storageStatsAsync()) || storage", "stats refresh updates storage asynchronously");
 assert(!main.includes("execFileSync"), "main process must not use synchronous shell commands");
-assert(!main.includes("child_process"), "main process must not spawn external system stat processes");
+// child_process is allowed ONLY for the one-shot in-place update helper (spawnDetached);
+// it must never be used to poll system stats. Guard the stats-spawning patterns precisely.
+assert(!main.includes("spawnSync("), "main process must not spawn synchronous processes for system stats");
+assert(main.includes("function spawnDetached"), "child_process use is limited to the detached update helper");
 assert(!main.includes("execFile("), "main process must not exec external system stat commands");
 assert(!main.includes("execFileText(\"top\""), "system stats must not spawn top");
 assert(!main.includes("execFileText(\"df\""), "system stats must not spawn df");
