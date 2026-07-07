@@ -126,6 +126,9 @@ let desktopObjects = [];
 let effectsDirty = false;
 let effectsCanvasShown = true;
 let effectsEmptyAt = 0;
+// Previous frame's dirty rect — cleared together with the current frame's rect so
+// last frame's pixels are always erased without wiping the whole screen.
+let effectsPrevDirtyRect = null;
 let animationFrameId = null;
 let tickTimer = null;
 let autoTalkBusy = false;
@@ -14231,6 +14234,9 @@ function resizeEffectsCanvas() {
   effectsCanvas.style.width = `${w}px`;
   effectsCanvas.style.height = `${h}px`;
   effectsCtx.setTransform(effectsDpr, 0, 0, effectsDpr, 0, 0);
+  // Reassigning canvas.width above wiped the buffer, so there is nothing left
+  // from the previous frame to erase.
+  effectsPrevDirtyRect = null;
 }
 
 function pushEffectParticle(particle) {
@@ -14359,6 +14365,37 @@ function setEffectsCanvasShown(shown) {
   effectsCanvas.style.display = shown ? "" : "none";
 }
 
+// Bounding box of everything the effects pass will draw this frame (particles
+// span both travel endpoints; desktop objects include their pulse + stroke).
+// Returns null when nothing is drawable.
+function computeEffectsDirtyRect() {
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  for (const particle of effectParticles) {
+    // Pad covers the expanding "ring" type (max ~2.4x size) plus stroke/AA slop.
+    const pad = Math.max(particle.size * 2.6, 24);
+    const x2 = particle.x + particle.dx;
+    const y2 = particle.y + particle.dy;
+    minX = Math.min(minX, particle.x - pad, x2 - pad);
+    maxX = Math.max(maxX, particle.x + pad, x2 + pad);
+    minY = Math.min(minY, particle.y - pad, y2 - pad);
+    maxY = Math.max(maxY, particle.y + pad, y2 + pad);
+  }
+  for (const object of desktopObjects) {
+    if (!object || object.claimed) continue;
+    const pad = object.size + 8; // pulse peaks at ~0.54x size half-extent + 2px stroke
+    minX = Math.min(minX, object.x - pad);
+    maxX = Math.max(maxX, object.x + pad);
+    minY = Math.min(minY, object.y - pad);
+    maxY = Math.max(maxY, object.y + pad);
+  }
+  if (minX === Infinity) return null;
+  // Round outward to whole pixels so sub-pixel anti-aliasing residue is cleared.
+  return { x: Math.floor(minX), y: Math.floor(minY), r: Math.ceil(maxX), b: Math.ceil(maxY) };
+}
+
 function drawEffects(now) {
   if (!effectsCtx) return;
   const profile = performanceProfile();
@@ -14386,7 +14423,30 @@ function drawEffects(now) {
   effectsEmptyAt = 0;
   setEffectsCanvasShown(true);
   const { w, h } = viewport();
-  effectsCtx.clearRect(0, 0, w, h);
+  // Dirty-rect clear: only wipe the union of this frame's and last frame's drawn
+  // areas instead of damaging the whole ~2M px transparent surface every effect
+  // frame. Fall back to a full clear for ribbons or when the union is huge.
+  const dirty = computeEffectsDirtyRect();
+  let clearX = 0;
+  let clearY = 0;
+  let clearR = w;
+  let clearB = h;
+  if (!liveRibbon && (dirty || effectsPrevDirtyRect)) {
+    const a = dirty || effectsPrevDirtyRect;
+    const b = effectsPrevDirtyRect || dirty;
+    clearX = Math.max(0, Math.min(a.x, b.x));
+    clearY = Math.max(0, Math.min(a.y, b.y));
+    clearR = Math.min(w, Math.max(a.r, b.r));
+    clearB = Math.min(h, Math.max(a.b, b.b));
+  }
+  const clearW = Math.max(0, clearR - clearX);
+  const clearH = Math.max(0, clearB - clearY);
+  if (liveRibbon || clearW * clearH > w * h * 0.5) {
+    effectsCtx.clearRect(0, 0, w, h);
+  } else if (clearW > 0 && clearH > 0) {
+    effectsCtx.clearRect(clearX, clearY, clearW, clearH);
+  }
+  effectsPrevDirtyRect = dirty;
 
   for (const pet of pets) drawRibbonTrail(effectsCtx, pet, now);
   drawDesktopObjects(effectsCtx, now);

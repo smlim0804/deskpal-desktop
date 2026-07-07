@@ -154,7 +154,7 @@ includes(main, "function systemStats", "system stats function");
 includes(main, "function systemInputIdleMs", "system input idle function");
 includes(main, "powerMonitor.getSystemIdleTime()", "Electron input idle source");
 includes(main, "idleMs: systemInputIdleMs()", "cursor payload includes input idle");
-includes(main, "cursorWatchIdle ? 240 : 72", "cursor poll eases off while pets are hidden");
+includes(main, "(cursorWatchIdle || cursorWatchNoPets) ? 240 : 72", "cursor poll eases off while pets are hidden or disabled");
 includes(main, 'ipcMain.on("overlay:idle"', "main listens for the overlay idle hint");
 includes(overlay, "api.setOverlayIdle(hidden)", "overlay tells main when pets hide so the cursor poll can ease off");
 includes(main, "function mergeOverlayLiveState", "overlay autosaves only merge game/care, not settings-window config");

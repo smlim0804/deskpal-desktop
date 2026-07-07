@@ -288,8 +288,10 @@ let overlayWindow = null;
 let settingsWindow = null;
 let firstRunDetected = false;
 let settings = clone(DEFAULT_SETTINGS);
+let settingsSaveTimer = null;
 let cursorTimer = null;
 let cursorWatchIdle = false;
+let cursorWatchNoPets = false;
 let ignoringMouse = true;
 let pendingAreaPick = null;
 let lastCpuSample = null;
@@ -1333,13 +1335,38 @@ function loadSettings() {
   saveSettings();
 }
 
-function saveSettings() {
+function writeSettingsNow() {
+  if (settingsSaveTimer) {
+    clearTimeout(settingsSaveTimer);
+    settingsSaveTimer = null;
+  }
   const filePath = getSettingsPath();
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
   fs.writeFileSync(filePath, JSON.stringify(settings, null, 2));
 }
 
+// Coalesce disk writes: the in-memory `settings` object is authoritative and is
+// what broadcasts read, so bursts (e.g. slider drags firing settings:update per
+// input event) collapse into one synchronous write instead of 10-16/sec.
+function saveSettings() {
+  if (settingsSaveTimer) return;
+  settingsSaveTimer = setTimeout(writeSettingsNow, 500);
+}
+
+function flushSettingsSave() {
+  if (!settingsSaveTimer) return;
+  writeSettingsNow();
+}
+
+// True when no companion is enabled at all — the overlay has nothing that reacts
+// to the cursor, so the cursor watch can ease off (the update pill is the one
+// exception: it needs responsive hover/click).
+function noPetsEnabled() {
+  return !settings.enabled || !settings.slots.some((slot) => slot.enabled !== false);
+}
+
 function broadcastSettings() {
+  cursorWatchNoPets = noPetsEnabled() && !settings.update?.available;
   syncTray();
   if (overlayWindow && !overlayWindow.isDestroyed()) {
     overlayWindow.webContents.send("settings:changed", settings);
@@ -1847,8 +1874,27 @@ function trayTemplate() {
   return template;
 }
 
-function refreshTrayMenu() {
+// Rebuild the native menu only when a field it displays actually changed —
+// broadcastSettings() runs on every autosave, and rebuilding + setContextMenu on
+// each one is wasted native work. NOTE (macOS): once setContextMenu is set the
+// tray never emits "click", so this signature must cover every field
+// trayTemplate() renders or the menu goes stale.
+let lastTraySignature = "";
+
+function traySignature() {
+  return [
+    settings.language,
+    !!settings.update?.available,
+    settings.update?.latestVersion || "",
+    settings.ghostMode !== false,
+  ].join("|");
+}
+
+function refreshTrayMenu(force = false) {
   if (!tray) return;
+  const signature = traySignature();
+  if (!force && signature === lastTraySignature) return;
+  lastTraySignature = signature;
   tray.setContextMenu(Menu.buildFromTemplate(trayTemplate()));
 }
 
@@ -1858,7 +1904,7 @@ function createTray() {
   tray.setToolTip("DeskPal");
   refreshTrayMenu();
   tray.on("click", () => {
-    refreshTrayMenu();
+    refreshTrayMenu(true);
     tray.popUpContextMenu();
   });
 }
@@ -1867,6 +1913,7 @@ function destroyTray() {
   if (!tray) return;
   tray.destroy();
   tray = null;
+  lastTraySignature = "";
 }
 
 // Show/hide the menu-bar (macOS) / system-tray (Windows) icon and keep its
@@ -2035,9 +2082,9 @@ function startCursorWatch() {
       idleMs: systemInputIdleMs(),
     });
     // 72ms while pets are visible (smooth follow/avoid); ease to 240ms while
-    // they are hidden — hidden pets ignore the cursor, so this just keeps
-    // feeding idle time for ghost reappear.
-    cursorTimer = setTimeout(poll, cursorWatchIdle ? 240 : 72);
+    // they are hidden or none are enabled — nothing reacts to the cursor then,
+    // so this just keeps feeding idle time for ghost reappear.
+    cursorTimer = setTimeout(poll, (cursorWatchIdle || cursorWatchNoPets) ? 240 : 72);
   };
   poll();
 }
@@ -2371,11 +2418,12 @@ if (gotSingleInstanceLock) {
         });
       }
     }, 6 * 60 * 60 * 1000);
-    if (firstRunDetected || !settings.enabled || !settings.slots.some((slot) => slot.enabled !== false)) {
+    if (firstRunDetected || noPetsEnabled()) {
       // Defer slightly so the overlay is up first; on first run this makes sure
       // new users (especially on Windows) actually see the settings window.
       setTimeout(showSettingsWindow, 600);
     }
+    cursorWatchNoPets = noPetsEnabled() && !settings.update?.available;
     startCursorWatch();
     screen.on("display-metrics-changed", updateOverlayBounds);
     screen.on("display-added", updateOverlayBounds);
@@ -2391,6 +2439,8 @@ if (gotSingleInstanceLock) {
 
   app.on("before-quit", () => {
     app.isQuitting = true;
+    // Land any pending debounced settings write before the process exits.
+    flushSettingsSave();
   });
 
   app.on("window-all-closed", () => {
