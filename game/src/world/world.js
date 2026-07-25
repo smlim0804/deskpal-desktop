@@ -245,6 +245,77 @@ export function buildWorld(A) {
   prop(props, A.props.flowerbox, 8.2, -5.4, { rng, ry: -0.5 });
   prop(props, A.props.flowerbox, -7.2, 6.3, { rng, ry: 1.9 });
 
+  // ── 레퍼런스 Sheet 4 · 7 소품 배치 ────────
+  // 광장 주변
+  prop(props, A.props.fountain[0], -3.4, -1.9, { rng, ry: 0.2, tag: 'fountain' });
+  prop(props, A.props.notice[0], 1.9, 8.6, { rng, ry: -0.35 });
+  prop(props, A.props.statue[0], 3.6, 11.6, { rng, ry: -0.4 });
+  for (let i = 0; i < 4; i++) {
+    const a = -0.9 + i * 0.6;
+    prop(props, A.props.ironfence, 3.6 + Math.cos(a) * 1.5, 11.6 + Math.sin(a) * 1.5, { rng, ry: a + Math.PI / 2 });
+  }
+  prop(props, A.props.bench, 2.9, 3.6, { rng, ry: -0.6 });
+  prop(props, A.props.bench, -4.2, 2.4, { rng, ry: 1.2 });
+  prop(props, A.props.bench, 12.2, 4.4, { rng, ry: 2.1 });
+  prop(props, A.props.bollard, 4.6, 6.4, { rng, ry: 0.4 });
+  prop(props, A.props.bollard, -4.4, 6.0, { rng, ry: -0.3 });
+
+  // 상점 앞 좌판 살림
+  prop(props, A.props.table[0], -2.7, -5.5, { rng, ry: 0.3 });
+  prop(props, A.props.chair, -1.9, -6.1, { rng, ry: 2.6 });
+  prop(props, A.props.chair, -3.4, -5.0, { rng, ry: -0.4 });
+  prop(props, A.props.chest[0], -6.3, -5.4, { rng, ry: 0.6 });
+  prop(props, A.props.basket, -5.5, -3.3, { rng });
+  prop(props, A.props.basket, 12.9, -0.9, { rng });
+  prop(props, A.props.sack, -3.9, -3.1, { rng });
+  prop(props, A.props.sack, -4.6, -2.6, { rng });
+  prop(props, A.props.sack, 11.0, -2.9, { rng });
+  prop(props, A.props.pot, -6.1, -2.9, { rng });
+  prop(props, A.props.pot, 5.1, 5.4, { rng });
+  prop(props, A.props.pot, -13.4, 1.6, { rng });
+  prop(props, A.props.bucket[0], 2.6, 0.7, { rng, ry: 0.5 });
+  prop(props, A.props.bucket[0], -12.4, -1.2, { rng, ry: -0.8 });
+  prop(props, A.props.wheelbarrow[0], -8.9, -7.3, { rng, ry: 0.9 });
+  prop(props, A.props.wagon[0], 7.2, 11.2, { rng, ry: -0.5 });
+  prop(props, A.props.block[0], -12.0, -3.7, { rng, ry: 0.3 });
+
+  // 집 앞
+  prop(props, A.props.mailbox[0], -8.4, -3.4, { rng, ry: 0.5 });
+  prop(props, A.props.mailbox[0], 7.6, -5.0, { rng, ry: -0.6 });
+  prop(props, A.props.birdhouse[0], -6.2, 4.4, { rng });
+  prop(props, A.props.birdhouse[0], 10.8, 1.8, { rng });
+  prop(props, A.props.planter, -9.0, -4.2, { rng, ry: 0.5 });
+  prop(props, A.props.planter, 8.4, -5.6, { rng, ry: -0.4 });
+  prop(props, A.props.planter, -7.0, 6.2, { rng, ry: 1.8 });
+
+  // 담과 울타리
+  for (let i = 0; i < 4; i++) prop(props, A.props.stonewall, -6.2, -0.6 + i * 1.9, { rng, ry: Math.PI / 2 });
+  for (let i = 0; i < 3; i++) prop(props, A.props.ropefence, -2.6 + i * 2.2, 13.4, { rng, ry: 0 });
+  for (let i = 0; i < 3; i++) prop(props, A.props.ropefence, -2.6 + i * 2.2, 6.6, { rng, ry: 0 });
+  prop(props, A.props.woodgate[0], -8.8, -8.6, { rng, ry: 0 });
+
+  // 축제 장식
+  prop(props, A.props.bunting, 0, 7.6, { rng, ry: 0 });
+  prop(props, A.props.bunting, 0.4, 2.6, { rng, ry: 0.35 });
+  prop(props, A.props.banner, -2.9, 16.4, { rng, ry: 0.2 });
+  prop(props, A.props.banner, 2.9, 16.4, { rng, ry: -0.2 });
+  prop(props, A.props.banner, -16.4, -11.4, { rng, ry: 0.6 });
+
+  // 숲 속 유적과 지형지물
+  prop(props, A.props.stonearch[0], -1.8, -14.2, { rng, ry: 0.15 });
+  prop(props, A.props.monolith, -24.5, -6.5, { rng });
+  prop(props, A.props.monolith, 17.5, -19.5, { rng });
+  prop(props, A.props.monolith, -7.5, -25.5, { rng });
+  prop(props, A.props.cave[0], -27.5, -17.5, { rng, ry: 0.7 });
+  for (let i = 0; i < 8; i++) {
+    const a = rng() * Math.PI * 2;
+    const r = rand(rng, 12, 34);
+    const x = Math.cos(a) * r;
+    const z = Math.sin(a) * r;
+    if (tooClose(props, x, z, 3.2)) continue;
+    prop(props, rng() < 0.5 ? A.props.rockmound : A.props.mound, x, z, { rng });
+  }
+
   // 건물 밑동 잡초 — 벽과 땅이 만나는 선을 흐린다
   for (const b of props.slice(0, 22)) {
     if (!b.r || b.r < 0.6) continue;
@@ -440,6 +511,7 @@ export function buildWorld(A) {
   // ── NPC ─────────────────────────────────
   const place = (id, x, z, extra = {}) => {
     const set = A.beans[id];
+    const setInk = A.beansInk[id];
     npcs.push({
       id: nextId(),
       npcId: id,
@@ -450,6 +522,7 @@ export function buildWorld(A) {
       gy: heightAt(x, z),
       home: { x, z },
       set,
+      setInk,
       h: set.height,
       r: 0.42,
       face: extra.face ?? 1,
@@ -473,6 +546,7 @@ export function buildWorld(A) {
   const critters = [];
   const cAdd = (kind, x, z, opt = {}) => {
     const c = A.critters[kind];
+    const cInk = A.crittersInk[kind];
     critters.push({
       id: nextId(),
       kind: 'critter',
@@ -483,6 +557,7 @@ export function buildWorld(A) {
       gy: heightAt(x, z),
       home: { x, z },
       set: c,
+      setInk: cInk,
       h: c.height,
       r: c.radius,
       t: rng() * 6,

@@ -2,7 +2,8 @@
 import { Camera } from './core/camera.js';
 import { Input } from './core/input.js';
 import { clamp, lerp } from './core/rng.js';
-import { bakeAll, VILLAGERS } from './world/assets.js';
+import { bakeAll, VILLAGERS, prebakeInkImpostors } from './world/assets.js';
+import { Theme, setMode, isInk } from './core/theme.js';
 import { buildWorld, GATE, POND } from './world/world.js';
 import { heightAt } from './world/terrain.js';
 import { Scene } from './render/scene.js';
@@ -27,7 +28,7 @@ class Game {
     this.scene = new Scene(ctx, this.cam);
     this.world = buildWorld(assets);
     this.world.pondCenter = POND;
-    this.player = new Player(assets.player, 0, 21.5);
+    this.player = new Player(assets.player, assets.playerInk, 0, 21.5);
     this.quest = new Quest();
     this.particles = [];
     this.dialogue = { active: false, target: null, name: '', lines: [], idx: 0, line: '', charT: 0 };
@@ -41,6 +42,26 @@ class Game {
 
     this.cam.tx = this.player.x;
     this.cam.tz = this.player.z;
+  }
+
+  // 그림 스타일 전환 — 캐시된 인스턴스는 Theme.version 으로 자동 재생성된다
+  setStyle(mode) {
+    if (!setMode(mode)) return;
+    try {
+      localStorage.setItem('beanhollow.style', mode);
+    } catch (e) {
+      /* 저장 실패는 무시 */
+    }
+    syncStyleButtons();
+    if (mode === 'ink') {
+      loadingEl.hidden = false;
+      loadingEl.textContent = '선화로 바꾸는 중…';
+      setTimeout(() => {
+        prebakeInkImpostors(this.assets);
+        loadingEl.hidden = true;
+      }, 30);
+    }
+    this.toast(mode === 'ink' ? '기본(선화) 스타일' : '컬러 스타일', 1.6);
   }
 
   toast(text, life = 2.6) {
@@ -202,6 +223,7 @@ class Game {
     }
 
     if (input.hit('f', 'enter')) this.interact();
+    if (input.hit('c')) this.setStyle(isInk() ? 'color' : 'ink');
 
     // 카메라 회전 / 줌
     if (input.down('q')) cam.orbit(-1.4 * dt);
@@ -217,7 +239,7 @@ class Game {
       // 대화 중엔 타이핑만 진행
       this.dialogue.charT = Math.min(this.dialogue.line.length, this.dialogue.charT + dt * 42);
       player.anim = 'idle';
-      const seq = player.set.idle;
+      const seq = player.sprites.idle;
       player.frame = Math.floor(this.time * 2) % seq.length;
     }
 
@@ -373,7 +395,21 @@ function resize(cam) {
   cam.resize(w, h);
 }
 
+function syncStyleButtons() {
+  for (const b of document.querySelectorAll('.style-btn')) {
+    b.classList.toggle('is-on', b.dataset.style === Theme.mode);
+  }
+}
+
 async function boot() {
+  // 저장해 둔 스타일 먼저 적용
+  try {
+    setMode(localStorage.getItem('beanhollow.style') || 'color');
+  } catch (e) {
+    /* localStorage 못 쓰는 환경 */
+  }
+  syncStyleButtons();
+
   const assets = await bakeAll((label, p) => {
     loadingEl.textContent = `스케치 굽는 중… ${label} (${Math.round(p * 100)}%)`;
   });
@@ -399,6 +435,10 @@ async function boot() {
     game.running = true;
     game.toast('축제 등불 5개를 찾아 마을 문으로!', 3.4);
   };
+  for (const b of document.querySelectorAll('.style-btn')) {
+    b.addEventListener('click', () => game.setStyle(b.dataset.style));
+  }
+  syncStyleButtons();
   document.getElementById('btn-start').addEventListener('click', start);
   document.getElementById('btn-resume').addEventListener('click', () => {
     game.paused = false;

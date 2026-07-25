@@ -5,14 +5,24 @@ import { bakeBean } from '../art/bean.js';
 import { bakeCritter } from '../art/critters.js';
 import * as N3 from '../art3d/nature.js';
 import * as V3 from '../art3d/village.js';
+import * as PR from '../art3d/props.js';
 import { bakeImpostorSet, bakeImpostor } from '../render/mesh3d.js';
 import { P } from '../art/palette.js';
+import { Theme, setMode } from '../core/theme.js';
 
 function pool(fn, count, startSeed, opt) {
   const out = [];
   for (let i = 0; i < count; i++) out.push(fn(startSeed + i * 37, opt));
   return out;
 }
+
+const IMPOSTOR_KEYS = [
+  'cottage', 'hut', 'shop', 'windmill', 'tower', 'tent', 'gate', 'well', 'fence', 'lamp', 'sign',
+  'barrel', 'crate', 'campfire', 'bridge', 'ruin', 'cart', 'woodpile', 'garden', 'laundry', 'hay', 'trough',
+  'sack', 'bucket', 'table', 'chair', 'bench', 'chest', 'basket', 'pot', 'wheelbarrow', 'wagon',
+  'mailbox', 'birdhouse', 'block', 'fountain', 'statue', 'notice', 'stonewall', 'ropefence', 'ironfence',
+  'woodgate', 'stonearch', 'bunting', 'banner', 'bollard', 'planter', 'monolith', 'rockmound', 'mound', 'cave',
+];
 
 // 멀리서 볼 때 쓸 스프라이트를 미리 굽는다 (폴리곤 수 절약)
 function imp(models, ppu = 38) {
@@ -43,18 +53,33 @@ export const VILLAGERS = [
 ];
 
 export async function bakeAll(onProgress = () => {}) {
-  const A = { trees: {}, props: {}, critters: {}, beans: {}, icons: {} };
+  const A = { trees: {}, props: {}, critters: {}, beans: {}, crittersInk: {}, beansInk: {}, icons: {} };
   const steps = [];
   const push = (label, fn) => steps.push([label, fn]);
 
+  const CRITTERS = ['chick', 'cloudSheep', 'ghost', 'robot', 'snail', 'bug', 'spiky', 'mushroomFolk', 'worm'];
+
   push('종이 캐릭터', () => {
+    const saved = Theme.mode;
+    setMode('color');
     A.player = bakeBean({ ...PLAYER_DEF, heightUnits: 1.5 }, 'full');
     for (const v of VILLAGERS) {
       A.beans[v.id] = bakeBean({ ...v, heightUnits: v.heightUnits || 1.42 }, v.id === 'sleepy' ? 'still' : 'lite');
     }
-    for (const k of ['chick', 'cloudSheep', 'ghost', 'robot', 'snail', 'bug', 'spiky', 'mushroomFolk', 'worm']) {
-      A.critters[k] = bakeCritter(k, 30001 + k.length * 13);
+    for (const k of CRITTERS) A.critters[k] = bakeCritter(k, 30001 + k.length * 13);
+    setMode(saved);
+  });
+
+  push('선화 캐릭터', () => {
+    // 색칠 안 한 스타일용 한 벌 더 (선은 같고 채색만 종이톤)
+    const saved = Theme.mode;
+    setMode('ink');
+    A.playerInk = bakeBean({ ...PLAYER_DEF, heightUnits: 1.5 }, 'full');
+    for (const v of VILLAGERS) {
+      A.beansInk[v.id] = bakeBean({ ...v, heightUnits: v.heightUnits || 1.42 }, v.id === 'sleepy' ? 'still' : 'lite');
     }
+    for (const k of CRITTERS) A.crittersInk[k] = bakeCritter(k, 30001 + k.length * 13);
+    setMode(saved);
   });
 
   push('숲 세우기', () => {
@@ -102,13 +127,46 @@ export async function bakeAll(onProgress = () => {}) {
     A.props.hay = pool(V3.hayBale, 3, 29401);
     A.props.trough = [V3.trough(29501)];
     A.props.flowerbox = pool(V3.flowerBox, 2, 29601);
+    // Sheet 4 · Sheet 7 소품
+    A.props.sack = pool(PR.sack, 2, 40001);
+    A.props.bucket = [PR.bucket(40101)];
+    A.props.table = [PR.table(40201)];
+    A.props.chair = pool(PR.chair, 2, 40301);
+    A.props.bench = pool(PR.logBench, 2, 40401);
+    A.props.chest = [PR.chest(40501)];
+    A.props.basket = pool(PR.basket, 2, 40601);
+    A.props.pot = pool(PR.potVase, 3, 40701);
+    A.props.wheelbarrow = [PR.wheelbarrow(40801)];
+    A.props.wagon = [PR.coveredWagon(40901)];
+    A.props.mailbox = [PR.mailbox(41001)];
+    A.props.birdhouse = [PR.birdhouse(41101)];
+    A.props.block = [PR.choppingBlock(41201)];
+    A.props.fountain = [PR.fountain(41301)];
+    A.props.statue = [PR.statue(41401)];
+    A.props.notice = [PR.noticeBoard(41501)];
+    A.props.stonewall = pool(PR.stoneWall, 3, 41601);
+    A.props.ropefence = pool(PR.ropeFence, 2, 41701);
+    A.props.ironfence = pool(PR.ironFence, 2, 41801);
+    A.props.woodgate = [PR.woodGate(41901)];
+    A.props.stonearch = [PR.stoneArch(42001)];
+    A.props.bunting = pool(PR.bunting, 2, 42101);
+    A.props.banner = pool(PR.banner, 3, 42201);
+    A.props.bollard = pool(PR.bollardChain, 2, 42301);
+    A.props.planter = pool(PR.planterBarrel, 2, 42401);
+    A.props.monolith = pool(PR.monolith, 3, 42501);
+    A.props.rockmound = pool(PR.rockMound, 3, 42601);
+    A.props.mound = pool(PR.dirtMound, 3, 42701);
+    A.props.cave = [PR.caveEntrance(42801)];
+
     A.props.acorn = [N3.acornModel()];
     A.props.lantern = [N3.lanternModel(false)];
     A.props.lanternLit = [N3.lanternModel(true)];
   });
 
   push('원경 굽기', () => {
-    // 멀리서도 보이는 큰 것들만 임포스터를 만든다
+    // 멀리서도 보이는 큰 것들만 임포스터를 만든다 (컬러 기준으로 굽고, 선화용은 필요할 때 굽는다)
+    const saved = Theme.mode;
+    setMode('color');
     imp(A.trees.pine, 30);
     imp(A.trees.blob, 30);
     imp(A.trees.willow, 30);
@@ -119,15 +177,23 @@ export async function bakeAll(onProgress = () => {}) {
     imp(A.props.rock, 34);
     imp(A.props.stump, 34);
     imp(A.props.log, 34);
-    for (const k of ['cottage', 'hut', 'shop', 'windmill', 'tower', 'tent', 'gate', 'well', 'fence', 'lamp', 'sign', 'barrel', 'crate', 'campfire', 'bridge', 'ruin', 'cart', 'woodpile', 'garden', 'laundry', 'hay', 'trough']) {
-      imp(A.props[k], 30);
+    for (const k of IMPOSTOR_KEYS) {
+      if (A.props[k]) imp(A.props[k], 30);
     }
+    setMode(saved);
   });
 
   push('UI 아이콘', () => {
+    const saved = Theme.mode;
+    setMode('color');
     A.icons.acorn = bakeImpostor(A.props.acorn[0], { yaw: 0.35, ppu: 90 });
     A.icons.lantern = bakeImpostor(A.props.lantern[0], { yaw: 0.35, ppu: 70 });
     A.icons.lanternLit = bakeImpostor(A.props.lanternLit[0], { yaw: 0.35, ppu: 70 });
+    setMode('ink');
+    A.icons.acornInk = bakeImpostor(A.props.acorn[0], { yaw: 0.35, ppu: 90 });
+    A.icons.lanternInk = bakeImpostor(A.props.lantern[0], { yaw: 0.35, ppu: 70 });
+    A.icons.lanternLitInk = bakeImpostor(A.props.lanternLit[0], { yaw: 0.35, ppu: 70 });
+    setMode(saved);
   });
 
   for (let i = 0; i < steps.length; i++) {
@@ -138,4 +204,26 @@ export async function bakeAll(onProgress = () => {}) {
   }
   onProgress('완성', 1);
   return A;
+}
+
+/** 스타일을 선화로 바꿀 때 원경 스프라이트를 미리 구워 둔다(전환 중 끊김 방지) */
+export function prebakeInkImpostors(A) {
+  const saved = Theme.mode;
+  setMode('ink');
+  const groups = [
+    ...Object.values(A.trees),
+    ...IMPOSTOR_KEYS.map((k) => A.props[k]),
+    A.props.bush,
+    A.props.berryBush,
+    A.props.rock,
+    A.props.stump,
+    A.props.log,
+  ];
+  for (const g of groups) {
+    if (!g) continue;
+    for (const m of g) {
+      if (m && m.imp && !m.impInk) m.impInk = bakeImpostorSet(m, { ppu: 30 });
+    }
+  }
+  setMode(saved);
 }

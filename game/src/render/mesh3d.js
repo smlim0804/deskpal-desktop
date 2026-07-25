@@ -4,6 +4,7 @@ import { buildEdges, faceNormal, centroid, bounds } from '../core/mesh.js';
 import { INK } from '../core/sketch.js';
 import { shade } from '../art/palette.js';
 import { clamp } from '../core/rng.js';
+import { isInk, paperTone, Theme, mul } from '../core/theme.js';
 
 // 고정 광원 (왼쪽 위 앞)
 const LX = -0.46;
@@ -14,6 +15,16 @@ const CREASE_COS = Math.cos(0.62); // 이보다 많이 꺾이면 선을 긋는�
 
 function toonColor(base, nx, ny, nz) {
   const ndl = nx * LX + ny * LY + nz * LZ;
+  if (isInk()) {
+    // 색칠 안 한 버전 — 종이 흰색 위에 아주 옅은 회색 단계로만 형태를 잡는다
+    let amt;
+    if (ndl > 0.62) amt = 1.0;
+    else if (ndl > 0.12) amt = 0.972;
+    else if (ndl > -0.35) amt = 0.925;
+    else amt = 0.885;
+    if (ny < -0.45) amt -= 0.03;
+    return mul(paperTone(base), amt);
+  }
   let amt;
   if (ndl > 0.62) amt = 0.1;
   else if (ndl > 0.12) amt = 0.012;
@@ -74,6 +85,7 @@ export function instantiate(model, { x = 0, y = 0, z = 0, ry = 0, scale = 1 } = 
 
   const bb = model.bb || (model.bb = bounds(model));
   return {
+    themeVersion: Theme.version,
     verts,
     faces,
     edges,
@@ -361,7 +373,7 @@ export function bakeImpostor(model, { yaw = 0, pitch = 0.36, ppu = 42, scale = 1
 }
 
 /** 여러 yaw 각도로 임포스터를 구워 두고, 카메라 각도에 맞춰 골라 쓴다 */
-export function bakeImpostorSet(model, { yaws = [-0.7, -0.35, 0, 0.35, 0.7], pitch = 0.36, ppu = 40, scale = 1 } = {}) {
+export function bakeImpostorSet(model, { yaws = [-0.62, 0, 0.62], pitch = 0.36, ppu = 40, scale = 1 } = {}) {
   const frames = yaws.map((y) => bakeImpostor(model, { yaw: y, pitch, ppu, scale }));
   return {
     yaws,

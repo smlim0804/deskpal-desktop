@@ -62,7 +62,15 @@ export const BEAN_COLORS = [
 ];
 
 // 낮/밤 보간용 하늘 색 얻기 (t: 0=낮, 1=밤, 중간은 노을)
+import { isInk } from '../core/theme.js';
+
 export function skyColors(t) {
+  if (isInk()) {
+    // 색칠 안 한 버전 — 흰 종이 하늘, 밤에만 아주 옅은 회색
+    const k = Math.max(0, (t - 0.45) / 0.55);
+    const v = 252 - k * 46;
+    return [`rgb(${v | 0},${(v - 2) | 0},${(v - 5) | 0})`, `rgb(${Math.min(255, v + 3) | 0},${(v + 1) | 0},${(v - 2) | 0})`];
+  }
   const mix = (a, b, k) => {
     const pa = hexToRgb(a);
     const pb = hexToRgb(b);
@@ -79,12 +87,24 @@ export function skyColors(t) {
 }
 
 export function hexToRgb(hex) {
+  if (typeof hex !== 'string') return [0, 0, 0];
+  if (hex[0] !== '#') {
+    const m = hex.match(/rgba?\(([^)]+)\)/);
+    if (m) {
+      const p = m[1].split(',').map((v) => parseFloat(v));
+      return [p[0] || 0, p[1] || 0, p[2] || 0];
+    }
+    return [0, 0, 0];
+  }
   const h = hex.replace('#', '');
+  if (h.length === 3) {
+    return [parseInt(h[0] + h[0], 16), parseInt(h[1] + h[1], 16), parseInt(h[2] + h[2], 16)];
+  }
   return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
 }
 
-export function shade(hex, amt) {
-  const [r, g, b] = hexToRgb(hex);
+export function shade(color, amt) {
+  const [r, g, b] = hexToRgb(color);
   const f = (v) => Math.max(0, Math.min(255, Math.round(v + amt * 255)));
   return `rgb(${f(r)},${f(g)},${f(b)})`;
 }

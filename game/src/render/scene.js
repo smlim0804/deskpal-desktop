@@ -5,12 +5,14 @@ import { instantiate, drawInstance } from './mesh3d.js';
 import { P, skyColors, hexToRgb } from '../art/palette.js';
 import { makeRng, clamp, lerp, noise1 } from '../core/rng.js';
 import { Terrain, heightAt, WATER_Y } from '../world/terrain.js';
+import { isInk, tone, Theme } from '../core/theme.js';
+import { bakeImpostorSet } from './mesh3d.js';
 
 const MAX_DIST = 50; // 이보다 먼 건 안 그림
 const FADE_START = 26;
 const SMALL_PROP_DIST = 18; // 잔풀·꽃 같은 작은 것들의 표시 거리
-const NEAR_3D = 26; // 이 안쪽은 진짜 폴리곤, 바깥은 미리 구운 임포스터
-const MIN_SCREEN_H = 3.5; // 화면에서 이보다 작아지면 생략
+const NEAR_3D = 22; // 이 안쪽은 진짜 폴리곤, 바깥은 미리 구운 임포스터
+const MIN_SCREEN_H = 4; // 화면에서 이보다 작아지면 생략
 
 export class Scene {
   constructor(ctx, cam) {
@@ -18,18 +20,29 @@ export class Scene {
     this.cam = cam;
     this.paper = makePaperTile(256, 7);
     this.paperPat = ctx.createPattern(this.paper, 'repeat');
-    this.clouds = [0, 1, 2].map((i) => bakeCloud(400 + i * 97));
-    this.treeline = bakeTreeline(777);
-    this.sun = bakeSun(31);
-    this.moon = bakeMoon(33);
+    this.bg = { color: null, ink: null };
     this.terrain = new Terrain();
     this._p = { x: 0, y: 0, scale: 0, depth: 0, visible: false };
     this._q = { x: 0, y: 0, scale: 0, depth: 0, visible: false };
     this.drawList = [];
   }
 
+  // 하늘 소품은 스타일마다 한 벌씩 (색이 구워져 들어가므로)
+  backdrop() {
+    const key = isInk() ? 'ink' : 'color';
+    if (!this.bg[key]) {
+      this.bg[key] = {
+        clouds: [0, 1, 2].map((i) => bakeCloud(400 + i * 97)),
+        treeline: bakeTreeline(777),
+        sun: bakeSun(31),
+        moon: bakeMoon(33),
+      };
+    }
+    return this.bg[key];
+  }
+
   _skyGradient(dayT, hy) {
-    const key = `${Math.round(dayT * 60)}|${Math.round(hy)}|${this.cam.h}`;
+    const key = `${Math.round(dayT * 60)}|${Math.round(hy)}|${this.cam.h}|${Theme.version}`;
     if (this._skyKey !== key) {
       const [top, low] = skyColors(dayT);
       const g = this.ctx.createLinearGradient(0, 0, 0, Math.max(hy, 40));
@@ -52,15 +65,16 @@ export class Scene {
     // 해 / 달 — 카메라 회전에 따라 아주 느리게 움직여 원경 시차를 만든다
     const px = cam.w * 0.72 - cam.yaw * 260;
     const py = hy - 96 - Math.sin(dayT * Math.PI) * 46;
-    const body = dayT < 0.55 ? this.sun : this.moon;
+    const bg = this.backdrop();
+    const body = dayT < 0.55 ? bg.sun : bg.moon;
     ctx.save();
     ctx.globalAlpha = dayT < 0.55 ? 1 : clamp((dayT - 0.4) * 3, 0, 1);
     ctx.drawImage(body.canvas, px - 60, py - 60, 120, 120);
     ctx.restore();
 
     // 구름
-    for (let i = 0; i < this.clouds.length; i++) {
-      const c = this.clouds[i];
+    for (let i = 0; i < bg.clouds.length; i++) {
+      const c = bg.clouds[i];
       const drift = ((time * (4 + i * 2) + i * 640) % (cam.w + 900)) - 450;
       const x = drift - cam.yaw * (120 + i * 60);
       const y = hy - 210 + i * 62 + Math.sin(time * 0.3 + i) * 5;
@@ -76,7 +90,7 @@ export class Scene {
     ctx.save();
     ctx.globalAlpha = 0.55;
     for (let i = -1; i * tw - off < cam.w + tw; i++) {
-      ctx.drawImage(this.treeline.canvas, i * tw - off, hy - 96, tw, 110);
+      ctx.drawImage(bg.treeline.canvas, i * tw - off, hy - 96, tw, 110);
     }
     ctx.restore();
   }
@@ -84,12 +98,18 @@ export class Scene {
   drawGround(dayT) {
     const { ctx, cam } = this;
     const hy = clamp(cam.horizonY(), -200, cam.h);
-    const key = `${Math.round(hy)}|${cam.h}`;
+    const key = `${Math.round(hy)}|${cam.h}|${Theme.version}`;
     if (this._groundKey !== key) {
       const g = ctx.createLinearGradient(0, Math.max(hy, 0), 0, cam.h);
-      g.addColorStop(0, '#cfe0ad');
-      g.addColorStop(0.35, P.grass);
-      g.addColorStop(1, P.grassDark);
+      if (isInk()) {
+        g.addColorStop(0, '#f4f2ec');
+        g.addColorStop(0.35, '#f7f5ef');
+        g.addColorStop(1, '#f2efe7');
+      } else {
+        g.addColorStop(0, '#cfe0ad');
+        g.addColorStop(0.35, P.grass);
+        g.addColorStop(1, P.grassDark);
+      }
       this._groundKey = key;
       this._groundGrad = g;
     }
@@ -126,7 +146,7 @@ export class Scene {
       if (!ok) continue;
       ctx.closePath();
       if (d.fill) {
-        ctx.fillStyle = d.fill;
+        ctx.fillStyle = tone(d.fill);
         ctx.fill();
       }
       if (d.stroke) {
@@ -250,7 +270,7 @@ export class Scene {
 
       if (e.model) {
         const model = e.litModel && e.lit ? e.litModel : e.model;
-        const useMesh = p.depth < NEAR_3D || !model.imp;
+        const useMesh = p.depth < NEAR_3D || (isInk() ? false : !model.imp);
         ctx.save();
         if (shear) {
           ctx.translate(p.x, p.y);
@@ -260,7 +280,7 @@ export class Scene {
         if (useMesh) {
           // 흔들리거나(픽업) 회전이 바뀌면 다시 굽는다
           const gy = e.gy ?? 0;
-          if (!e._inst || e._instModel !== model) {
+          if (!e._inst || e._instModel !== model || e._inst.themeVersion !== Theme.version) {
             e._inst = instantiate(model, { x: e.x, y: gy, z: e.z, ry: e.ry || 0, scale: e.scale || 1 });
             e._instModel = model;
           }
@@ -271,7 +291,8 @@ export class Scene {
           }
           faces += drawInstance(ctx, cam, e._inst, { alpha, lineScale: 1 });
         } else {
-          const sp = model.imp.pick(cam.yaw);
+          const set = isInk() ? model.impInk || (model.impInk = bakeImpostorSet(model, { ppu: 30 })) : model.imp;
+          const sp = set.pick(cam.yaw);
           const h = sp.unitsTall * p.scale * (e.scale || 1);
           const w = h * sp.aspect;
           ctx.globalAlpha = alpha;
@@ -295,7 +316,7 @@ export class Scene {
     if (night <= 0.01) return;
     ctx.save();
     ctx.globalCompositeOperation = 'multiply';
-    ctx.fillStyle = `rgba(62,80,146,${0.8 * night})`;
+    ctx.fillStyle = isInk() ? `rgba(150,155,168,${0.55 * night})` : `rgba(62,80,146,${0.8 * night})`;
     ctx.fillRect(0, 0, cam.w, cam.h);
     ctx.restore();
 
@@ -308,9 +329,15 @@ export class Scene {
       const r = Math.min(cam.h * 0.5, (e.glowR || 2.6) * p.scale * flick);
       const gy = p.y - e._sh * (e.glowY ?? 0.72);
       const g = ctx.createRadialGradient(p.x, gy, 0, p.x, gy, r);
-      g.addColorStop(0, `rgba(255,226,158,${0.42 * night * Math.min(1, e.glow)})`);
-      g.addColorStop(0.42, `rgba(255,198,116,${0.14 * night * Math.min(1, e.glow)})`);
-      g.addColorStop(1, 'rgba(255,190,110,0)');
+      if (isInk()) {
+        g.addColorStop(0, `rgba(250,248,240,${0.4 * night * Math.min(1, e.glow)})`);
+        g.addColorStop(0.42, `rgba(244,241,232,${0.14 * night * Math.min(1, e.glow)})`);
+        g.addColorStop(1, 'rgba(244,241,232,0)');
+      } else {
+        g.addColorStop(0, `rgba(255,226,158,${0.42 * night * Math.min(1, e.glow)})`);
+        g.addColorStop(0.42, `rgba(255,198,116,${0.14 * night * Math.min(1, e.glow)})`);
+        g.addColorStop(1, 'rgba(255,190,110,0)');
+      }
       ctx.fillStyle = g;
       ctx.beginPath();
       ctx.arc(p.x, gy, r, 0, Math.PI * 2);
@@ -331,8 +358,13 @@ export class Scene {
       if (q.type === 'firefly') {
         ctx.globalCompositeOperation = 'lighter';
         const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, r * 3.5);
-        g.addColorStop(0, `rgba(255,240,170,${0.9 * alpha})`);
-        g.addColorStop(1, 'rgba(255,220,120,0)');
+        if (isInk()) {
+          g.addColorStop(0, `rgba(250,248,242,${0.9 * alpha})`);
+          g.addColorStop(1, 'rgba(246,243,236,0)');
+        } else {
+          g.addColorStop(0, `rgba(255,240,170,${0.9 * alpha})`);
+          g.addColorStop(1, 'rgba(255,220,120,0)');
+        }
         ctx.fillStyle = g;
         ctx.beginPath();
         ctx.arc(p.x, p.y, r * 3.5, 0, Math.PI * 2);
@@ -340,7 +372,7 @@ export class Scene {
         ctx.globalCompositeOperation = 'source-over';
       } else if (q.type === 'leaf') {
         ctx.globalAlpha = alpha * fadeFor(p.depth);
-        ctx.fillStyle = q.color;
+        ctx.fillStyle = tone(q.color);
         ctx.strokeStyle = INK;
         ctx.lineWidth = 1;
         ctx.save();
@@ -353,14 +385,14 @@ export class Scene {
         ctx.restore();
       } else if (q.type === 'splash' || q.type === 'dust') {
         ctx.globalAlpha = alpha * 0.8;
-        ctx.strokeStyle = q.type === 'splash' ? '#7fb9c8' : 'rgba(120,110,90,0.8)';
+        ctx.strokeStyle = q.type === 'splash' ? (isInk() ? 'rgba(140,145,150,0.8)' : '#7fb9c8') : 'rgba(120,110,90,0.8)';
         ctx.lineWidth = 1.6;
         ctx.beginPath();
         ctx.arc(p.x, p.y, r * (1.6 - alpha), 0, Math.PI * 2);
         ctx.stroke();
       } else if (q.type === 'spark') {
         ctx.globalAlpha = alpha;
-        ctx.fillStyle = '#ffd98a';
+        ctx.fillStyle = isInk() ? '#e8e4d8' : '#ffd98a';
         ctx.beginPath();
         ctx.arc(p.x, p.y, r * 1.2, 0, Math.PI * 2);
         ctx.fill();
@@ -469,7 +501,7 @@ function bakeTreeline(seed) {
     pad: 0,
     ay: 1,
     draw: (ctx, rng) => {
-      ctx.fillStyle = '#9dbb96';
+      ctx.fillStyle = tone('#9dbb96');
       ctx.strokeStyle = 'rgba(51,48,43,0.5)';
       ctx.lineWidth = 1.4;
       for (let x = -20; x < 920; x += 16 + rng() * 12) {

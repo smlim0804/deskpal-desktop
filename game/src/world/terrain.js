@@ -1,6 +1,7 @@
 // 진짜 3D 지형 — 이전에는 화면에 칠한 평면 그라디언트라서 오브젝트가 스티커처럼 떠 보였다.
 // 이제 땅도 폴리곤이고, 나무·건물·캐릭터는 전부 이 높이 위에 앉는다.
 import { clamp, smoothstep } from '../core/rng.js';
+import { isInk } from '../core/theme.js';
 
 
 export const WORLD_RADIUS = 46;
@@ -129,6 +130,11 @@ function cellColor(x, z, h, n) {
   }
   // 연속적인 명암
   const ndl = n[0] * LX + n[1] * LY + n[2] * LZ;
+  if (isInk()) {
+    // 색칠 안 한 버전 — 종이 그대로, 기울기만 아주 옅은 회색으로
+    const v = clamp(249 + (ndl - 0.97) * 90, 226, 252);
+    return `rgb(${v | 0},${(v - 2) | 0},${(v - 6) | 0})`;
+  }
   const f = clamp(0.94 + (ndl - 0.95) * 0.9, 0.86, 1.04);
   return `rgb(${(r * f) | 0},${(g * f) | 0},${(b * f) | 0})`;
 }
@@ -301,14 +307,14 @@ export class Terrain {
       i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y);
     }
     ctx.closePath();
-    ctx.fillStyle = 'rgba(158,206,213,0.82)';
+    ctx.fillStyle = isInk() ? 'rgba(238,241,243,0.85)' : 'rgba(158,206,213,0.82)';
     ctx.fill();
     ctx.strokeStyle = 'rgba(51,48,43,0.35)';
     ctx.lineWidth = 1.6;
     ctx.stroke();
 
     // 물결
-    ctx.strokeStyle = 'rgba(255,255,255,0.45)';
+    ctx.strokeStyle = isInk() ? 'rgba(120,116,108,0.35)' : 'rgba(255,255,255,0.45)';
     ctx.lineWidth = 1.4;
     const lim = (this._shoreMin || POND.r) - 0.5;
     for (let k = 0; k < 4; k++) {

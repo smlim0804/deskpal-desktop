@@ -83,6 +83,37 @@ html, body {
   padding: 0 7px;
 }
 
+/* 그림 스타일 선택 */
+.style-pick {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin: 0 0 18px;
+}
+.style-label {
+  font-size: 17px;
+  opacity: 0.7;
+  margin-right: 4px;
+}
+.style-btn {
+  font: inherit;
+  font-size: 17px;
+  padding: 6px 16px;
+  border: 2.5px solid var(--ink);
+  border-radius: 12px 9px 13px 8px / 9px 13px 8px 12px;
+  background: var(--paper);
+  color: var(--ink);
+  cursor: pointer;
+  box-shadow: 2px 3px 0 rgba(42, 38, 34, 0.5);
+}
+.style-btn.is-on {
+  background: var(--ink);
+  color: var(--paper);
+}
+.style-btn:hover { transform: translate(-1px, -1px); }
+
 button {
   font: inherit;
   font-size: 22px;

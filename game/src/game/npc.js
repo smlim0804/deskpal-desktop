@@ -1,6 +1,7 @@
 // 주민 / 숲 친구들의 자율 행동
 import { makeRng, noise1, clamp } from '../core/rng.js';
 import { heightAt } from '../world/terrain.js';
+import { isInk } from '../core/theme.js';
 
 const rngA = makeRng(4242);
 
@@ -13,14 +14,16 @@ function pickTarget(e) {
 }
 
 export function updateVillagers(world, dt, player, game) {
+  const ink = isInk();
   for (const e of world.npcs) {
     e.t += dt;
+    const set = ink && e.setInk ? e.setInk : e.set;
     const talking = game.dialogue.active && game.dialogue.target === e;
 
     if (e.gy === undefined) e.gy = heightAt(e.x, e.z);
     if (e.state === 'sleep') {
       e.anim = 'idle';
-      const seq = e.set.idle;
+      const seq = set.idle;
       e.frame = Math.floor(e.t * 0.9) % seq.length;
       e.currentSprite = seq[e.frame];
       e.alpha = 1;
@@ -30,13 +33,13 @@ export function updateVillagers(world, dt, player, game) {
     if (talking) {
       // 플레이어를 바라보고 말하는 모션
       e.flip = player.x - e.x < 0 ? false : true;
-      const seq = e.set.talk || e.set.idle;
+      const seq = set.talk || set.idle;
       e.currentSprite = seq[Math.floor(e.t * 6) % seq.length];
       continue;
     }
 
     if (e.celebrate) {
-      const seq = e.set.cheer || e.set.idle;
+      const seq = set.cheer || set.idle;
       e.currentSprite = seq[0];
       e.y = e.gy + Math.abs(Math.sin(e.t * 6)) * 0.28;
       continue;
@@ -59,7 +62,7 @@ export function updateVillagers(world, dt, player, game) {
       pickTarget(e);
     }
 
-    const seq = moving ? e.set.walk || e.set.idle : e.set.idle;
+    const seq = moving ? set.walk || set.idle : set.idle;
     const fps = moving ? 6.5 : 1.8;
     e.currentSprite = seq[Math.floor(e.t * fps) % seq.length];
     e.gy = heightAt(e.x, e.z);
@@ -68,6 +71,7 @@ export function updateVillagers(world, dt, player, game) {
 }
 
 export function updateCritters(world, dt, player) {
+  const ink = isInk();
   for (const e of world.critters) {
     e.t += dt;
     if (e.tx == null) pickTarget(e);
@@ -94,8 +98,9 @@ export function updateCritters(world, dt, player) {
 
     e.gy = heightAt(e.x, e.z);
     e.y = e.gy + (e.hover ? e.hover + Math.sin(e.t * 1.6) * 0.16 : 0);
-    e.currentSprite = e.set.idle[Math.floor(e.t * 2.4) % e.set.idle.length];
-    e.h = e.set.height;
+    const cset = ink && e.setInk ? e.setInk : e.set;
+    e.currentSprite = cset.idle[Math.floor(e.t * 2.4) % cset.idle.length];
+    e.h = cset.height;
     e.shadow = e.hover ? 0.55 : 1;
   }
 }

@@ -1,6 +1,7 @@
 // 플레이어 콩 — 3D 공간에서 움직이고, 2D 손그림 프레임으로 표현된다.
 import { clamp } from '../core/rng.js';
 import { POND, heightAt, WATER_Y } from '../world/terrain.js';
+import { isInk } from '../core/theme.js';
 
 const GRAVITY = 15.5;
 const JUMP_V = 5.4;
@@ -8,8 +9,9 @@ const WALK = 3.5;
 const RUN = 6.2;
 
 export class Player {
-  constructor(set, x = 0, z = 21) {
+  constructor(set, setInk, x = 0, z = 21) {
     this.set = set;
+    this.setInk = setInk;
     this.x = x;
     this.z = z;
     this.gy = heightAt(x, z);
@@ -32,8 +34,12 @@ export class Player {
     this.sway = 0;
   }
 
+  get sprites() {
+    return isInk() && this.setInk ? this.setInk : this.set;
+  }
+
   get currentSprite() {
-    const s = this.set;
+    const s = this.sprites;
     const seq = s[this.anim] || s.idle;
     return seq[this.frame % seq.length];
   }
@@ -120,7 +126,7 @@ export class Player {
     }
     const fps = anim === 'walk' ? (running ? 11 : 7.5) : 2.2;
     this.animT += dt * fps;
-    const seq = this.set[this.anim] || this.set.idle;
+    const seq = this.sprites[this.anim] || this.sprites.idle;
     this.frame = Math.floor(this.animT) % seq.length;
 
     // 물 튀김 / 발자국 먼지

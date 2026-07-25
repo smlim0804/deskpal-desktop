@@ -2,6 +2,7 @@
 // 라인은 매 프레임 다시 그리지 않고, 시작할 때 한 번 오프스크린 캔버스에 구워서
 // "떨리는 선"이 프레임마다 요동치지(boiling) 않게 한다.
 import { makeRng } from './rng.js';
+import { tone } from './theme.js';
 
 export const INK = '#33302b';
 export const INK_SOFT = 'rgba(51,48,43,0.55)';
@@ -115,7 +116,7 @@ export function shape(ctx, pts, opts = {}) {
     const fpts = jitter(pts, rng, rough * 0.7).map(([x, y]) => [x + fillShift * 0.6, y - fillShift * 0.5]);
     ctx.save();
     ctx.globalAlpha = alpha;
-    ctx.fillStyle = fill;
+    ctx.fillStyle = tone(fill);
     ctx.fill(smoothPath(fpts, close, corner));
     ctx.restore();
   }
