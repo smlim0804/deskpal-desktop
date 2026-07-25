@@ -132,9 +132,10 @@ The overlay update badge appears when the public release version is newer than t
 
 ## Bean Hollow (bonus browser game)
 
-`game/` holds **Bean Hollow**, a hand-drawn forest-village game built from the project's sketch
-reference sheets. The art is 2D ink drawing, but the world is projected through a real 3D
-perspective camera, so walking around produces genuine parallax and depth sorting.
+`game/` holds **Bean Hollow**, a forest-village game built from the project's sketch reference
+sheets. Characters stay 2D — hand-drawn paper cut-outs that always face the camera — while the
+village itself (buildings, trees, rocks, props) is real low-poly 3D geometry, rendered with toon
+shading and hand-drawn ink outlines derived from silhouette and crease edges.
 
 ```bash
 npm run game        # http://127.0.0.1:4173

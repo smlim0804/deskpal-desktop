@@ -1,12 +1,14 @@
 // 씬 렌더러 — 2D 손그림 스프라이트를 3D 카메라 공간에 배치해서 그린다.
 import { bake, shape, line, ellipse, makePaperTile, INK } from '../core/sketch.js';
-import { cloudSilhouette } from '../art/nature.js';
+import { cloudSilhouette } from '../art/backdrop.js';
+import { instantiate, drawInstance } from './mesh3d.js';
 import { P, skyColors, hexToRgb } from '../art/palette.js';
 import { makeRng, clamp, lerp, noise1 } from '../core/rng.js';
 
 const MAX_DIST = 50; // 이보다 먼 건 안 그림
 const FADE_START = 26;
-const SMALL_PROP_DIST = 24; // 잔풀·꽃 같은 작은 것들의 표시 거리
+const SMALL_PROP_DIST = 22; // 잔풀·꽃 같은 작은 것들의 표시 거리
+const NEAR_3D = 26; // 이 안쪽은 진짜 폴리곤, 바깥은 미리 구운 임포스터
 const MIN_SCREEN_H = 3; // 화면에서 이보다 작아지면 생략
 
 export class Scene {
@@ -164,7 +166,7 @@ export class Scene {
       const sh = e.h * p.scale;
       if (sh < MIN_SCREEN_H) continue;
       // 화면 밖 컬링
-      const halfW = sh * 1.2;
+      const halfW = e.model ? Math.max(e.r, e.shadowR || 0.4, 0.4) * p.scale * 1.6 : sh * 1.2;
       if (p.x + halfW < -40 || p.x - halfW > cam.w + 40 || p.y - sh * 1.6 > cam.h + 40) continue;
       e._p = p;
       e._sh = sh;
@@ -182,14 +184,35 @@ export class Scene {
       e.alpha = 1;
       if (e === player || e.h < 1.6 || e.noFade) continue;
       if (e.kind !== 'prop' && e.kind !== 'npc') continue;
+      // 카메라 코앞을 막아선 물체는 사라지듯 흐려진다(거대한 실루엣이 화면을 덮는 걸 방지)
+      if (e._sh > this.cam.h * 1.15) {
+        e.alpha = 0;
+        continue;
+      }
+      if (e._p.depth < 8) {
+        e.alpha = clamp((e._p.depth - 4.5) / 3.5, 0, 1) * 0.4;
+        continue;
+      }
       if (e._p.depth >= pp.depth - 0.35) continue;
-      const sp = e.currentSprite || e.sprite;
-      if (!sp) continue;
-      const sw = e._sh * sp.aspect;
-      const left = e._p.x - sw * sp.ax;
-      const right = left + sw;
-      const top = e._p.y - e._sh * sp.ay;
-      const bottom = top + e._sh;
+      let left;
+      let right;
+      let top;
+      let bottom;
+      if (e.model) {
+        const hw = Math.max(e.shadowR || 0.5, 0.5) * e._p.scale;
+        left = e._p.x - hw;
+        right = e._p.x + hw;
+        top = e._p.y - e._sh;
+        bottom = e._p.y;
+      } else {
+        const sp = e.currentSprite || e.sprite;
+        if (!sp) continue;
+        const sw = e._sh * sp.aspect;
+        left = e._p.x - sw * sp.ax;
+        right = left + sw;
+        top = e._p.y - e._sh * sp.ay;
+        bottom = top + e._sh;
+      }
       if (right < pp.x - pw || left > pp.x + pw) continue;
       if (bottom < pTop || top > pp.y) continue;
       e.alpha = 0.4;
@@ -206,6 +229,7 @@ export class Scene {
       const groundP = e.y ? cam.project(e.x, 0, e.z, this._q) : p;
       if (!groundP.visible) continue;
       const r = (e.shadowR || Math.max(0.28, (e.r || 0.35) * 1.25)) * groundP.scale;
+      // (3D 모델은 경계상자에서 뽑은 shadowR 을 그대로 쓴다)
       if (r < 2.2) continue;
       const lift = e.y ? clamp(1 - e.y * 0.45, 0.45, 1) : 1;
       ctx.globalAlpha = alphaBase * (e.shadow ?? 1) * lift * fadeFor(p.depth);
@@ -218,19 +242,55 @@ export class Scene {
   }
 
   drawEntities(list, time) {
-    const { ctx } = this;
+    const { ctx, cam } = this;
+    let faces = 0;
     for (const e of list) {
       const p = e._p;
-      const sp = e.currentSprite || e.sprite;
-      if (!sp) continue;
       const alpha = fadeFor(p.depth) * (e.alpha ?? 1);
       if (alpha <= 0.02) continue;
+      // 바람에 흔들리는 정도(화면 기준 기울임)
       let shear = 0;
       if (e.sway) {
         shear = Math.sin(time * 1.5 + e.phase) * 0.02 * e.sway + noise1(time * 0.4 + e.phase, 2) * 0.012 * e.sway;
       }
+
+      if (e.model) {
+        const model = e.litModel && e.lit ? e.litModel : e.model;
+        const useMesh = p.depth < NEAR_3D || !model.imp;
+        ctx.save();
+        if (shear) {
+          ctx.translate(p.x, p.y);
+          ctx.transform(1, 0, shear, 1, 0, 0);
+          ctx.translate(-p.x, -p.y);
+        }
+        if (useMesh) {
+          // 흔들리거나(픽업) 회전이 바뀌면 다시 굽는다
+          if (!e._inst || e._instModel !== model) {
+            e._inst = instantiate(model, { x: e.x, y: 0, z: e.z, ry: e.ry || 0, scale: e.scale || 1 });
+            e._instModel = model;
+          }
+          if (e.y) {
+            // 위아래로 떠 있는 오브젝트는 화면상 평행이동으로 근사
+            cam.project(e.x, 0, e.z, this._q);
+            ctx.translate(0, p.y - this._q.y);
+          }
+          faces += drawInstance(ctx, cam, e._inst, { alpha, lineScale: 1 });
+        } else {
+          const sp = model.imp.pick(cam.yaw);
+          const h = sp.unitsTall * p.scale * (e.scale || 1);
+          const w = h * sp.aspect;
+          ctx.globalAlpha = alpha;
+          ctx.drawImage(sp.canvas, p.x - w * sp.ax, p.y - h * sp.ay, w, h);
+        }
+        ctx.restore();
+        continue;
+      }
+
+      const sp = e.currentSprite || e.sprite;
+      if (!sp) continue;
       blit(ctx, sp, p.x, p.y, e._sh, alpha, e.flip, shear);
     }
+    return faces;
   }
 
   // 밤 + 광원

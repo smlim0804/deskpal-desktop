@@ -68,13 +68,13 @@ export function drawHud(ctx, cam, game) {
   rr(ctx, px, py, 232, 96, { seed: 11 });
 
   // 도토리
-  const acorn = game.assets.props.acorn[0];
-  ctx.drawImage(acorn.canvas, px + 14, py + 12, 28, 30);
+  const acorn = game.assets.icons.acorn;
+  ctx.drawImage(acorn.canvas, px + 16, py + 10, 30 * acorn.aspect, 30);
   text(ctx, `도토리  ${q.acorns} / 12`, px + 50, py + 34, 22);
 
   // 등불
-  const lan = q.delivered >= TOTAL_LANTERNS ? game.assets.props.lanternLit[0] : game.assets.props.lantern[0];
-  ctx.drawImage(lan.canvas, px + 14, py + 46, 26, 34);
+  const lan = q.delivered >= TOTAL_LANTERNS ? game.assets.icons.lanternLit : game.assets.icons.lantern;
+  ctx.drawImage(lan.canvas, px + 16, py + 46, 30 * lan.aspect, 30);
   text(ctx, `등불  ${q.delivered} / ${TOTAL_LANTERNS}`, px + 50, py + 72, 22);
   if (q.carrying > 0) text(ctx, `(들고 있음 ${q.carrying})`, px + 152, py + 72, 16, '#8a6a3a');
 

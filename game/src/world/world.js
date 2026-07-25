@@ -10,18 +10,23 @@ export const POND = { x: 15.5, z: 7.5, r: 6.2 };
 let uid = 1;
 const nextId = () => uid++;
 
-function prop(list, sprites, x, z, opt = {}) {
-  const sp = Array.isArray(sprites) ? pick(opt.rng || Math.random, sprites) : sprites;
+function prop(list, models, x, z, opt = {}) {
+  const rng = opt.rng || Math.random;
+  const sp = Array.isArray(models) ? pick(rng, models) : models;
+  const scale = opt.scale != null ? opt.scale : 1;
   list.push({
     id: nextId(),
     kind: 'prop',
     x,
     z,
     y: 0,
-    sprite: sp,
-    h: opt.h || sp.hUnits || 1,
-    r: opt.r != null ? opt.r : sp.radius || 0,
+    model: sp,
+    ry: opt.ry != null ? opt.ry : rng() * Math.PI * 2,
+    scale,
+    h: (opt.h || sp.hUnits || 1) * scale,
+    r: (opt.r != null ? opt.r : sp.radius || 0) * scale,
     sway: opt.sway != null ? opt.sway : sp.sway || 0,
+    shadowR: (sp.shadowR || 0.35) * scale,
     phase: (x * 7.3 + z * 3.1) % 6.28,
     shadow: opt.shadow != null ? opt.shadow : 1,
     glow: opt.glow || 0,
@@ -143,23 +148,23 @@ export function buildWorld(A) {
   makePathDecals(rng, branchPolyline(), 1.6, decals);
 
   // ── 마을 건물 ────────────────────────────
-  const gate = prop(props, A.props.gate[0], GATE.x, GATE.z, { rng, tag: 'gate', r: 0, noFade: true, glowR: 5 });
-  prop(props, A.props.well[0], 1.6, -0.4, { rng, tag: 'well' });
+  const gate = prop(props, A.props.gate[0], GATE.x, GATE.z, { rng, tag: 'gate', r: 0, noFade: true, glowR: 5, ry: 0 });
+  prop(props, A.props.well[0], 1.6, -0.4, { rng, tag: 'well', ry: 0.2 });
   prop(props, A.props.campfire[0], -2.4, 1.6, { rng, glow: 1, glowR: 3.4, tag: 'fire' });
 
-  prop(props, A.props.cottage[0], -9.5, -5.5, { rng });
-  prop(props, A.props.cottage[1], 8.5, -6.5, { rng });
-  prop(props, A.props.cottage[2], -7.5, 5.5, { rng });
-  prop(props, A.props.hut[0], 12.5, -1.5, { rng });
-  prop(props, A.props.hut[1], -14.5, 1.0, { rng });
-  prop(props, A.props.shop[0], -4.5, -4.2, { rng, tag: 'shop' });
-  prop(props, A.props.windmill[0], 17.5, -11.5, { rng });
-  prop(props, A.props.tower[0], -17.5, -12.5, { rng });
+  prop(props, A.props.cottage[0], -9.5, -5.5, { rng, ry: 0.55 });
+  prop(props, A.props.cottage[1], 8.5, -6.5, { rng, ry: -0.5 });
+  prop(props, A.props.cottage[2], -7.5, 5.5, { rng, ry: 1.9 });
+  prop(props, A.props.hut[0], 12.5, -1.5, { rng, ry: -1.4 });
+  prop(props, A.props.hut[1], -14.5, 1.0, { rng, ry: 1.5 });
+  prop(props, A.props.shop[0], -4.5, -4.2, { rng, tag: 'shop', ry: 0.25 });
+  prop(props, A.props.windmill[0], 17.5, -11.5, { rng, ry: 0.4 });
+  prop(props, A.props.tower[0], -17.5, -12.5, { rng, ry: 0.6 });
   prop(props, A.props.tent[0], 5.5, 6.5, { rng });
   prop(props, A.props.tent[1], 7.8, 8.4, { rng, flip: true });
   prop(props, A.props.ruin[0], -20.5, 7.5, { rng, tag: 'ruin' });
   prop(props, A.props.cart[0], 3.4, 3.2, { rng });
-  prop(props, A.props.bridge[0], POND.x - 0.2, POND.z - 5.6, { rng, r: 0 });
+  prop(props, A.props.bridge[0], POND.x - 0.2, POND.z - 5.6, { rng, r: 0, ry: 0 });
 
   // 소품
   for (const [x, z] of [
@@ -184,13 +189,13 @@ export function buildWorld(A) {
     [3.2, -2.4],
     [-8.6, -1.6],
   ])
-    prop(props, A.props.lamp, x, z, { rng, glow: 1, glowR: 3.2, noFade: true });
+    prop(props, A.props.lamp, x, z, { rng, glow: 1, glowR: 3.2, noFade: true, ry: Math.PI * 0.5 });
 
-  prop(props, A.props.sign[0], 1.8, 11.5, { rng });
+  prop(props, A.props.sign[0], 1.8, 11.5, { rng, ry: -0.3 });
 
   // 울타리 줄
-  for (let i = 0; i < 5; i++) prop(props, A.props.fence, -12.5 + i * 1.9, -8.6, { rng });
-  for (let i = 0; i < 4; i++) prop(props, A.props.fence, 12.0, -4.0 + i * 1.9, { rng });
+  for (let i = 0; i < 5; i++) prop(props, A.props.fence, -12.5 + i * 1.9, -8.6, { rng, ry: 0 });
+  for (let i = 0; i < 4; i++) prop(props, A.props.fence, 12.0, -4.0 + i * 1.9, { rng, ry: Math.PI / 2 });
 
   // ── 숲 ──────────────────────────────────
   const treeKinds = [A.trees.pine, A.trees.blob, A.trees.willow, A.trees.bare, A.trees.autumn];
@@ -234,11 +239,14 @@ export function buildWorld(A) {
     const z = Math.sin(a) * r;
     const inPond = Math.hypot(x - POND.x, z - POND.z) < POND.r - 0.4;
     if (inPond) continue;
+    // 광장과 대문 길목은 비워 둔다
+    if (Math.hypot(x - PLAZA.x, z - PLAZA.z) < 5.0) continue;
+    if (Math.abs(x) < 1.5 && z > -1 && z < 19) continue;
     const roll = rng();
     let sp;
     if (roll < 0.62) sp = A.props.grass;
-    else if (roll < 0.78) sp = A.props.flower;
-    else if (roll < 0.88) sp = A.props.mushroom;
+    else if (roll < 0.80) sp = A.props.flower;
+    else if (roll < 0.86) sp = A.props.mushroom;
     else sp = A.props.sapling;
     prop(props, sp, x, z, { rng, r: 0, shadow: 0.45 });
   }
@@ -271,8 +279,10 @@ export function buildWorld(A) {
       x,
       z,
       y: 0,
-      sprite: A.props.acorn[0],
-      h: 0.5,
+      model: A.props.acorn[0],
+      ry: i * 0.7,
+      scale: 1,
+      h: 0.42,
       phase: i * 1.3,
       taken: false,
     });
@@ -292,9 +302,11 @@ export function buildWorld(A) {
       x: s.x,
       z: s.z,
       y: 0,
-      sprite: A.props.lantern[0],
-      litSprite: A.props.lanternLit[0],
-      h: 0.8,
+      model: A.props.lantern[0],
+      litModel: A.props.lanternLit[0],
+      ry: i * 0.9,
+      scale: 1,
+      h: 0.68,
       glow: 0.7,
       glowR: 2.2,
       glowY: 0.5,

@@ -227,8 +227,7 @@ class Game {
     // 도토리 자동 획득
     for (const k of this.world.pickups) {
       if (k.taken) continue;
-      k.y = 0.25 + Math.sin(this.time * 2 + k.phase) * 0.12;
-      k.spin = this.time;
+      k.y = 0.22 + Math.sin(this.time * 2 + k.phase) * 0.1;
       if (k.kind === 'lantern') {
         const d = Math.hypot(k.x - player.x, k.z - player.z);
         if (d < 26 && Math.random() < dt * 1.1) {
