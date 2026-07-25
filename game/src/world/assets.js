@@ -96,6 +96,12 @@ export async function bakeAll(onProgress = () => {}) {
     A.props.bridge = [V3.bridge(27001)];
     A.props.ruin = [V3.ruinArch(28001)];
     A.props.cart = [V3.cart(29001)];
+    A.props.woodpile = pool(V3.woodPile, 2, 29101);
+    A.props.garden = pool(V3.gardenPlot, 2, 29201);
+    A.props.laundry = pool(V3.laundryLine, 2, 29301);
+    A.props.hay = pool(V3.hayBale, 3, 29401);
+    A.props.trough = [V3.trough(29501)];
+    A.props.flowerbox = pool(V3.flowerBox, 2, 29601);
     A.props.acorn = [N3.acornModel()];
     A.props.lantern = [N3.lanternModel(false)];
     A.props.lanternLit = [N3.lanternModel(true)];
@@ -113,7 +119,7 @@ export async function bakeAll(onProgress = () => {}) {
     imp(A.props.rock, 34);
     imp(A.props.stump, 34);
     imp(A.props.log, 34);
-    for (const k of ['cottage', 'hut', 'shop', 'windmill', 'tower', 'tent', 'gate', 'well', 'fence', 'lamp', 'sign', 'barrel', 'crate', 'campfire', 'bridge', 'ruin', 'cart']) {
+    for (const k of ['cottage', 'hut', 'shop', 'windmill', 'tower', 'tent', 'gate', 'well', 'fence', 'lamp', 'sign', 'barrel', 'crate', 'campfire', 'bridge', 'ruin', 'cart', 'woodpile', 'garden', 'laundry', 'hay', 'trough']) {
       imp(A.props[k], 30);
     }
   });

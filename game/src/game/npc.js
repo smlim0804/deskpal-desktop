@@ -1,5 +1,6 @@
 // 주민 / 숲 친구들의 자율 행동
 import { makeRng, noise1, clamp } from '../core/rng.js';
+import { heightAt } from '../world/terrain.js';
 
 const rngA = makeRng(4242);
 
@@ -16,6 +17,7 @@ export function updateVillagers(world, dt, player, game) {
     e.t += dt;
     const talking = game.dialogue.active && game.dialogue.target === e;
 
+    if (e.gy === undefined) e.gy = heightAt(e.x, e.z);
     if (e.state === 'sleep') {
       e.anim = 'idle';
       const seq = e.set.idle;
@@ -36,7 +38,7 @@ export function updateVillagers(world, dt, player, game) {
     if (e.celebrate) {
       const seq = e.set.cheer || e.set.idle;
       e.currentSprite = seq[0];
-      e.y = Math.abs(Math.sin(e.t * 6)) * 0.28;
+      e.y = e.gy + Math.abs(Math.sin(e.t * 6)) * 0.28;
       continue;
     }
 
@@ -60,7 +62,8 @@ export function updateVillagers(world, dt, player, game) {
     const seq = moving ? e.set.walk || e.set.idle : e.set.idle;
     const fps = moving ? 6.5 : 1.8;
     e.currentSprite = seq[Math.floor(e.t * fps) % seq.length];
-    e.y = 0;
+    e.gy = heightAt(e.x, e.z);
+    e.y = e.gy;
   }
 }
 
@@ -89,7 +92,8 @@ export function updateCritters(world, dt, player) {
       } else if (e.waitT <= 0) pickTarget(e);
     }
 
-    e.y = e.hover ? e.hover + Math.sin(e.t * 1.6) * 0.16 : 0;
+    e.gy = heightAt(e.x, e.z);
+    e.y = e.gy + (e.hover ? e.hover + Math.sin(e.t * 1.6) * 0.16 : 0);
     e.currentSprite = e.set.idle[Math.floor(e.t * 2.4) % e.set.idle.length];
     e.h = e.set.height;
     e.shadow = e.hover ? 0.55 : 1;
@@ -107,7 +111,7 @@ export function spawnAmbient(game, dt, dayT, player) {
       type: 'leaf',
       x: player.x + Math.cos(a) * r,
       z: player.z + Math.sin(a) * r,
-      y: 4 + Math.random() * 3,
+      y: heightAt(player.x, player.z) + 4 + Math.random() * 3,
       vy: -0.5 - Math.random() * 0.4,
       vx: (Math.random() - 0.5) * 0.6,
       vz: (Math.random() - 0.5) * 0.6,
@@ -130,7 +134,7 @@ export function spawnAmbient(game, dt, dayT, player) {
         type: 'firefly',
         x: player.x + Math.cos(a) * r,
         z: player.z + Math.sin(a) * r,
-        y: 0.4 + Math.random() * 1.6,
+        y: heightAt(player.x, player.z) + 0.4 + Math.random() * 1.6,
         vx: (Math.random() - 0.5) * 0.35,
         vy: (Math.random() - 0.5) * 0.2,
         vz: (Math.random() - 0.5) * 0.35,

@@ -4,6 +4,7 @@ import { Input } from './core/input.js';
 import { clamp, lerp } from './core/rng.js';
 import { bakeAll, VILLAGERS } from './world/assets.js';
 import { buildWorld, GATE, POND } from './world/world.js';
+import { heightAt } from './world/terrain.js';
 import { Scene } from './render/scene.js';
 import { Player } from './game/player.js';
 import { updateVillagers, updateCritters, spawnAmbient } from './game/npc.js';
@@ -59,7 +60,7 @@ class Game {
         type: 'dust',
         x: x + (Math.random() - 0.5) * 0.4,
         z: z + (Math.random() - 0.5) * 0.4,
-        y: 0.06,
+        y: heightAt(x, z) + 0.06,
         vx: (Math.random() - 0.5) * 0.7,
         vz: (Math.random() - 0.5) * 0.7,
         vy: 0.4 + Math.random() * 0.5,
@@ -76,7 +77,7 @@ class Game {
         type: 'splash',
         x: x + (Math.random() - 0.5) * 0.5,
         z: z + (Math.random() - 0.5) * 0.5,
-        y: 0.05,
+        y: heightAt(x, z) + 0.05,
         vx: (Math.random() - 0.5) * 0.8,
         vz: (Math.random() - 0.5) * 0.8,
         vy: 0.5,
@@ -94,7 +95,7 @@ class Game {
         type: 'spark',
         x,
         z,
-        y: 1.2,
+        y: heightAt(x, z) + 1.2,
         vx: Math.cos(a) * (1 + Math.random() * 2.4),
         vz: Math.sin(a) * (1 + Math.random() * 2.4),
         vy: 1.6 + Math.random() * 3.2,
@@ -227,7 +228,7 @@ class Game {
     // 도토리 자동 획득
     for (const k of this.world.pickups) {
       if (k.taken) continue;
-      k.y = 0.22 + Math.sin(this.time * 2 + k.phase) * 0.1;
+      k.y = (k.gy || 0) + 0.22 + Math.sin(this.time * 2 + k.phase) * 0.1;
       if (k.kind === 'lantern') {
         const d = Math.hypot(k.x - player.x, k.z - player.z);
         if (d < 26 && Math.random() < dt * 1.1) {
@@ -235,7 +236,7 @@ class Game {
             type: 'spark',
             x: k.x + (Math.random() - 0.5) * 0.5,
             z: k.z + (Math.random() - 0.5) * 0.5,
-            y: 0.5 + Math.random() * 0.5,
+            y: (k.gy || 0) + 0.5 + Math.random() * 0.5,
             vx: 0,
             vz: 0,
             vy: 0.5,
@@ -269,15 +270,15 @@ class Game {
       if (q.type === 'spark') q.vy -= 5.5 * dt;
       if (q.type === 'leaf') {
         q.vx += Math.sin(this.time + q.rot) * 0.25 * dt;
-        q.y = Math.max(0.02, q.y);
+        q.y = Math.max(heightAt(q.x, q.z) + 0.02, q.y);
       }
       if (q.type === 'firefly') {
         q.vx += (Math.random() - 0.5) * 0.5 * dt;
         q.vz += (Math.random() - 0.5) * 0.5 * dt;
         q.vy += (Math.random() - 0.5) * 0.3 * dt;
-        q.y = clamp(q.y, 0.25, 2.6);
+        q.y = clamp(q.y, heightAt(q.x, q.z) + 0.25, heightAt(q.x, q.z) + 2.6);
       }
-      if (q.life <= 0 || q.y < -0.5) this.particles.splice(i, 1);
+      if (q.life <= 0 || q.y < heightAt(q.x, q.z) - 0.8) this.particles.splice(i, 1);
     }
 
     // 시간대
@@ -307,6 +308,7 @@ class Game {
     const { scene, cam } = this;
     scene.drawSky(this.dayT, this.time);
     scene.drawGround(this.dayT);
+    scene.drawWater(this.time);
     scene.drawDecals(this.world, this.time);
 
     const list = this.drawList;

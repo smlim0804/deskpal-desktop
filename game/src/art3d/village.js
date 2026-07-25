@@ -378,3 +378,124 @@ export function campfire(seed = 1) {
   cone(m, { y: 0.16, r: 0.11, h: 0.34, seg: 5, color: '#ffe08a' });
   return finish(m, { radius: 0.45, kind: 'campfire' });
 }
+
+// ── 마을 살림살이 ─────────────────────────────
+/** 장작더미 */
+export function woodPile(seed = 1) {
+  const rng = makeRng(seed);
+  const m = mesh();
+  const rows = 3;
+  for (let r = 0; r < rows; r++) {
+    const n = rows - r;
+    for (let i = 0; i < n; i++) {
+      const logM = mesh();
+      cylinder(logM, { r: 0.13, h: 1.1, seg: 6, color: r % 2 ? P.trunk : P.trunkDark, capColor: '#dcb98c' });
+      merge(m, logM, {
+        rz: Math.PI / 2,
+        tx: -0.55,
+        ty: 0.13 + r * 0.24,
+        tz: (i - (n - 1) / 2) * 0.27 + rand(rng, -0.03, 0.03),
+      });
+    }
+  }
+  return finish(m, { radius: 0.6, kind: 'woodpile' });
+}
+
+/** 텃밭 — 흙 이랑과 새싹 */
+export function gardenPlot(seed = 1) {
+  const rng = makeRng(seed);
+  const m = mesh();
+  const w = 2.2;
+  const d = 1.6;
+  box(m, { w, d, h: 0.14, color: '#a98b62', top: '#c2a377' });
+  for (let r = 0; r < 3; r++) {
+    const z = -d / 2 + 0.4 + r * 0.4;
+    box(m, { z, w: w - 0.3, d: 0.2, h: 0.12, color: '#8f7350', top: '#a98b62' });
+    for (let i = 0; i < 5; i++) {
+      const x = -w / 2 + 0.35 + i * 0.38;
+      blobSphere(m, {
+        x,
+        z,
+        y: 0.28,
+        rx: 0.12,
+        ry: 0.13,
+        seg: 5,
+        rings: 3,
+        color: rng() < 0.4 ? '#8fbf6a' : '#a3cd79',
+        wob: 0.16,
+        seed: seed + r * 7 + i,
+      });
+    }
+  }
+  return finish(m, { radius: 1.0, kind: 'garden' });
+}
+
+/** 빨랫줄 */
+export function laundryLine(seed = 1) {
+  const rng = makeRng(seed);
+  const m = mesh();
+  const span = 2.6;
+  for (const s of [-1, 1]) {
+    cylinder(m, { x: s * span * 0.5, r: 0.06, h: 1.7, seg: 5, color: P.woodDark, cap: false });
+    const arm = mesh();
+    cylinder(arm, { r: 0.04, h: 0.34, seg: 4, color: P.woodDark, cap: false });
+    merge(m, arm, { rz: s * 1.1, tx: s * span * 0.5, ty: 1.5 });
+  }
+  box(m, { y: 1.66, w: span, d: 0.03, h: 0.03, color: '#6b6156' });
+  const colors = ['#f1e2c6', '#cfe3ea', '#f0c0b0', '#d8e8c8'];
+  for (let i = 0; i < 4; i++) {
+    panel(m, {
+      x: -span * 0.34 + i * (span * 0.23),
+      y: 1.66 - rand(rng, 0.5, 0.72),
+      w: rand(rng, 0.34, 0.46),
+      h: rand(rng, 0.5, 0.72),
+      color: colors[i % colors.length],
+      ry: rand(rng, -0.2, 0.2),
+    });
+  }
+  return finish(m, { radius: 0.4, kind: 'laundry' });
+}
+
+/** 건초더미 */
+export function hayBale(seed = 1) {
+  const rng = makeRng(seed);
+  const m = mesh();
+  const t = mesh();
+  cylinder(t, { r: 0.46, h: 0.8, seg: 9, color: '#dcc079', capColor: '#e6cd8e' });
+  merge(m, t, { rx: Math.PI / 2, ty: 0.46, ry: rand(rng, 0, 3) });
+  return finish(m, { radius: 0.5, kind: 'hay' });
+}
+
+/** 물통 */
+export function trough(seed = 1) {
+  const m = mesh();
+  box(m, { w: 1.2, d: 0.5, h: 0.34, color: P.woodDark, top: '#9ec9d4' });
+  for (const s of [-1, 1]) box(m, { x: s * 0.5, w: 0.12, d: 0.5, h: 0.44, color: P.wood });
+  return finish(m, { radius: 0.55, kind: 'trough' });
+}
+
+/** 창가 화단 */
+export function flowerBox(seed = 1) {
+  const rng = makeRng(seed);
+  const m = mesh();
+  box(m, { w: 0.8, d: 0.28, h: 0.22, color: P.woodDark, top: '#7b5f42' });
+  for (let i = 0; i < 5; i++) {
+    blobSphere(m, {
+      x: -0.3 + i * 0.15,
+      y: 0.26,
+      rx: 0.09,
+      ry: 0.08,
+      seg: 5,
+      rings: 3,
+      color: pickColor(rng),
+      wob: 0.14,
+      seed: seed + i,
+    });
+  }
+  return finish(m, { radius: 0.3, kind: 'flowerbox' });
+}
+
+function pickColor(rng) {
+  const list = ['#e8909f', '#efc86a', '#b79ede', '#f0f0e2', '#e88f6a'];
+  return list[Math.floor(rng() * list.length) % list.length];
+}

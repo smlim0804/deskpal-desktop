@@ -1,6 +1,6 @@
 // 플레이어 콩 — 3D 공간에서 움직이고, 2D 손그림 프레임으로 표현된다.
 import { clamp } from '../core/rng.js';
-import { POND } from '../world/world.js';
+import { POND, heightAt, WATER_Y } from '../world/terrain.js';
 
 const GRAVITY = 15.5;
 const JUMP_V = 5.4;
@@ -12,7 +12,8 @@ export class Player {
     this.set = set;
     this.x = x;
     this.z = z;
-    this.y = 0;
+    this.gy = heightAt(x, z);
+    this.y = this.gy;
     this.vy = 0;
     this.r = 0.36;
     this.h = 1.5;
@@ -57,7 +58,7 @@ export class Player {
     let spd = (running ? RUN : WALK) * (len > 0.01 ? 1 : 0);
 
     // 연못은 느리다
-    this.inWater = Math.hypot(this.x - POND.x, this.z - POND.z) < POND.r - 0.3;
+    this.inWater = heightAt(this.x, this.z) < WATER_Y - 0.05;
     if (this.inWater) spd *= 0.55;
 
     const nx = this.x + dx * spd * dt;
@@ -72,19 +73,28 @@ export class Player {
       this.grounded = false;
       game.spawnDust(this.x, this.z, 5);
     }
-    if (!this.grounded || this.y > 0) {
-      this.vy -= GRAVITY * dt;
-      this.y += this.vy * dt;
-      if (this.y <= 0) {
-        if (!this.grounded) game.spawnDust(this.x, this.z, 7);
-        this.y = 0;
-        this.vy = 0;
-        this.grounded = true;
-      }
-    }
 
     this.resolveCollisions(world);
     this.clampToWorld(world);
+
+    // 지형을 따라 걷는다
+    const raw = heightAt(this.x, this.z);
+    const floor = Math.max(raw, WATER_Y - 0.34); // 물에 들어가면 허리까지 잠긴다
+    this.gy = floor;
+    if (!this.grounded || this.y > floor + 0.001) {
+      this.vy -= GRAVITY * dt;
+      this.y += this.vy * dt;
+      if (this.y <= floor) {
+        if (!this.grounded) game.spawnDust(this.x, this.z, 7);
+        this.y = floor;
+        this.vy = 0;
+        this.grounded = true;
+      }
+    } else {
+      // 경사면은 부드럽게 따라 올라간다
+      this.y += (floor - this.y) * Math.min(1, dt * 14);
+      this.grounded = true;
+    }
 
     // 바라보는 방향 (화면 기준 좌우)
     if (len > 0.01) {

@@ -4,12 +4,13 @@ import { cloudSilhouette } from '../art/backdrop.js';
 import { instantiate, drawInstance } from './mesh3d.js';
 import { P, skyColors, hexToRgb } from '../art/palette.js';
 import { makeRng, clamp, lerp, noise1 } from '../core/rng.js';
+import { Terrain, heightAt, WATER_Y } from '../world/terrain.js';
 
 const MAX_DIST = 50; // 이보다 먼 건 안 그림
 const FADE_START = 26;
-const SMALL_PROP_DIST = 22; // 잔풀·꽃 같은 작은 것들의 표시 거리
+const SMALL_PROP_DIST = 18; // 잔풀·꽃 같은 작은 것들의 표시 거리
 const NEAR_3D = 26; // 이 안쪽은 진짜 폴리곤, 바깥은 미리 구운 임포스터
-const MIN_SCREEN_H = 3; // 화면에서 이보다 작아지면 생략
+const MIN_SCREEN_H = 3.5; // 화면에서 이보다 작아지면 생략
 
 export class Scene {
   constructor(ctx, cam) {
@@ -21,6 +22,7 @@ export class Scene {
     this.treeline = bakeTreeline(777);
     this.sun = bakeSun(31);
     this.moon = bakeMoon(33);
+    this.terrain = new Terrain();
     this._p = { x: 0, y: 0, scale: 0, depth: 0, visible: false };
     this._q = { x: 0, y: 0, scale: 0, depth: 0, visible: false };
     this.drawList = [];
@@ -93,6 +95,8 @@ export class Scene {
     }
     ctx.fillStyle = this._groundGrad;
     ctx.fillRect(0, hy, cam.w, cam.h - hy);
+    // 진짜 지형 메시
+    return this.terrain.draw(ctx, cam);
   }
 
   // ── 바닥 데칼(길·연못·흙) ─────────────────
@@ -104,10 +108,13 @@ export class Scene {
       const dx = d.pts[0][0] - cam.px;
       const dz = d.pts[0][1] - cam.pz;
       if (dx * dx + dz * dz > MAX_DIST * MAX_DIST) continue;
+      if (!d.hs) {
+        d.hs = d.pts.map((q) => heightAt(q[0], q[1]) + 0.035);
+      }
       ctx.beginPath();
       let ok = false;
       for (let i = 0; i < d.pts.length; i++) {
-        cam.project(d.pts[i][0], 0, d.pts[i][1], p);
+        cam.project(d.pts[i][0], d.hs[i], d.pts[i][1], p);
         if (!p.visible) {
           ok = false;
           break;
@@ -128,27 +135,10 @@ export class Scene {
         ctx.stroke();
       }
     }
-    // 연못 물결
-    const pond = world.pondCenter;
-    if (pond) {
-      ctx.save();
-      ctx.strokeStyle = 'rgba(255,255,255,0.5)';
-      ctx.lineWidth = 1.6;
-      for (let i = 0; i < 5; i++) {
-        const rr = 1.2 + ((time * 0.5 + i * 0.9) % 4.4);
-        const a0 = 0;
-        ctx.beginPath();
-        for (let s = 0; s <= 20; s++) {
-          const a = a0 + (s / 20) * Math.PI * 2;
-          cam.project(pond.x + Math.cos(a) * rr, 0.02, pond.z + Math.sin(a) * rr * 0.9, this._q);
-          if (!this._q.visible) break;
-          s === 0 ? ctx.moveTo(this._q.x, this._q.y) : ctx.lineTo(this._q.x, this._q.y);
-        }
-        ctx.globalAlpha = 0.35 * (1 - rr / 5.6);
-        ctx.stroke();
-      }
-      ctx.restore();
-    }
+  }
+
+  drawWater(time) {
+    this.terrain.drawWater(this.ctx, this.cam, time);
   }
 
   // ── 엔티티 수집 & 정렬 ────────────────────
@@ -189,10 +179,6 @@ export class Scene {
         e.alpha = 0;
         continue;
       }
-      if (e._p.depth < 8) {
-        e.alpha = clamp((e._p.depth - 4.5) / 3.5, 0, 1) * 0.4;
-        continue;
-      }
       if (e._p.depth >= pp.depth - 0.35) continue;
       let left;
       let right;
@@ -215,7 +201,8 @@ export class Scene {
       }
       if (right < pp.x - pw || left > pp.x + pw) continue;
       if (bottom < pTop || top > pp.y) continue;
-      e.alpha = 0.4;
+      // 가까울수록 더 투명 (코앞이면 거의 사라짐)
+      e.alpha = clamp((e._p.depth - 3.5) / 5, 0, 1) * 0.2 + 0.05;
     }
   }
 
@@ -226,14 +213,21 @@ export class Scene {
     for (const e of list) {
       if (e.shadow === 0) continue;
       const p = e._p;
-      const groundP = e.y ? cam.project(e.x, 0, e.z, this._q) : p;
+      const gy = e.gy ?? 0;
+      const groundP = e.y !== gy ? cam.project(e.x, gy, e.z, this._q) : p;
       if (!groundP.visible) continue;
       const r = (e.shadowR || Math.max(0.28, (e.r || 0.35) * 1.25)) * groundP.scale;
-      // (3D 모델은 경계상자에서 뽑은 shadowR 을 그대로 쓴다)
-      if (r < 2.2) continue;
-      const lift = e.y ? clamp(1 - e.y * 0.45, 0.45, 1) : 1;
-      ctx.globalAlpha = alphaBase * (e.shadow ?? 1) * lift * fadeFor(p.depth);
+      if (r < 2.0) continue;
+      const air = Math.max(0, (e.y ?? 0) - gy);
+      const lift = clamp(1 - air * 0.45, 0.45, 1);
+      const fade = fadeFor(p.depth);
+      // 넓고 옅은 바깥 그림자 — 물체가 땅에 "놓인" 느낌
+      ctx.globalAlpha = alphaBase * 0.42 * (e.shadow ?? 1) * lift * fade;
       ctx.fillStyle = P.shadow;
+      ctx.beginPath();
+      ctx.ellipse(groundP.x, groundP.y, r * 1.75 * lift, r * 1.75 * cam.groundSquash * lift, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = alphaBase * (e.shadow ?? 1) * lift * fade;
       ctx.beginPath();
       ctx.ellipse(groundP.x, groundP.y, r * lift, r * cam.groundSquash * lift, 0, 0, Math.PI * 2);
       ctx.fill();
@@ -265,13 +259,14 @@ export class Scene {
         }
         if (useMesh) {
           // 흔들리거나(픽업) 회전이 바뀌면 다시 굽는다
+          const gy = e.gy ?? 0;
           if (!e._inst || e._instModel !== model) {
-            e._inst = instantiate(model, { x: e.x, y: 0, z: e.z, ry: e.ry || 0, scale: e.scale || 1 });
+            e._inst = instantiate(model, { x: e.x, y: gy, z: e.z, ry: e.ry || 0, scale: e.scale || 1 });
             e._instModel = model;
           }
-          if (e.y) {
+          if (e.y !== gy) {
             // 위아래로 떠 있는 오브젝트는 화면상 평행이동으로 근사
-            cam.project(e.x, 0, e.z, this._q);
+            cam.project(e.x, gy, e.z, this._q);
             ctx.translate(0, p.y - this._q.y);
           }
           faces += drawInstance(ctx, cam, e._inst, { alpha, lineScale: 1 });

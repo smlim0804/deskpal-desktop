@@ -15,11 +15,24 @@ function finish(m, meta) {
   });
 }
 
-// 나무 줄기 — 뿌리 쪽이 굵고 위로 갈수록 가늘어진다
-function trunk(m, { x = 0, z = 0, h = 1.6, r = 0.22, top = 0.14, color = P.trunk, seg = 7 }) {
+// 나무 줄기 — 뿌리 쪽이 굵고 위로 갈수록 가늘어진다.
+// 밑동에 뿌리를 몇 가닥 깔아 두면 땅에 꽂힌 막대가 아니라 "자란 나무"로 보인다.
+function trunk(m, { x = 0, z = 0, h = 1.6, r = 0.22, top = 0.14, color = P.trunk, seg = 7, roots = 5, seed = 1 }) {
   cylinder(m, { x, z, r, r2: top, h, seg, color, cap: false });
-  // 밑동
-  cylinder(m, { x, z, r: r * 1.35, r2: r, h: h * 0.16, seg, color, cap: false });
+  cylinder(m, { x, z, r: r * 1.4, r2: r, h: h * 0.18, seg, color, cap: false });
+  const rnd = makeRng(seed * 31 + 7);
+  for (let i = 0; i < roots; i++) {
+    const a = (i / roots) * Math.PI * 2 + rnd() * 0.7;
+    const t = mesh();
+    cone(t, { r: r * (0.4 + rnd() * 0.2), h: r * (1.9 + rnd() * 1.4), seg: 4, color });
+    merge(m, t, {
+      rz: 1.28 + rnd() * 0.16,
+      ry: -a,
+      tx: x + Math.cos(a) * r * 0.55,
+      tz: z + Math.sin(a) * r * 0.55,
+      ty: 0.01,
+    });
+  }
 }
 
 // ── 나무 ──────────────────────────────────────
@@ -28,7 +41,7 @@ export function pineTree(seed = 1) {
   const m = mesh();
   const color = pick(rng, [P.leafDark, P.leafBlue, '#77ac68']);
   const h = rand(rng, 4.6, 6.4);
-  trunk(m, { h: h * 0.34, r: 0.17, top: 0.11, color: P.trunkDark });
+  trunk(m, { h: h * 0.34, r: 0.17, top: 0.11, color: P.trunkDark, seed, roots: 4 });
   const layers = 4;
   for (let i = 0; i < layers; i++) {
     const t = i / (layers - 1);
@@ -52,7 +65,7 @@ export function blobTree(seed = 1, opt = {}) {
   const m = mesh();
   const color = opt.color || pick(rng, [P.leaf, P.leafDark, '#a3c97c', P.leafBlue]);
   const h = rand(rng, 4.2, 5.6);
-  trunk(m, { h: h * 0.5, r: 0.24, top: 0.16 });
+  trunk(m, { h: h * 0.5, r: 0.24, top: 0.16, seed });
   // 갈라진 가지
   for (const s of [-1, 1]) {
     const t = mesh();
@@ -81,7 +94,7 @@ export function willowTree(seed = 1) {
   const m = mesh();
   const color = '#9cc47e';
   const h = rand(rng, 4.2, 5.2);
-  trunk(m, { h: h * 0.52, r: 0.26, top: 0.17 });
+  trunk(m, { h: h * 0.52, r: 0.26, top: 0.17, seed });
   const cy = h * 0.74;
   const rx = h * 0.38;
   blobSphere(m, { y: cy, rx, ry: rx * 0.62, seg: 11, rings: 5, color, wob: 0.04, bumps: 5, bumpAmt: 0.3, seed: seed + 5 });
@@ -109,7 +122,7 @@ export function bareTree(seed = 1) {
   const rng = makeRng(seed);
   const m = mesh();
   const h = rand(rng, 3.4, 4.4);
-  trunk(m, { h: h * 0.55, r: 0.2, top: 0.12, color: P.trunkDark });
+  trunk(m, { h: h * 0.55, r: 0.2, top: 0.12, color: P.trunkDark, seed });
   // rz(tilt) → ry(ang) 순으로 도니까 가지 방향은 아래 벡터가 된다
   const branch = (x, y, z, ang, tilt, len, r, depth) => {
     const t = mesh();
@@ -258,11 +271,36 @@ export function flower(seed = 1) {
   const rng = makeRng(seed);
   const m = mesh();
   const color = pick(rng, ['#e8909f', '#efc86a', '#b79ede', '#f0f0e2', '#e88f6a']);
-  const h = rand(rng, 0.4, 0.62);
-  cylinder(m, { r: 0.022, h, seg: 4, color: '#8fba68', cap: false });
-  blobSphere(m, { y: h + 0.06, rx: 0.15, ry: 0.08, seg: 6, rings: 3, color, wob: 0.12, seed: seed + 1 });
-  blobSphere(m, { y: h + 0.1, rx: 0.05, ry: 0.04, seg: 5, rings: 2, color: P.leafGold, wob: 0, seed: seed + 2 });
-  tri(m, [0, h * 0.4, 0], [0.16, h * 0.55, 0.04], [0.03, h * 0.62, 0], P.leaf, { double: true, outline: false });
+  const h = rand(rng, 0.34, 0.52);
+  cylinder(m, { r: 0.02, h, seg: 4, color: '#8fba68', cap: false });
+  // 꽃잎 몇 장
+  const petals = 5;
+  for (let i = 0; i < petals; i++) {
+    const a = (i / petals) * Math.PI * 2 + rng() * 0.3;
+    blobSphere(m, {
+      x: Math.cos(a) * 0.075,
+      z: Math.sin(a) * 0.075,
+      y: h + 0.03,
+      rx: 0.055,
+      ry: 0.03,
+      seg: 5,
+      rings: 2,
+      color,
+      wob: 0.1,
+      seed: seed + 3 + i,
+    });
+  }
+  blobSphere(m, { y: h + 0.05, rx: 0.04, ry: 0.03, seg: 5, rings: 2, color: P.leafGold, wob: 0, seed: seed + 2 });
+  for (const sgn of [-1, 1]) {
+    tri(
+      m,
+      [0, h * 0.35, 0],
+      [sgn * 0.13, h * 0.5, sgn * 0.03],
+      [sgn * 0.02, h * 0.58, 0],
+      P.leaf,
+      { double: true, outline: false }
+    );
+  }
   return finish(m, { radius: 0, sway: 2.0, kind: 'flower' });
 }
 
