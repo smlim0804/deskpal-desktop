@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Bean Hollow — 손그림 숲마을</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <div id="frame">
+      <canvas id="stage" width="1280" height="720"></canvas>
+
+      <!-- 타이틀 -->
+      <section id="title" class="overlay">
+        <div class="card">
+          <h1>Bean&nbsp;Hollow</h1>
+          <p class="sub">종이에 그린 숲마을, 진짜 3D 공간</p>
+          <ul class="keys">
+            <li><b>W A S D</b> / 방향키 — 이동</li>
+            <li><b>Shift</b> — 달리기 &nbsp;·&nbsp; <b>Space</b> — 점프</li>
+            <li><b>Q E</b> 또는 <b>마우스 드래그</b> — 카메라 회전</li>
+            <li><b>F</b> / <b>Enter</b> — 말 걸기 · 줍기</li>
+          </ul>
+          <button id="btn-start" type="button">숲으로 들어가기</button>
+          <p class="hint">축제 등불 5개를 찾아 마을 문(Gate)으로 가져가세요.</p>
+        </div>
+      </section>
+
+      <!-- 일시정지 -->
+      <section id="paused" class="overlay" hidden>
+        <div class="card">
+          <h2>잠시 쉬는 중</h2>
+          <p class="sub">Esc 를 눌러 계속하기</p>
+          <button id="btn-resume" type="button">계속하기</button>
+        </div>
+      </section>
+
+      <div id="loading">스케치 굽는 중…</div>
+    </div>
+    <script type="module" src="./src/main.js"></script>
+  </body>
+</html>

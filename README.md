@@ -130,8 +130,23 @@ The overlay update badge appears when the public release version is newer than t
 - No cloud AI, no chat prompt, no API key, and no token usage in the default app
 - Future AI direction: opt-in character intelligence where users explicitly connect their own provider or approved model, with clear permissions and no hidden screen upload
 
+## Bean Hollow (bonus browser game)
+
+`game/` holds **Bean Hollow**, a hand-drawn forest-village game built from the project's sketch
+reference sheets. The art is 2D ink drawing, but the world is projected through a real 3D
+perspective camera, so walking around produces genuine parallax and depth sorting.
+
+```bash
+npm run game        # http://127.0.0.1:4173
+```
+
+No dependencies, no build step, no image assets — every sprite is drawn procedurally into an
+offscreen canvas at startup. See `game/README.md` for controls and rendering notes.
+
 ## Files
 
+- `game/`: Bean Hollow browser game (hand-drawn 2D sprites in a 3D camera space)
+- `scripts/serve-game.cjs`: tiny static server used by `npm run game`
 - `src/main.cjs`: Electron app, overlay window, settings window, safe shortcut opening, update checks, and local settings store
 - `src/preload.cjs`: secure IPC bridge exposed to renderer code
 - `src/overlay.html`, `src/overlay.css`, `src/overlay.js`: transparent desktop overlay, character rendering, motion engine, shortcut panel, and benchmarking/status bubbles
