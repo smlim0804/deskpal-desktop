@@ -329,28 +329,34 @@ export function leaningTree(seed = 1, opt = {}) {
   const h = rand(rng, 3.6, 4.5);
   const segs = 5;
   const segLen = h * 0.17;
+  // 먼저 줄기 경로만 재 보고, 캐노피가 원점 위로 오도록 밑동을 반대쪽으로 물린다
+  const path = [];
   let px = 0;
   let py = 0;
   let tilt = 0.12;
   for (let i = 0; i < segs; i++) {
-    const r0 = 0.25 - i * 0.033;
-    const c = mesh();
-    cylinder(c, { r: r0, r2: r0 - 0.03, h: segLen * 1.06, seg: 5, color: P.trunk, cap: false });
-    merge(m, c, { rz: -tilt, tx: px, ty: py });
+    path.push([px, py, tilt]);
     px += Math.sin(tilt) * segLen;
     py += Math.cos(tilt) * segLen;
     tilt += 0.19 + i * 0.035;
   }
-  cylinder(m, { r: 0.36, r2: 0.26, h: h * 0.08, seg: 6, color: P.trunk, cap: false });
-  rootFlares(m, { r: 0.32, n: 4, len: 0.5, color: P.trunkDark, seed: seed + 21 });
+  const cxo = -(px + h * 0.08) * 0.62;
+  for (let i = 0; i < segs; i++) {
+    const r0 = 0.25 - i * 0.033;
+    const c = mesh();
+    cylinder(c, { r: r0, r2: r0 - 0.03, h: segLen * 1.06, seg: 5, color: P.trunk, cap: false });
+    merge(m, c, { rz: -path[i][2], tx: cxo + path[i][0], ty: path[i][1] });
+  }
+  cylinder(m, { x: cxo, r: 0.36, r2: 0.26, h: h * 0.08, seg: 6, color: P.trunk, cap: false });
+  rootFlares(m, { x: cxo, r: 0.32, n: 4, len: 0.5, color: P.trunkDark, seed: seed + 21 });
   // 줄기 끝에서 두 갈래가 캐노피 속으로 더 뻗는다
   for (const s of [-0.35, 0.3]) {
     const t = mesh();
     cylinder(t, { r: 0.08, r2: 0.04, h: h * 0.22, seg: 4, color: P.trunk, cap: false });
-    merge(m, t, { rz: -(tilt + s), tx: px, ty: py });
+    merge(m, t, { rz: -(tilt + s), tx: cxo + px, ty: py });
   }
   blobSphere(m, {
-    x: px + h * 0.08,
+    x: cxo + px + h * 0.08,
     y: py + h * 0.1,
     z: 0,
     rx: h * 0.38,
@@ -605,13 +611,14 @@ export function branchProp(seed = 1) {
   const len = rand(rng, 1.0, 1.5);
   const r = 0.045;
   const b = mesh();
-  // 살짝 꺾인 본가지(로컬 +y)
-  cylinder(b, { r, r2: r * 0.8, h: len * 0.55, seg: 4, color: P.trunkDark, cap: false });
+  // 로컬에서는 +y 로 세운 채 만들고 마지막에 눕힌다(길이 방향으로 가운데 정렬).
+  const y0 = -len * 0.5;
+  cylinder(b, { y: y0, r, r2: r * 0.8, h: len * 0.55, seg: 4, color: P.trunkDark, cap: false });
   const upper = mesh();
   cylinder(upper, { r: r * 0.8, r2: r * 0.4, h: len * 0.5, seg: 4, color: P.trunkDark, cap: false });
-  merge(b, upper, { rz: -0.16, ty: len * 0.55 });
-  // 잔가지 3개 + 새눈
-  const twigs = [[0.34, 0.5, 0.9], [0.6, -0.7, 2.2], [0.82, 0.55, 4.0]];
+  merge(b, upper, { rz: 0.16, ty: y0 + len * 0.55 });
+  // 잔가지 3개 + 새눈. 눕혔을 때 위를 향하도록 방위각은 π 언저리만 쓴다.
+  const twigs = [[0.3, 0.6, 1.85], [0.55, 0.75, 3.55], [0.78, 0.55, 2.6]];
   for (let i = 0; i < twigs.length; i++) {
     const t0 = twigs[i][0];
     const tilt = twigs[i][1];
@@ -619,10 +626,10 @@ export function branchProp(seed = 1) {
     const tl = len * (0.2 + rng() * 0.14);
     const t = mesh();
     cylinder(t, { r: r * 0.45, r2: r * 0.18, h: tl, seg: 3, color: P.trunkDark, cap: false });
-    merge(b, t, { rz: tilt, ry: -a, ty: len * t0 });
+    merge(b, t, { rz: -tilt, ry: -a, ty: y0 + len * t0 });
     flatLeaf(b, {
       x: Math.sin(tilt) * Math.cos(a) * tl,
-      y: len * t0 + Math.cos(tilt) * tl,
+      y: y0 + len * t0 + Math.cos(tilt) * tl,
       z: Math.sin(tilt) * Math.sin(a) * tl,
       len: 0.11,
       wid: 0.07,
@@ -631,7 +638,7 @@ export function branchProp(seed = 1) {
       color: P.leaf,
     });
   }
-  merge(m, b, { rz: -Math.PI / 2, ry: rand(rng, 0, 3.14), ty: r });
+  merge(m, b, { rz: -Math.PI / 2, ry: rand(rng, 0, 3.14), ty: r * 1.1 });
   return finish(m, { radius: len * 0.45, kind: 'branch' });
 }
 
@@ -674,15 +681,15 @@ export function bush(seed = 1, opt = {}) {
   const color = opt.color || pick(rng, [P.leaf, P.leafDark, '#a9cb84']);
   const s = rand(rng, 0.8, 1.15);
   const rx = 0.62 * s;
-  const ry = 0.44 * s;
-  blobSphere(m, { y: 0.4 * s, rx, ry, seg: 9, rings: 4, color, wob: 0.05, bumps: 5, bumpAmt: 0.36, seed: seed + 2 });
+  const ry = 0.4 * s;
+  blobSphere(m, { y: 0.47 * s, rx, ry, seg: 9, rings: 4, color, wob: 0.05, bumps: 5, bumpAmt: 0.34, seed: seed + 2 });
   // 위쪽 실루엣을 삐죽하게 만드는 잎끝 8장
   for (let i = 0; i < 8; i++) {
     const a = (i / 8) * Math.PI * 2 + rng() * 0.3;
     const phi = 0.5 + rng() * 0.6;
     leafTip(m, {
       x: Math.sin(phi) * Math.cos(a) * rx * 0.85,
-      y: 0.4 * s + Math.cos(phi) * ry * 0.9,
+      y: 0.47 * s + Math.cos(phi) * ry * 0.9,
       z: Math.sin(phi) * Math.sin(a) * rx * 0.85,
       dir: a,
       out: 0.35,
@@ -698,7 +705,7 @@ export function bush(seed = 1, opt = {}) {
       const phi = 0.6 + rng() * 0.5;
       disc(m, {
         x: Math.sin(phi) * Math.cos(a) * rx * 0.95,
-        y: 0.4 * s + Math.cos(phi) * ry * 1.0,
+        y: 0.47 * s + Math.cos(phi) * ry * 1.0,
         z: Math.sin(phi) * Math.sin(a) * rx * 0.95,
         r: 0.06 * s,
         seg: 6,
@@ -717,15 +724,15 @@ export function shrubMound(seed = 1, opt = {}) {
   const color = opt.color || pick(rng, [P.leaf, '#9ec47c', P.leafDark]);
   const s = rand(rng, 0.85, 1.3);
   const rx = 0.9 * s;
-  const ry = 0.4 * s;
-  blobSphere(m, { y: 0.34 * s, rx, rz: rx * 0.72, ry, seg: 9, rings: 4, color, wob: 0.05, bumps: 6, bumpAmt: 0.34, seed: seed + 8 });
+  const ry = 0.36 * s;
+  blobSphere(m, { y: 0.42 * s, rx, rz: rx * 0.72, ry, seg: 9, rings: 4, color, wob: 0.05, bumps: 6, bumpAmt: 0.32, seed: seed + 8 });
   // 윗면에 자잘한 뾰족 잎
   for (let i = 0; i < 7; i++) {
     const a = (i / 7) * Math.PI * 2 + rng() * 0.4;
     const rr = rx * (0.2 + rng() * 0.5);
     leafTip(m, {
       x: Math.cos(a) * rr,
-      y: 0.34 * s + ry * 0.82,
+      y: 0.42 * s + ry * 0.82,
       z: Math.sin(a) * rr * 0.72,
       dir: a,
       out: 0.3,
