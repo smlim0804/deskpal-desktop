@@ -1,7 +1,7 @@
 // 진짜 3D 지형 — 이전에는 화면에 칠한 평면 그라디언트라서 오브젝트가 스티커처럼 떠 보였다.
 // 이제 땅도 폴리곤이고, 나무·건물·캐릭터는 전부 이 높이 위에 앉는다.
 import { clamp, smoothstep } from '../core/rng.js';
-import { isInk } from '../core/theme.js';
+import { isInk, isValheim, FOG } from '../core/theme.js';
 
 
 export const WORLD_RADIUS = 46;
@@ -101,7 +101,7 @@ const LX = -0.46;
 const LY = 0.79;
 const LZ = 0.41;
 
-function cellColor(x, z, h, n) {
+function cellColor(x, z, h, n, dd = 0) {
   const t =
     0.5 + 0.35 * Math.sin(x * 0.17 + 1.1) * Math.cos(z * 0.143 - 0.6) + 0.15 * Math.sin((x - z) * 0.061 + 0.9);
   const k = t < 0 ? 0 : t > 1 ? 1 : t;
@@ -134,6 +134,23 @@ function cellColor(x, z, h, n) {
     // 색칠 안 한 버전 — 종이 그대로, 기울기만 아주 옅은 회색으로
     const v = clamp(249 + (ndl - 0.97) * 90, 226, 252);
     return `rgb(${v | 0},${(v - 2) | 0},${(v - 6) | 0})`;
+  }
+  if (isValheim()) {
+    // 채도를 죽인 이끼빛 들판 + 따뜻한 태양/차가운 그늘 + 거리 안개
+    const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+    r = (lum + (r - lum) * 0.5) * 0.66;
+    g = (lum + (g - lum) * 0.5) * 0.72;
+    b = (lum + (b - lum) * 0.5) * 0.62;
+    const t = clamp((ndl - 0.86) / 0.14, 0, 1);
+    const sun = t * t * (3 - 2 * t);
+    r *= 0.5 + 0.72 * sun;
+    g *= 0.53 + 0.66 * sun;
+    b *= 0.6 + 0.52 * sun;
+    const fog = smoothstep(clamp((dd - 13) / 33, 0, 1)) * 0.92;
+    r += (FOG[0] - r) * fog;
+    g += (FOG[1] - g) * fog;
+    b += (FOG[2] - b) * fog;
+    return `rgb(${r | 0},${g | 0},${b | 0})`;
   }
   const f = clamp(0.94 + (ndl - 0.95) * 0.9, 0.86, 1.04);
   return `rgb(${(r * f) | 0},${(g * f) | 0},${(b * f) | 0})`;
@@ -250,7 +267,7 @@ export class Terrain {
       const nz = h00 + h10 - h01 - h11;
       const ny = 2 * cellSize;
       const len = Math.hypot(nx, ny, nz) || 1;
-      ctx.fillStyle = cellColor(q.mx, q.mz, (h00 + h11) / 2, [nx / len, ny / len, nz / len]);
+      ctx.fillStyle = cellColor(q.mx, q.mz, (h00 + h11) / 2, [nx / len, ny / len, nz / len], q.dd);
       ctx.globalAlpha = clamp((maxDist - q.dd) / 9, 0, 1);
       ctx.beginPath();
       ctx.moveTo(ax, ay);
@@ -259,6 +276,10 @@ export class Terrain {
       ctx.lineTo(dx2, dy2);
       ctx.closePath();
       ctx.fill();
+      // 셀 사이 안티앨리어싱 틈으로 배경이 비쳐 격자선처럼 보이는 걸 같은 색 획으로 메운다
+      ctx.strokeStyle = ctx.fillStyle;
+      ctx.lineWidth = 1;
+      ctx.stroke();
     }
     ctx.globalAlpha = 1;
     return cells.length;
@@ -307,14 +328,14 @@ export class Terrain {
       i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y);
     }
     ctx.closePath();
-    ctx.fillStyle = isInk() ? 'rgba(238,241,243,0.85)' : 'rgba(158,206,213,0.82)';
+    ctx.fillStyle = isInk() ? 'rgba(238,241,243,0.85)' : isValheim() ? 'rgba(52,78,88,0.9)' : 'rgba(158,206,213,0.82)';
     ctx.fill();
-    ctx.strokeStyle = 'rgba(51,48,43,0.35)';
+    ctx.strokeStyle = isValheim() ? 'rgba(26,38,44,0.4)' : 'rgba(51,48,43,0.35)';
     ctx.lineWidth = 1.6;
     ctx.stroke();
 
     // 물결
-    ctx.strokeStyle = isInk() ? 'rgba(120,116,108,0.35)' : 'rgba(255,255,255,0.45)';
+    ctx.strokeStyle = isInk() ? 'rgba(120,116,108,0.35)' : isValheim() ? 'rgba(214,228,232,0.22)' : 'rgba(255,255,255,0.45)';
     ctx.lineWidth = 1.4;
     const lim = (this._shoreMin || POND.r) - 0.5;
     for (let k = 0; k < 4; k++) {

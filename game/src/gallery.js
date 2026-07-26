@@ -38,7 +38,7 @@ function build(items) {
   canvas.width = cols * cell;
   canvas.height = rows * cell + 40;
 
-  ctx.fillStyle = Theme.mode === 'ink' ? '#fdfcf7' : '#fdfbf4';
+  ctx.fillStyle = Theme.mode === 'ink' ? '#fdfcf7' : Theme.mode === 'valheim' ? '#c8d1d6' : '#fdfbf4';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   items.forEach((item, i) => {

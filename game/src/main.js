@@ -2,7 +2,7 @@
 import { Camera } from './core/camera.js';
 import { Input } from './core/input.js';
 import { clamp, lerp } from './core/rng.js';
-import { bakeAll, VILLAGERS, prebakeInkImpostors } from './world/assets.js';
+import { bakeAll, VILLAGERS, prebakeStyleImpostors } from './world/assets.js';
 import { Theme, setMode, isInk } from './core/theme.js';
 import { buildWorld, GATE, POND } from './world/world.js';
 import { heightAt } from './world/terrain.js';
@@ -19,6 +19,7 @@ const pausedEl = document.getElementById('paused');
 const loadingEl = document.getElementById('loading');
 
 const NAME_BY_ID = Object.fromEntries(VILLAGERS.map((v) => [v.id, v.name]));
+const STYLE_LABEL = { color: '컬러 스타일', ink: '기본(선화) 스타일', valheim: '발헤임 스타일' };
 
 class Game {
   constructor(assets) {
@@ -48,20 +49,20 @@ class Game {
   setStyle(mode) {
     if (!setMode(mode)) return;
     try {
-      localStorage.setItem('beanhollow.style', mode);
+      localStorage.setItem('beanhollow.style2', mode);
     } catch (e) {
       /* 저장 실패는 무시 */
     }
     syncStyleButtons();
-    if (mode === 'ink') {
+    if (mode === 'ink' || mode === 'valheim') {
       loadingEl.hidden = false;
-      loadingEl.textContent = '선화로 바꾸는 중…';
+      loadingEl.textContent = mode === 'ink' ? '선화로 바꾸는 중…' : '안개를 깔고 빛을 낮추는 중…';
       setTimeout(() => {
-        prebakeInkImpostors(this.assets);
+        prebakeStyleImpostors(this.assets, mode);
         loadingEl.hidden = true;
       }, 30);
     }
-    this.toast(mode === 'ink' ? '기본(선화) 스타일' : '컬러 스타일', 1.6);
+    this.toast(STYLE_LABEL[mode] || mode, 1.6);
   }
 
   toast(text, life = 2.6) {
@@ -223,7 +224,11 @@ class Game {
     }
 
     if (input.hit('f', 'enter')) this.interact();
-    if (input.hit('c')) this.setStyle(isInk() ? 'color' : 'ink');
+    if (input.hit('c')) {
+      // C 키로 컬러 → 선화 → 발헤임 순환
+      const next = Theme.mode === 'color' ? 'ink' : Theme.mode === 'ink' ? 'valheim' : 'color';
+      this.setStyle(next);
+    }
 
     // 카메라 회전 / 줌
     if (input.down('q')) cam.orbit(-1.4 * dt);
@@ -332,6 +337,7 @@ class Game {
     scene.drawGround(this.dayT);
     scene.drawWater(this.time);
     scene.drawDecals(this.world, this.time);
+    scene.drawMist(this.time, this.dayT); // 발헤임 스타일: 땅안개 (오브젝트 뒤에 깔림)
 
     const list = this.drawList;
     list.length = 0;
@@ -346,6 +352,7 @@ class Game {
     scene.drawShadows(list, this.dayT);
     scene.drawEntities(list, this.time);
     scene.drawParticles(this.particles, this.time);
+    scene.drawAtmosphere(this.dayT); // 발헤임 스타일: 지평선 높이 안개 + 해질녘 황금빛
     scene.drawLighting(list, this.dayT, this.time);
     scene.drawPaper();
 
@@ -402,17 +409,22 @@ function syncStyleButtons() {
 }
 
 async function boot() {
-  // 저장해 둔 스타일 먼저 적용
+  // 저장해 둔 스타일 먼저 적용 (저장이 없으면 발헤임 스타일이 기본)
   try {
-    setMode(localStorage.getItem('beanhollow.style') || 'color');
+    setMode(localStorage.getItem('beanhollow.style2') || 'valheim');
   } catch (e) {
-    /* localStorage 못 쓰는 환경 */
+    setMode('valheim');
   }
   syncStyleButtons();
 
   const assets = await bakeAll((label, p) => {
     loadingEl.textContent = `스케치 굽는 중… ${label} (${Math.round(p * 100)}%)`;
   });
+  if (Theme.mode !== 'color') {
+    loadingEl.textContent = Theme.mode === 'ink' ? '선화 원경 굽는 중…' : '안개 낀 원경 굽는 중…';
+    await new Promise((r) => setTimeout(r, 15));
+    prebakeStyleImpostors(assets, Theme.mode);
+  }
   loadingEl.hidden = true;
 
   const game = new Game(assets);

@@ -305,15 +305,17 @@ export async function bakeAll(onProgress = () => {}) {
   return A;
 }
 
-/** 스타일을 선화로 바꿀 때 원경 스프라이트를 미리 구워 둔다(전환 중 끊김 방지) */
-export function prebakeInkImpostors(A) {
+/** 스타일을 바꿀 때 그 스타일의 원경 스프라이트를 미리 구워 둔다(전환 중 끊김 방지) */
+export function prebakeStyleImpostors(A, mode = Theme.mode) {
+  if (mode !== 'ink' && mode !== 'valheim') return;
+  const key = mode === 'ink' ? 'impInk' : 'impVal';
   const saved = Theme.mode;
-  setMode('ink');
+  setMode(mode);
   const groups = [...Object.values(A.trees), ...Object.values(A.props)];
   for (const g of groups) {
     if (!Array.isArray(g)) continue;
     for (const m of g) {
-      if (m && m.imp && !m.impInk) m.impInk = bakeImpostorSet(m, { ppu: 30 });
+      if (m && m.imp && !m[key]) m[key] = bakeImpostorSet(m, { ppu: 30 });
     }
   }
   setMode(saved);

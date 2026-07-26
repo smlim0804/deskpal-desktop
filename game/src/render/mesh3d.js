@@ -4,7 +4,7 @@ import { buildEdges, faceNormal, centroid, bounds } from '../core/mesh.js';
 import { INK } from '../core/sketch.js';
 import { shade } from '../art/palette.js';
 import { clamp } from '../core/rng.js';
-import { isInk, paperTone, Theme, mul } from '../core/theme.js';
+import { isInk, isValheim, paperTone, valheimFace, Theme, mul } from '../core/theme.js';
 
 // 고정 광원 (왼쪽 위 앞)
 const LX = -0.46;
@@ -15,6 +15,10 @@ const CREASE_COS = Math.cos(0.62); // 이보다 많이 꺾이면 선을 긋는�
 
 function toonColor(base, nx, ny, nz) {
   const ndl = nx * LX + ny * LY + nz * LZ;
+  if (isValheim()) {
+    // 발헤임 스타일 — 툰 밴딩 대신 따뜻한 태양/차가운 그늘의 부드러운 램프
+    return valheimFace(base, ndl, ny < -0.45);
+  }
   if (isInk()) {
     // 색칠 안 한 버전 — 종이 흰색 위에 아주 옅은 회색 단계로만 형태를 잡는다
     let amt;
@@ -127,7 +131,8 @@ function hash01(n) {
  * @returns 그린 면 개수(성능 계측용)
  */
 export function drawInstance(ctx, cam, inst, opts = {}) {
-  const { alpha = 1, lineScale = 1, wobble = 1.15, outline = true } = opts;
+  // 발헤임 스타일은 잉크 외곽선 없이 면 색만으로 형태를 잡는다
+  const { alpha = 1, lineScale = 1, wobble = 1.15, outline = !isValheim() } = opts;
   const verts = inst.verts;
   const nv = verts.length / 3;
   ensure(nv);

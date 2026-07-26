@@ -62,9 +62,26 @@ export const BEAN_COLORS = [
 ];
 
 // 낮/밤 보간용 하늘 색 얻기 (t: 0=낮, 1=밤, 중간은 노을)
-import { isInk } from '../core/theme.js';
+import { isInk, isValheim } from '../core/theme.js';
 
 export function skyColors(t) {
+  if (isValheim()) {
+    // 발헤임 하늘 — 낮은 채도의 하늘색, 지평선은 안개색으로 밝게. 해질녘엔 따뜻해진다
+    const mixV = (a, b, k) => {
+      const pa = hexToRgb(a);
+      const pb = hexToRgb(b);
+      return `rgb(${Math.round(pa[0] + (pb[0] - pa[0]) * k)},${Math.round(pa[1] + (pb[1] - pa[1]) * k)},${Math.round(
+        pa[2] + (pb[2] - pa[2]) * k
+      )})`;
+    };
+    if (t < 0.5) {
+      // 낮 → 해질녘: 지평선이 주황으로 물들고 천정은 보랏빛으로 식는다
+      const k = t / 0.5;
+      return [mixV('#8aa3b8', '#77789c', k), mixV('#cfd8dd', '#efb87f', k)];
+    }
+    const k = (t - 0.5) / 0.5;
+    return [mixV('#77789c', '#161f2c', k), mixV('#efb87f', '#2e3a49', k)];
+  }
   if (isInk()) {
     // 색칠 안 한 버전 — 흰 종이 하늘, 밤에만 아주 옅은 회색
     const k = Math.max(0, (t - 0.45) / 0.55);
