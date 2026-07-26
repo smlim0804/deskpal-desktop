@@ -1,0 +1,128 @@
+/* 감자 언덕 — 낡은 양피지 + 잉크 톤 UI (돈스타브 무드) */
+:root {
+  --ink: #2b241d;
+  --paper: #e8dfc0;
+  --paper-dark: #d3c49c;
+  --accent: #a3502e;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  background: #8b8266;
+  color: var(--ink);
+  font-family: "Gaegu", "Nanum Pen Script", "Comic Sans MS", "Segoe UI", system-ui, sans-serif;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+#frame {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+
+#stage {
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none;
+  cursor: crosshair;
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(20, 16, 12, 0.55);
+  backdrop-filter: blur(2px);
+  z-index: 5;
+}
+.overlay[hidden] { display: none; }
+
+.card {
+  background: var(--paper);
+  border: 3.5px solid var(--ink);
+  border-radius: 26px 20px 28px 18px / 20px 28px 18px 26px;
+  padding: 30px 40px 30px;
+  text-align: center;
+  max-width: min(560px, 88vw);
+  box-shadow: 7px 9px 0 rgba(24, 18, 12, 0.4);
+}
+
+.card h1 {
+  margin: 0 0 4px;
+  font-size: clamp(40px, 6vw, 60px);
+  letter-spacing: 2px;
+}
+.sub { margin: 0 0 18px; opacity: 0.7; font-size: 17px; }
+
+.keys {
+  list-style: none;
+  margin: 0 0 22px;
+  padding: 14px 18px;
+  text-align: left;
+  display: inline-block;
+  border: 2px dashed rgba(43, 36, 29, 0.4);
+  border-radius: 14px;
+  line-height: 1.9;
+  font-size: 16px;
+}
+.keys b {
+  background: var(--paper-dark);
+  border: 1.5px solid var(--ink);
+  border-radius: 6px;
+  padding: 0 7px;
+}
+
+button {
+  font: inherit;
+  font-size: 22px;
+  padding: 10px 32px;
+  background: var(--accent);
+  color: #f4ecd8;
+  border: 3px solid var(--ink);
+  border-radius: 16px 12px 17px 11px / 12px 17px 11px 16px;
+  cursor: pointer;
+  box-shadow: 3px 4px 0 rgba(24, 18, 12, 0.5);
+}
+button:hover { transform: translate(-1px, -1px); }
+button:active { transform: translate(1px, 1px); box-shadow: 1px 1px 0 rgba(24, 18, 12, 0.5); }
+
+button.tiny {
+  display: inline-block;
+  margin-top: 14px;
+  font-size: 14px;
+  padding: 4px 14px;
+  background: transparent;
+  color: rgba(43, 36, 29, 0.65);
+  border-width: 2px;
+  box-shadow: none;
+}
+
+.hint {
+  margin: 16px 0 0;
+  font-size: 15px;
+  opacity: 0.65;
+  line-height: 1.55;
+}
+
+#loading {
+  position: absolute;
+  left: 50%;
+  bottom: 26px;
+  transform: translateX(-50%);
+  background: var(--paper);
+  border: 2.5px solid var(--ink);
+  border-radius: 999px;
+  padding: 8px 22px;
+  font-size: 17px;
+  z-index: 8;
+}
+#loading[hidden] { display: none; }
