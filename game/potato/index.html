@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>감자 언덕 — 잉크 감자 농장</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <div id="frame">
+      <canvas id="stage" width="1280" height="720"></canvas>
+
+      <!-- 타이틀 -->
+      <section id="title" class="overlay">
+        <div class="card">
+          <h1>감자 언덕</h1>
+          <p class="sub">잉크로 그린 들판에서 감자를 키우자</p>
+          <ul class="keys">
+            <li><b>W A S D</b> / 방향키 — 이동</li>
+            <li><b>F</b> / <b>Space</b> — 갈기 · 심기 · 물주기 · 캐기</li>
+            <li><b>Q E</b> 또는 <b>마우스 드래그</b> — 카메라 회전</li>
+            <li>가게에서 <b>↑↓</b> 고르고 <b>F</b> 사기 · <b>E</b> 팔기</li>
+          </ul>
+          <button id="btn-start" type="button">밭으로 나가기</button>
+          <p class="hint">밭을 갈고 → 씨감자를 심고 → 물을 주면 → 감자꽃이 핀 뒤 캘 수 있어요.<br />까마귀를 조심할 것!</p>
+          <button id="btn-reset" type="button" class="tiny">저장 지우고 처음부터</button>
+        </div>
+      </section>
+
+      <div id="loading">스케치 굽는 중…</div>
+    </div>
+    <script type="module" src="./src/main.js"></script>
+  </body>
+</html>

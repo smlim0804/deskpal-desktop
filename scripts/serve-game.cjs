@@ -23,7 +23,9 @@ const TYPES = {
 
 const server = http.createServer((req, res) => {
   const url = decodeURIComponent((req.url || '/').split('?')[0]);
-  const rel = url === '/' ? 'index.html' : url.replace(/^\/+/, '');
+  // 디렉터리 요청은 그 안의 index.html 로 (예: /potato/ → potato/index.html)
+  let rel = url === '/' ? 'index.html' : url.replace(/^\/+/, '');
+  if (rel.endsWith('/')) rel += 'index.html';
   const file = path.join(ROOT, rel);
 
   // 디렉터리 탈출 방지
