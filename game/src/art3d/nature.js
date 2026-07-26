@@ -3,8 +3,8 @@
 // 잉크 선은 "실루엣 + 날카로운 크리스"에만 붙으므로, 그림의 선(나이테·껍질결·꽃잎 윤곽)은
 // 전부 진짜 폴리곤으로 만들어야 보인다.
 import { mesh, merge, box, cylinder, cone, blobSphere, extrude, tri, quad, poly, bounds } from '../core/mesh.js';
-import { P } from '../art/palette.js';
-import { makeRng, rand, pick } from '../core/rng.js';
+import { P, shade } from '../art/palette.js';
+import { makeRng, rand, pick, randInt } from '../core/rng.js';
 
 function finish(m, meta) {
   const bb = bounds(m);
@@ -47,6 +47,19 @@ function flatLeaf(m, o) {
     pts = [
       [0, 0], [0.18, 0.3], [0.3, 0.14], [0.46, 0.44], [0.6, 0.2], [0.76, 0.42], [1, 0],
       [0.76, -0.42], [0.6, -0.2], [0.46, -0.44], [0.3, -0.14], [0.18, -0.3],
+    ];
+  } else if (shape === 'saw') {
+    // 민들레 로제트 — 뒤로 젖혀진 큰 톱니가 톱날처럼 이어진다(끝으로 갈수록 깊다)
+    pts = [
+      [0, 0], [0.16, 0.2], [0.24, 0.08], [0.4, 0.44], [0.5, 0.14], [0.66, 0.62],
+      [0.76, 0.2], [1, 0.05],
+      [0.76, -0.2], [0.66, -0.62], [0.5, -0.14], [0.4, -0.44], [0.24, -0.08], [0.16, -0.2],
+    ];
+  } else if (shape === 'lobe') {
+    // 단풍잎 갈래 하나 — 끝이 창처럼 뾰족하고 가장자리에 잔톱니가 있다
+    pts = [
+      [0, 0], [0.26, 0.5], [0.44, 0.34], [0.62, 0.42], [0.8, 0.24], [1, 0],
+      [0.8, -0.24], [0.62, -0.42], [0.44, -0.34], [0.26, -0.5],
     ];
   } else {
     pts = [[0, 0], [0.3, 0.44], [0.68, 0.42], [1, 0], [0.68, -0.42], [0.3, -0.44]];
@@ -233,13 +246,183 @@ function jaggedTop(m, { x = 0, y = 0, z = 0, r = 0.3, seg = 7, spike = 0.18, col
   return m;
 }
 
+/**
+ * 위를 보는 고리 띠 하나 — 바깥 링(rOut,yOut)과 안쪽 링(rIn,yIn)을 잇는다.
+ * (O[j],O[i],I[i],I[j]) 순서라야 노멀이 위를 향한다.
+ */
+function ringBand(m, { x = 0, z = 0, rOut = 1, rIn = 0.5, yOut = 0, yIn = 0, seg = 8, color = P.wood, soft = false }) {
+  const O = [];
+  const I = [];
+  for (let i = 0; i < seg; i++) {
+    const a = (i / seg) * Math.PI * 2;
+    O.push([x + Math.cos(a) * rOut, yOut, z + Math.sin(a) * rOut]);
+    I.push([x + Math.cos(a) * rIn, yIn, z + Math.sin(a) * rIn]);
+  }
+  for (let i = 0; i < seg; i++) {
+    const j = (i + 1) % seg;
+    quad(m, O[j], O[i], I[i], I[j], color, { soft });
+  }
+  return m;
+}
+
+/**
+ * 톱질한 면의 나이테 — 고리 띠를 한 칸씩 내렸다 올렸다 하며 V 자 홈을 판다.
+ * 띠를 같은 기울기로 쌓으면 면 사이 각이 얕아서 잉크 선이 안 붙는다.
+ * 지그재그로 파야 크리스가 생겨 동심원이 실제로 그려진다.
+ */
+function growthRings(m, { x = 0, y = 0, z = 0, r = 0.3, n = 3, seg = 8, depth = null, color = P.wood, ringColor = '#e2c79b' }) {
+  const step = depth == null ? r * 0.14 : depth;
+  let ro = r;
+  for (let k = 0; k < n; k++) {
+    const ri = r * (1 - (k + 1) / (n + 0.6));
+    const down = k % 2 === 0;
+    ringBand(m, {
+      x, z, seg,
+      rOut: ro,
+      rIn: ri,
+      yOut: down ? y : y - step,
+      yIn: down ? y - step : y,
+      color: down ? color : ringColor,
+    });
+    ro = ri;
+  }
+  const yc = n % 2 === 0 ? y : y - step;
+  const c = [];
+  for (let i = 0; i < seg; i++) {
+    const a = -(i / seg) * Math.PI * 2;
+    c.push([x + Math.cos(a) * ro, yc, z + Math.sin(a) * ro]);
+  }
+  poly(m, c, ringColor);
+  return m;
+}
+
+/**
+ * 쪼개져 남은 나뭇조각 하나 — 위가 한 점이 아니라 짧은 능선이라 "뾰족한 뿔"이 아니라
+ * "세로로 찢겨 남은 널빤지"로 읽힌다. 안쪽 면이 따로 있어 뜯긴 속살도 보인다(면 4개).
+ */
+function woodShard(m, { x = 0, y = 0, z = 0, a = 0, half = 0.42, rOut = 0.3, rIn = 0.15, h = 0.4, lean = 0.03, jag = 0.22, color = P.wood, side = P.trunk }) {
+  const p = (ang, rr, yy) => [x + Math.cos(ang) * rr, y + (yy || 0), z + Math.sin(ang) * rr];
+  const OL = p(a - half, rOut);
+  const OR = p(a + half, rOut);
+  const IL = p(a - half * 0.72, rIn);
+  const IR = p(a + half * 0.72, rIn);
+  const rt = (rOut + rIn) * 0.5 + lean;
+  const TL = p(a - half * 0.34, rt, h * (1 - jag));
+  const TR = p(a + half * 0.34, rt, h);
+  quad(m, OR, OL, TL, TR, color); // 바깥 껍질면
+  quad(m, IL, IR, TR, TL, side); // 안쪽 속살면
+  tri(m, IR, OR, TR, side); // 옆 파단면
+  tri(m, OL, IL, TL, side);
+  return m;
+}
+
+/** 원뿔 겉면에 살짝 띄운 비스듬한 잎결 한 줄(면 1개). 실루엣을 뚫지 않는 표면 선. */
+function slopeLine(m, { a = 0, r0 = 0.2, r1 = 0.08, y0 = 0, y1 = 0.5, w = 0.03, color = P.leafDark, lift = 0.012 }) {
+  const c = Math.cos(a);
+  const s = Math.sin(a);
+  const tx = -s * w * 0.5;
+  const tz = c * w * 0.5;
+  const b0x = c * (r0 + lift);
+  const b0z = s * (r0 + lift);
+  const b1x = c * (r1 + lift);
+  const b1z = s * (r1 + lift);
+  quad(
+    m,
+    [b0x - tx, y0, b0z - tz],
+    [b0x + tx, y0, b0z + tz],
+    [b1x + tx * 0.35, y1, b1z + tz * 0.35],
+    [b1x - tx * 0.35, y1, b1z - tz * 0.35],
+    color,
+    { double: true }
+  );
+  return m;
+}
+
+/**
+ * 뾰족한 잎덩어리가 겹겹이 붙은 캐노피 — "뾰족함"이 실루엣 자체에 들어간다.
+ * 봉우리 방향을 격자 정점에 딱 맞춰야 끝이 정점으로 잡힌다.
+ * (방향이 정점 사이에 떨어지면 봉우리가 깎여 둥글어진다)
+ * cells: [[링 i, 세로줄 j, 세기]...]
+ * spread 를 주면 봉우리가 "그 각도까지만 부풀고 밖은 0" 인 둥근 혹이 된다
+ * (cos^sharp 는 아무리 눌러도 뾰족해지기만 해서 둥근 뭉게구름이 안 나온다).
+ */
+function clumpCrown(m, o) {
+  const {
+    x = 0, y = 0, z = 0, rx = 1, ry = null, rz = null,
+    seg = 12, rings = 6, color = P.leaf, tipColor = null,
+    cells = [], amt = 0.55, sharp = 12, spread = 0, core = 0.68, wob = 0.02, seed = 1, yaw = 0,
+  } = o;
+  const ryy = ry == null ? rx : ry;
+  const rzz = rz == null ? rx : rz;
+  const rnd = makeRng(seed);
+  const peaks = [];
+  const peakKey = new Set();
+  for (let c = 0; c < cells.length; c++) {
+    const ci = cells[c][0];
+    const cj = ((cells[c][1] % seg) + seg) % seg;
+    const phi = (ci / rings) * Math.PI;
+    const th = (cj / seg) * Math.PI * 2;
+    const k = cells[c][2] == null ? 1 : cells[c][2];
+    peaks.push([Math.sin(phi) * Math.cos(th), Math.cos(phi), Math.sin(phi) * Math.sin(th), amt * k * (0.85 + rnd() * 0.3)]);
+    peakKey.add(ci * seg + cj);
+  }
+  const kAt = (dx, dy, dz, jit) => {
+    let k = core + jit;
+    for (let i = 0; i < peaks.length; i++) {
+      const p = peaks[i];
+      const dot = Math.max(-1, Math.min(1, dx * p[0] + dy * p[1] + dz * p[2]));
+      if (spread > 0) {
+        const ang = Math.acos(dot);
+        if (ang < spread) k += p[3] * 0.5 * (1 + Math.cos((Math.PI * ang) / spread));
+      } else if (dot > 0) k += p[3] * Math.pow(dot, sharp);
+    }
+    return k;
+  };
+  const b = mesh();
+  const grid = [];
+  for (let i = 0; i <= rings; i++) {
+    const row = [];
+    const phi = (i / rings) * Math.PI;
+    const pole = i === 0 || i === rings;
+    const pj = pole ? (rnd() - 0.5) * 2 * wob : 0;
+    for (let j = 0; j < seg; j++) {
+      const th = (j / seg) * Math.PI * 2;
+      const dx = Math.sin(phi) * Math.cos(th);
+      const dy = Math.cos(phi);
+      const dz = Math.sin(phi) * Math.sin(th);
+      const k = kAt(dx, dy, dz, pole ? pj : (rnd() - 0.5) * 2 * wob);
+      row.push([dx * rx * k, dy * ryy * k, dz * rzz * k]);
+    }
+    grid.push(row);
+  }
+  for (let i = 0; i < rings; i++) {
+    for (let j = 0; j < seg; j++) {
+      const j2 = (j + 1) % seg;
+      const a = grid[i][j];
+      const bb = grid[i][j2];
+      const c = grid[i + 1][j2];
+      const d = grid[i + 1][j];
+      // 봉우리에 닿는 면만 밝은 색 — 잎다발 하나하나가 구분돼 보인다
+      const lit = tipColor && (peakKey.has(i * seg + j) || peakKey.has((i + 1) * seg + j));
+      const col = lit ? tipColor : color;
+      if (i === 0) tri(b, a, c, d, col, { soft: true });
+      else if (i === rings - 1) tri(b, a, bb, c, col, { soft: true });
+      else quad(b, a, bb, c, d, col, { soft: true });
+    }
+  }
+  merge(m, b, { tx: x, ty: y, tz: z, ry: yaw });
+  return m;
+}
+
 /** 원통 겉면에 살짝 띄운 껍질 결 한 줄(면 1개). 통나무·줄기의 손그림 선. */
 function barkLine(m, { r = 0.25, a = 0, y0 = 0, y1 = 1, w = 0.05, color = P.trunkDark, lift = 0.014 }) {
   const nx = Math.cos(a) * (r + lift);
   const nz = Math.sin(a) * (r + lift);
   const tx = -Math.sin(a) * w * 0.5;
   const tz = Math.cos(a) * w * 0.5;
-  quad(m, [nx - tx, y0, nz - tz], [nx + tx, y0, nz + tz], [nx + tx, y1, nz + tz], [nx - tx, y1, nz - tz], color, { double: true });
+  // 양면으로 두면 옆에서 볼 때 판이 선 하나로 눌려 실루엣 밖에 삐져나온 "머리카락"이 된다.
+  // 바깥을 향하도록 감아서 단면일 때 자동으로 컬링되게 한다.
+  quad(m, [nx + tx, y0, nz + tz], [nx - tx, y0, nz - tz], [nx - tx, y1, nz - tz], [nx + tx, y1, nz + tz], color);
   return m;
 }
 
@@ -301,49 +484,41 @@ export function leafyTree(seed = 1, opt = {}) {
   const rng = makeRng(seed);
   const m = mesh();
   const color = opt.color || pick(rng, [P.leaf, P.leafDark, '#96c46f']);
-  const tipColor = opt.color || '#7fb45f';
+  // 잎다발 끝만 한 톤 밝게 — 덩어리 하나하나가 겹쳐 보인다
+  const tipColor = color === P.leafDark ? P.leaf : '#a7d181';
   const h = rand(rng, 4.6, 5.8);
-  trunk(m, { h: h * 0.32, r: 0.26, top: 0.16, seed, roots: 4 });
+  trunk(m, { h: h * 0.3, r: 0.27, top: 0.15, seed, roots: 4, flare: 0.5 });
   // 잎덩어리 속으로 갈라져 들어가는 두 가지
   for (const s of [-1, 1]) {
     const t = mesh();
     cylinder(t, { r: 0.1, r2: 0.05, h: h * 0.2, seg: 4, color: P.trunk, cap: false });
-    merge(m, t, { rz: s * 0.5, tx: s * 0.06, ty: h * 0.28 });
+    merge(m, t, { rz: s * 0.5, tx: s * 0.06, ty: h * 0.26 });
   }
-  const cy = h * 0.6;
-  const rx = h * 0.26;
-  const ry = h * 0.33;
-  blobSphere(m, { y: cy, rx, ry, seg: 9, rings: 4, color, wob: 0.06, bumps: 4, bumpAmt: 0.24, seed: seed + 4 });
-  // 겉면에 길고 뾰족한 잎을 심어 불꽃 실루엣을 만든다(위로 갈수록 길고 곧게 선다)
-  const rows = [
-    [1.55, 9, 0.52, 1.0],
-    [1.15, 8, 0.58, 0.7],
-    [0.8, 6, 0.62, 0.42],
-    [0.42, 4, 0.72, 0.2],
-    [0.1, 2, 0.86, 0.08],
+  // 캐노피는 "공 + 삐죽 튀어나온 가시"가 아니라, 뾰족한 잎다발이 겹쳐 붙은
+  // 닫힌 덩어리 하나다. 봉우리를 격자 정점에 맞춰 심어 끝이 실루엣에 그대로 남는다.
+  const cy = h * 0.62;
+  const cells = [
+    [0, 0, 0.85],
+    [1, 1], [1, 5], [1, 9],
+    [2, 3], [2, 7], [2, 11],
+    [3, 0], [3, 2], [3, 4], [3, 6], [3, 8], [3, 10],
+    [4, 1], [4, 5], [4, 9],
   ];
-  for (let k = 0; k < rows.length; k++) {
-    const phi = rows[k][0];
-    const n = rows[k][1];
-    const lenF = rows[k][2];
-    const out = rows[k][3];
-    for (let i = 0; i < n; i++) {
-      const a = (i / n) * Math.PI * 2 + k * 0.55;
-      const dx = Math.sin(phi) * Math.cos(a);
-      const dy = Math.cos(phi);
-      const dz = Math.sin(phi) * Math.sin(a);
-      leafTip(m, {
-        x: dx * rx * 0.9,
-        y: cy + dy * ry * 0.9,
-        z: dz * rx * 0.9,
-        dir: a,
-        out,
-        len: rx * lenF,
-        wid: rx * 0.3,
-        color: k % 2 ? tipColor : color,
-      });
-    }
-  }
+  clumpCrown(m, {
+    y: cy,
+    rx: h * 0.27,
+    ry: h * 0.34,
+    seg: 12,
+    rings: 6,
+    color,
+    tipColor,
+    cells,
+    amt: 0.7,
+    sharp: 16,
+    core: 0.62,
+    seed: seed + 4,
+    yaw: rng() * 0.5,
+  });
   return finish(m, { radius: 0.6, sway: 0.55, kind: 'leafy' });
 }
 
@@ -353,24 +528,33 @@ export function blobTree(seed = 1, opt = {}) {
   const m = mesh();
   const color = opt.color || pick(rng, [P.leaf, P.leafDark, '#a3c97c', P.leafBlue]);
   const h = rand(rng, 4.2, 5.4);
-  trunk(m, { h: h * 0.46, r: 0.25, top: 0.15, seed, roots: 4 });
+  // 굵은 밑동이 위로 갈수록 확 가늘어지고, 뿌리 버팀이 밖으로 벌어진다
+  trunk(m, { h: h * 0.4, r: 0.3, top: 0.12, seed, roots: 5, flare: 0.62 });
+  // 줄기가 한 번만 두 갈래로 갈라져 캐노피 속으로 들어간다(V 가 캐노피 밑에서 보인다)
+  const forkY = h * 0.39;
   for (const s of [-1, 1]) {
     const t = mesh();
-    cylinder(t, { r: 0.09, r2: 0.05, h: h * 0.2, seg: 4, color: P.trunk, cap: false });
-    merge(m, t, { rz: s * 0.58, tx: s * 0.06, ty: h * 0.42 });
+    cylinder(t, { r: 0.1, r2: 0.045, h: h * 0.27, seg: 4, color: P.trunk, cap: false });
+    merge(m, t, { rz: s * 0.46, tx: s * 0.045, ty: forkY });
   }
-  cloudBlob(m, {
-    y: h * 0.64,
-    rx: h * 0.36,
-    ry: h * 0.33,
-    seg: 15,
-    rings: 6,
+  // 캐노피 가장자리는 큼직한 둥근 혹 대여섯 덩이로 크게 파도친다.
+  // 혹 방향을 격자 정점에 맞춰야 봉우리가 깎이지 않고 실루엣에 그대로 남는다.
+  clumpCrown(m, {
+    y: h * 0.8,
+    rx: h * 0.37,
+    ry: h * 0.3,
+    seg: 16,
+    rings: 8,
     color,
-    lobes: 8,
-    amt: 0.48,
-    sharp: 10,
-    core: 0.68,
+    tipColor: null,
+    cells: [
+      [1, 4], [2, 11], [3, 1], [3, 7], [3, 13], [4, 4], [4, 10], [5, 0], [5, 8],
+    ],
+    amt: 0.78,
+    spread: 0.82,
+    core: 0.6,
     seed: seed + 3,
+    yaw: rng() * 0.7,
   });
   return finish(m, { radius: 0.6, sway: 0.6, kind: 'blob' });
 }
@@ -482,27 +666,36 @@ export function cypress(seed = 1) {
   const m = mesh();
   const h = rand(rng, 3.2, 4.3);
   const color = pick(rng, [P.leafDark, '#5f9a52', P.leafBlue]);
-  trunk(m, { h: h * 0.3, r: 0.1, top: 0.05, color: P.trunkDark, seg: 5, roots: 3, seed, flare: 0.5 });
-  const bodyY = h * 0.12;
-  const bodyR = h * 0.12;
-  const bodyH = h * 0.86;
-  cone(m, { y: bodyY, r: bodyR, h: bodyH, seg: 7, color });
-  // 나선으로 잎다발을 붙여 실루엣을 거칠게
-  const n = 16;
+  trunk(m, { h: h * 0.26, r: 0.085, top: 0.045, color: P.trunkDark, seg: 5, roots: 3, seed, flare: 0.5 });
+  // 그림처럼 폭보다 5배쯤 높은 깔끔한 첨탑. 잎을 밖으로 심으면 선인장이 되므로
+  // 실루엣은 매끈하게 두고, 잎결은 겉면에 붙인 얇은 선으로만 넣는다.
+  const bodyY = h * 0.1;
+  const bodyR = h * 0.1;
+  const bodyH = h * 0.9;
+  const waist = bodyR * 0.68;
+  const skirtH = bodyH * 0.42;
+  cylinder(m, { y: bodyY, r: bodyR, r2: waist, h: skirtH, seg: 9, color, cap: false });
+  cone(m, { y: bodyY + skirtH, r: waist, h: bodyH - skirtH, seg: 9, color });
+  // 겉면을 타고 흐르는 잎결 — 실루엣을 뚫지 않는다
+  const n = 20;
   for (let i = 0; i < n; i++) {
     const t = i / n;
-    const a = t * Math.PI * 7.4 + 0.4;
-    const y = bodyY + bodyH * (0.08 + t * 0.78);
-    const rr = bodyR * (1 - (y - bodyY) / bodyH) * 0.9;
-    leafTip(m, {
-      x: Math.cos(a) * rr,
-      y,
-      z: Math.sin(a) * rr,
-      dir: a,
-      out: 0.85,
-      len: h * 0.15,
-      wid: h * 0.045,
-      color: i % 2 ? color : P.leafDark,
+    const a = t * Math.PI * 9.4 + 0.4;
+    const y0 = bodyY + bodyH * (0.05 + t * 0.72);
+    const y1 = Math.min(bodyY + bodyH * 0.97, y0 + bodyH * 0.17);
+    const rAt = (yy) => {
+      const k = (yy - bodyY) / bodyH;
+      return k < 0.42 ? bodyR + (waist - bodyR) * (k / 0.42) : waist * (1 - (k - 0.42) / 0.58);
+    };
+    slopeLine(m, {
+      a,
+      r0: rAt(y0),
+      r1: rAt(y1),
+      y0,
+      y1,
+      w: h * 0.045,
+      color: i % 2 ? P.leafDark : '#5f9a52',
+      lift: 0.022,
     });
   }
   return finish(m, { radius: 0.3, sway: 0.5, kind: 'cypress' });
@@ -523,12 +716,24 @@ export function bareTree(seed = 1) {
     const nx = x + Math.sin(tilt) * Math.cos(ang) * len;
     const ny = y + Math.cos(tilt) * len;
     const nz = z + Math.sin(tilt) * Math.sin(ang) * len;
-    branch(nx, ny, nz, ang + rand(rng, -0.5, 0.5), tilt + rand(rng, 0.3, 0.6), len * 0.6, r * 0.62, depth - 1);
-    branch(nx, ny, nz, ang + Math.PI + rand(rng, -0.5, 0.5), tilt + rand(rng, 0.25, 0.55), len * 0.55, r * 0.58, depth - 1);
+    // 갈래는 위로 벌어진다 — 하나는 더 눕고 하나는 더 선다(아래로 처지지 않게 묶어 둔다)
+    const t1 = Math.min(1.15, tilt + rand(rng, 0.22, 0.45));
+    const t2 = Math.max(0.06, tilt - rand(rng, 0.15, 0.4));
+    branch(nx, ny, nz, ang + rand(rng, -0.45, 0.45), t1, len * 0.58, r * 0.6, depth - 1);
+    branch(nx, ny, nz, ang + rand(rng, -0.5, 0.5), t2, len * 0.52, r * 0.55, depth - 1);
   };
+  // 그림처럼 줄기가 위로 이어지고, 그 줄기 곳곳에서 가지가 V 자로 갈라져 올라간다
   const base = rng() * 6.28;
-  branch(0, h * 0.5, 0, base, 0.2, h * 0.3, 0.08, 1);
-  branch(0, h * 0.44, 0, base + 2.4, 0.36, h * 0.24, 0.07, 1);
+  const lead = mesh();
+  cylinder(lead, { r: 0.07, r2: 0.028, h: h * 0.34, seg: 4, color: P.trunkDark, cap: false });
+  merge(m, lead, { rz: -0.09, ry: -base, ty: h * 0.5 });
+  const forks = 5;
+  for (let i = 0; i < forks; i++) {
+    const k = i / (forks - 1);
+    const y = h * (0.4 + k * 0.32);
+    const r = 0.075 - k * 0.028;
+    branch(0, y, 0, base + i * 2.35 + rand(rng, -0.35, 0.35), rand(rng, 0.5, 0.85), h * (0.3 - k * 0.11), r, 2);
+  }
   return finish(m, { radius: 0.4, sway: 0.45, kind: 'bare' });
 }
 
@@ -645,17 +850,19 @@ export function stump(seed = 1) {
   const s = rand(rng, 0.82, 1.25);
   const r = 0.42 * s;
   const h = 0.56 * s;
-  cylinder(m, { r: r * 1.3, r2: r * 1.06, h: h * 0.26, seg: 8, color: P.trunkDark, cap: false });
-  cylinder(m, { y: h * 0.26, r: r * 1.06, r2: r, h: h * 0.74, seg: 8, color: P.trunk, cap: true, capColor: P.wood });
-  rootFlares(m, { r: r * 1.3, rt: r * 1.14, up: h * 0.5, n: 5, len: r * 0.26, color: P.trunkDark, seed: seed + 7 });
-  // 잘린 면의 나이테 — 얇게 도드라진 동심원 두 겹
-  cylinder(m, { y: h, r: r * 0.62, h: 0.022 * s, seg: 7, color: '#e0c193', capColor: P.wood });
-  cylinder(m, { y: h + 0.022 * s, r: r * 0.3, h: 0.018 * s, seg: 6, color: '#e0c193', capColor: '#e8d3ad' });
+  // 밑동은 자른 면보다 1.6 배 굵게 벌어진다(그림의 나팔처럼 퍼진 뿌리목)
+  const base = r * 1.6;
+  cylinder(m, { r: base, r2: r * 1.16, h: h * 0.34, seg: 8, color: P.trunkDark, cap: false });
+  cylinder(m, { y: h * 0.34, r: r * 1.16, r2: r, h: h * 0.66, seg: 8, color: P.trunk, cap: false });
+  // 방사형 뿌리 버팀 5 개 — 밑동에서 땅으로 뻗어 나간다
+  rootFlares(m, { r: base, rt: r * 1.3, up: h * 0.46, n: 5, len: r * 0.5, color: P.trunkDark, seed: seed + 7 });
+  // 잘린 면의 나이테 — 홈을 지그재그로 파서 동심원이 잉크 선으로 잡힌다
+  growthRings(m, { y: h, r, n: 3, seg: 8, depth: r * 0.13, color: P.wood, ringColor: '#e0c193' });
   // 세로 껍질 결
   for (let i = 0; i < 3; i++) {
-    barkLine(m, { r: r * 1.02, a: 0.7 + i * 2.05, y0: h * 0.12, y1: h * 0.9, w: 0.06 * s, color: P.trunkDark });
+    barkLine(m, { r: r * 1.02, a: 0.7 + i * 2.05, y0: h * 0.2, y1: h * 0.74, w: 0.06 * s, color: P.trunkDark });
   }
-  return finish(m, { radius: r * 1.3, kind: 'stump' });
+  return finish(m, { radius: base, kind: 'stump' });
 }
 
 /** 시트 3-⑯: 위쪽이 세로로 쪼개져 뾰족한 조각이 남은 그루터기. */
@@ -665,49 +872,77 @@ export function splitStump(seed = 1) {
   const s = rand(rng, 0.85, 1.2);
   const r = 0.34 * s;
   const bodyH = 0.34 * s;
-  cylinder(m, { r: r * 1.22, r2: r, h: bodyH, seg: 8, color: P.trunk, cap: true, capColor: '#a9855c' });
+  const seg = 8;
+  cylinder(m, { r: r * 1.22, r2: r, h: bodyH, seg, color: P.trunk, cap: false });
   rootFlares(m, { r: r * 1.22, rt: r * 1.1, up: bodyH * 0.62, n: 4, len: r * 0.26, color: P.trunkDark, seed: seed + 5 });
-  // 쪼개져 남은 뾰족한 조각 4개 — 높이가 제각각이라 부러진 티가 난다
-  const shards = [0.42, 0.26, 0.34, 0.2];
+  // 한가운데는 뻥 뚫려 있다 — 테두리 턱 → 깔때기 → 어두운 바닥 순으로 파고든다.
+  // 매끈한 원뿔 네 개를 세우면 "톱니 왕관"이 되고, 속이 비어야 뜯긴 느낌이 산다.
+  ringBand(m, { rOut: r, rIn: r * 0.62, yOut: bodyH, yIn: bodyH - 0.03 * s, seg, color: '#a9855c' });
+  ringBand(m, { rOut: r * 0.62, rIn: r * 0.2, yOut: bodyH - 0.03 * s, yIn: bodyH - 0.2 * s, seg, color: '#8a6a45' });
+  const floor = [];
+  for (let i = 0; i < seg; i++) {
+    const a = -(i / seg) * Math.PI * 2;
+    floor.push([Math.cos(a) * r * 0.2, bodyH - 0.2 * s, Math.sin(a) * r * 0.2]);
+  }
+  poly(m, floor, '#6f5334');
+  // 쪼개져 남은 조각 5 개 — [방위, 높이(r 배수), 폭(반각)]. 셋 다 제각각이라
+  // 톱니 왕관이 아니라 "제멋대로 부러진" 형태가 된다.
+  const shards = [
+    [0.15, 1.5, 0.78],
+    [1.4, 0.5, 0.4],
+    [2.35, 1.05, 0.52],
+    [3.6, 0.3, 0.36],
+    [4.8, 0.75, 0.66],
+  ];
   for (let i = 0; i < shards.length; i++) {
-    const a = (i / shards.length) * Math.PI * 2 + rand(rng, -0.3, 0.3);
-    const rr = r * 0.5;
-    const sh = mesh();
-    cone(sh, { r: r * 0.38, h: shards[i] * s, seg: 4, color: P.wood, ry: a });
-    merge(m, sh, { rz: rand(rng, -0.12, 0.12), tx: Math.cos(a) * rr, ty: bodyH - 0.01, tz: Math.sin(a) * rr });
+    const a = shards[i][0] + rand(rng, -0.14, 0.14);
+    woodShard(m, {
+      y: bodyH - 0.02 * s,
+      a,
+      half: shards[i][2],
+      rOut: r * 1.02,
+      rIn: r * 0.5,
+      h: r * shards[i][1] * (0.88 + rng() * 0.3),
+      lean: r * rand(rng, -0.06, 0.14),
+      jag: rand(rng, 0.14, 0.4),
+      color: P.trunk,
+      side: P.wood,
+    });
   }
   // 세로로 갈라진 결
   for (let i = 0; i < 3; i++) {
-    barkLine(m, { r: r * 1.14, a: 0.5 + i * 2.1, y0: bodyH * 0.12, y1: bodyH * 0.96, w: 0.05 * s, color: P.trunkDark });
+    barkLine(m, { r: r * 1.06, a: 0.5 + i * 2.1, y0: bodyH * 0.14, y1: bodyH * 0.8, w: 0.05 * s, color: P.trunkDark });
   }
   return finish(m, { radius: r * 1.2, kind: 'splitStump' });
 }
 
-/** 시트 3-⑳: 옆으로 누운 통나무 — 마구리에 나이테, 옆면에 긴 껍질 결. */
+/** 시트 3-⑳: 옆으로 누운 굵은 통나무 — 마구리 나이테가 주인공, 옆면엔 긴 껍질 결. */
 export function log(seed = 1) {
   const rng = makeRng(seed);
   const m = mesh();
-  const len = rand(rng, 1.4, 2.1);
-  const r = rand(rng, 0.19, 0.26);
+  // 그림은 "굵고 짧은" 토막이다 — 길이가 지름의 2.5 배쯤
+  const r = rand(rng, 0.24, 0.3);
+  const len = r * 2 * rand(rng, 2.2, 2.5);
   const seg = 8;
   // 로컬에서는 +y 로 세워 두고 마지막에 눕힌다
   const b = mesh();
-  cylinder(b, { y: -len / 2, r, h: len, seg, color: P.trunk, capColor: P.wood });
+  cylinder(b, { y: -len / 2, r, r2: r * 0.95, h: len, seg, color: P.trunk, cap: false });
   const ring = [];
   for (let i = 0; i < seg; i++) {
     const a = (i / seg) * Math.PI * 2;
     ring.push([Math.cos(a) * r, -len / 2, Math.sin(a) * r]);
   }
   poly(b, ring, P.trunkDark); // 반대쪽 마구리(노멀 -y)
-  // 마구리 나이테
-  cylinder(b, { y: len / 2, r: r * 0.62, h: 0.02, seg: 7, color: P.wood, capColor: '#e8d3ad' });
-  cylinder(b, { y: len / 2 + 0.02, r: r * 0.26, h: 0.016, seg: 6, color: '#e8d3ad', capColor: P.trunkDark });
+  // 톱질한 마구리 — 동심원 홈이 이 모델의 얼굴이다
+  growthRings(b, { y: len / 2, r: r * 0.95, n: 3, seg, depth: r * 0.13, color: P.wood, ringColor: '#e8d3ad' });
   // 길게 이어지는 껍질 결(옆면을 따라 흐르는 손그림 선)
   for (let i = 0; i < 4; i++) {
     const a = 0.5 + i * 1.5;
-    barkLine(b, { r, a, y0: -len * (0.36 + i * 0.03), y1: len * (0.4 - i * 0.04), w: 0.055, color: P.trunkDark });
+    barkLine(b, { r, a, y0: -len * (0.38 - i * 0.04), y1: len * (0.42 - i * 0.05), w: 0.036, color: P.trunkDark });
   }
-  merge(m, b, { rx: Math.PI / 2, ry: rand(rng, 0, 3.14), ty: r });
+  // 갤러리/게임 카메라(yaw 0.42)에서 마구리가 3/4 로 보이도록 축을 고정한다.
+  // 방위를 완전히 랜덤으로 돌리면 마구리가 뒤로 숨어 납작한 판때기로 보인다.
+  merge(m, b, { rx: Math.PI / 2, ry: -0.35 + rand(rng, -0.14, 0.14), ty: r });
   return finish(m, { radius: r * 1.6, kind: 'log' });
 }
 
@@ -781,39 +1016,43 @@ export function rock(seed = 1) {
 
 // ── 덤불 · 낮은 식물 ──────────────────────────
 
-/** 시트 3-㉓: 뾰족한 잎이 위로 솟은 덤불(열매 옵션). */
+/** 시트 3-㉒: 둥근 혹 예닐곱 개가 겹쳐 뭉게구름처럼 부푼 덤불(열매 옵션). */
 export function bush(seed = 1, opt = {}) {
   const rng = makeRng(seed);
   const m = mesh();
   const color = opt.color || pick(rng, [P.leaf, P.leafDark, '#a9cb84']);
   const s = rand(rng, 0.8, 1.15);
   const rx = 0.62 * s;
-  const ry = 0.4 * s;
-  cloudBlob(m, { y: 0.33 * s, rx, ry, seg: 12, rings: 4, color, lobes: 6, amt: 0.4, sharp: 8, core: 0.74, top: 1, seed: seed + 2 });
-  // 위쪽 실루엣을 삐죽하게 만드는 잎끝 8장
-  for (let i = 0; i < 9; i++) {
-    const a = (i / 9) * Math.PI * 2 + rng() * 0.25;
-    const phi = 0.82 + rng() * 0.5;
-    leafTip(m, {
-      x: Math.sin(phi) * Math.cos(a) * rx * 0.85,
-      y: 0.33 * s + Math.cos(phi) * ry * 0.9,
-      z: Math.sin(phi) * Math.sin(a) * rx * 0.85,
-      dir: a,
-      out: 1.15,
-      len: 0.22 * s,
-      wid: 0.13 * s,
-      color: i % 3 ? color : P.leafDark,
-    });
-  }
+  const ry = 0.44 * s;
+  // 밑에 살짝 드러난 짧은 줄기 그루
+  cylinder(m, { r: 0.055 * s, r2: 0.04 * s, h: 0.17 * s, seg: 5, color: P.trunkDark, cap: false });
+  // 그림은 가시 달린 공이 아니라 스캘럽(둥근 혹)이 이어진 구름이다 —
+  // 잎끝을 밖으로 꽂으면 기뢰처럼 보이므로 실루엣을 혹으로만 울퉁불퉁하게 만든다.
+  clumpCrown(m, {
+    y: 0.46 * s,
+    rx,
+    ry,
+    seg: 13,
+    rings: 7,
+    color,
+    cells: [
+      [0, 0, 0.6], [1, 6], [2, 0], [2, 5], [2, 9], [3, 2], [3, 7], [3, 11], [4, 4], [4, 10],
+    ],
+    amt: 0.56,
+    spread: 1.02,
+    core: 0.7,
+    seed: seed + 2,
+    yaw: rng() * 1.2,
+  });
   if (opt.berries) {
     // 열매는 "그려진 동그라미" 한 장 — 바깥을 향해 눕힌 원판
     for (let i = 0; i < 5; i++) {
       const a = rng() * Math.PI * 2;
       const phi = 0.6 + rng() * 0.5;
       disc(m, {
-        x: Math.sin(phi) * Math.cos(a) * rx * 0.95,
-        y: 0.33 * s + Math.cos(phi) * ry * 1.0,
-        z: Math.sin(phi) * Math.sin(a) * rx * 0.95,
+        x: Math.sin(phi) * Math.cos(a) * rx * 0.92,
+        y: 0.46 * s + Math.cos(phi) * ry * 1.0,
+        z: Math.sin(phi) * Math.sin(a) * rx * 0.92,
         r: 0.06 * s,
         seg: 6,
         color: '#d76a6a',
@@ -979,91 +1218,128 @@ export function seedling(seed = 1) {
   return finish(m, { radius: 0, sway: 2.4, kind: 'seedling' });
 }
 
-/** 활처럼 휜 줄기에 작은 잎이 마주 붙은 고사리. */
+/**
+ * 아직 안 펴진 새순(도르르 말린 고사리 끝) — 안쪽으로 감기는 납작한 리본.
+ * 반지름을 줄이면서 각도를 돌려 띠를 잇는다(면 n 개, 양면).
+ */
+function fiddlehead(m, { x = 0, y = 0, z = 0, r = 0.08, dir = 0, n = 9, turns = 1.55, w = 0.032, color = P.leaf }) {
+  const b = mesh();
+  const tmax = turns * Math.PI * 2;
+  const pt = (k) => {
+    const t = (k / n) * tmax;
+    const rr = r * (1 - 0.78 * (k / n));
+    const ww = w * (1 - 0.6 * (k / n));
+    return [Math.cos(t) * rr, Math.sin(t) * rr, ww];
+  };
+  for (let k = 0; k < n; k++) {
+    const a = pt(k);
+    const c = pt(k + 1);
+    quad(
+      b,
+      [a[0] - Math.cos((k / n) * tmax) * a[2], a[1] - Math.sin((k / n) * tmax) * a[2], 0],
+      [a[0] + Math.cos((k / n) * tmax) * a[2], a[1] + Math.sin((k / n) * tmax) * a[2], 0],
+      [c[0] + Math.cos(((k + 1) / n) * tmax) * c[2], c[1] + Math.sin(((k + 1) / n) * tmax) * c[2], 0],
+      [c[0] - Math.cos(((k + 1) / n) * tmax) * c[2], c[1] - Math.sin(((k + 1) / n) * tmax) * c[2], 0],
+      color,
+      { double: true }
+    );
+  }
+  merge(m, b, { ry: -dir, tx: x, ty: y, tz: z });
+  return m;
+}
+
+/**
+ * 시트 2 아랫줄의 고사리 — 밑동에서 부챗살로 뻗은 길고 넓은 잎날 대여섯 장,
+ * 그 사이로 돌돌 말린 새순 하나가 대에 얹혀 올라온다.
+ * (예전엔 깃털잎을 수십 장 붙였는데, 잎이 손톱만 해서 화면에서는
+ *  윤곽선만 뭉쳐 새까만 얼룩으로 보였다. 그림처럼 큼직한 잎날로 바꿨다)
+ */
 export function fernPlant(seed = 1) {
   const rng = makeRng(seed);
   const m = mesh();
   const color = pick(rng, [P.leaf, '#8ab96a', P.grassDeep]);
-  const fronds = 3;
-  for (let f = 0; f < fronds; f++) {
-    const dir = (f / fronds) * Math.PI * 2 + rng() * 0.4;
-    const len = rand(rng, 0.34, 0.46);
-    // 두 토막으로 이어 붙여 활 모양을 만든다
-    const t0 = 0.4;
-    const t1 = 0.95;
-    const s0 = mesh();
-    cylinder(s0, { r: 0.016, r2: 0.012, h: len, seg: 3, color: P.grassDeep, cap: false });
-    merge(m, s0, { rz: -t0, ry: -dir });
-    const bx = Math.sin(t0) * Math.cos(dir) * len;
-    const by = Math.cos(t0) * len;
-    const bz = Math.sin(t0) * Math.sin(dir) * len;
-    const s1 = mesh();
-    cylinder(s1, { r: 0.012, r2: 0.005, h: len * 0.8, seg: 3, color: P.grassDeep, cap: false });
-    merge(m, s1, { rz: -t1, ry: -dir, tx: bx, ty: by, tz: bz });
-    // 마주보는 작은 잎 3쌍
-    for (let i = 0; i < 3; i++) {
-      const k = 0.35 + i * 0.26;
-      const tt = t0 + (t1 - t0) * k;
-      const px = Math.sin(tt) * Math.cos(dir) * len * (0.4 + k);
-      const py = Math.cos(tt) * len * (0.4 + k) * 0.95;
-      const pz = Math.sin(tt) * Math.sin(dir) * len * (0.4 + k);
-      const lf = 0.15 - i * 0.028;
-      for (const sgn of [1, -1]) {
-        flatLeaf(m, {
-          x: px,
-          y: py,
-          z: pz,
-          len: lf,
-          wid: lf * 0.5,
-          dir: dir + sgn * 1.15,
-          tilt: 0.35,
-          color,
-        });
-      }
+  const dark = shade(color, -0.05);
+  const blades = randInt(rng, 5, 7);
+  const base = rng() * Math.PI * 2;
+  for (let f = 0; f < blades; f++) {
+    // 부챗살 — 가운데 잎이 가장 길고 곧게 서고, 바깥으로 갈수록 짧고 크게 눕는다
+    const t = blades === 1 ? 0 : f / (blades - 1) - 0.5;
+    const dir = base + t * 4.6 + rand(rng, -0.18, 0.18);
+    const len = rand(rng, 0.62, 0.78) * (1 - Math.abs(t) * 0.26);
+    // 잎면이 위를 보게 눕혀 심는다 — 세워 두면 옆에서 볼 때 선만 남아 까맣게 뭉친다
+    flatLeaf(m, {
+      len,
+      wid: len * rand(rng, 0.24, 0.32),
+      dir,
+      tilt: 0.62 + Math.abs(t) * 0.42 + rand(rng, -0.08, 0.08),
+      color: f % 2 ? color : dark,
+    });
+    // 잎날 밑동에 짧은 곁잎 — 그림처럼 밑이 수북해 보이게
+    if (rng() < 0.6) {
+      flatLeaf(m, {
+        y: 0.01,
+        len: len * 0.46,
+        wid: len * 0.17,
+        dir: dir + rand(rng, -0.6, 0.6),
+        tilt: 0.3,
+        color: dark,
+      });
     }
   }
-  // 아직 안 펴진 새순(도르르 말린 끝)
-  cylinder(m, { r: 0.012, h: 0.26, seg: 3, color: P.grassDeep, cap: false });
-  disc(m, { y: 0.29, r: 0.045, seg: 6, color, double: true });
-  return finish(m, { radius: 0.3, sway: 1.8, kind: 'fern' });
+  // 아직 안 펴진 새순 — 활처럼 휜 대 끝에 나선이 달린다
+  const fd = base + Math.PI * 0.55 + rand(rng, -0.3, 0.3);
+  const fl = 0.34;
+  const ft = [0.2, 0.5];
+  let qx = 0;
+  let qy = 0;
+  let qz = 0;
+  for (let s = 0; s < ft.length; s++) {
+    const st = mesh();
+    cylinder(st, { r: 0.016 - s * 0.004, r2: 0.012 - s * 0.003, h: fl, seg: 3, color: P.grassDeep, cap: false });
+    merge(m, st, { rz: -ft[s], ry: -fd, tx: qx, ty: qy, tz: qz });
+    qx += Math.sin(ft[s]) * Math.cos(fd) * fl;
+    qy += Math.cos(ft[s]) * fl;
+    qz += Math.sin(ft[s]) * Math.sin(fd) * fl;
+  }
+  fiddlehead(m, { x: qx, y: qy + 0.12, z: qz, r: 0.14, w: 0.05, dir: fd + Math.PI / 2, color });
+  return finish(m, { radius: 0.4, sway: 1.8, kind: 'fern' });
 }
 
 /** 톱니 잎 위로 솟은 민들레 — 홀씨 공과 노란 꽃 한 송이. */
 export function dandelion(seed = 1) {
   const rng = makeRng(seed);
   const m = mesh();
-  // 바닥에 깔린 톱니 잎 4장
-  for (let i = 0; i < 4; i++) {
-    const a = (i / 4) * Math.PI * 2 + rng() * 0.5;
+  const h = rand(rng, 0.42, 0.56);
+  // 밑동의 큼직한 톱날 잎 로제트 — 퍼진 폭이 키만큼 넓고, 비스듬히 들려 있다.
+  // 이 로제트가 민들레의 인상 절반을 차지하므로 크고 굵게 깐다.
+  for (let i = 0; i < 5; i++) {
+    const a = (i / 5) * Math.PI * 2 + rng() * 0.4;
     flatLeaf(m, {
-      y: 0.012,
-      len: rand(rng, 0.26, 0.34),
-      wid: 0.14,
+      y: 0.012 + i * 0.004,
+      len: h * rand(rng, 0.62, 0.8),
+      wid: h * 0.34,
       dir: a,
-      tilt: 0.28,
-      shape: 'tooth',
+      // 그림처럼 비스듬히 들려 있어야 톱니가 옆 실루엣으로 잡힌다
+      tilt: rand(rng, 0.5, 0.82),
+      shape: 'saw',
       color: pick(rng, [P.leaf, P.grassDeep]),
     });
   }
   // 홀씨 줄기
-  const h = rand(rng, 0.42, 0.56);
   cylinder(m, { r: 0.012, h, seg: 3, color: P.grassDeep, cap: false });
-  blobSphere(m, { y: h + 0.07, rx: 0.062, ry: 0.06, seg: 6, rings: 3, color: '#f4f1e6', wob: 0.12, seed: seed + 4 });
-  // 사방으로 뻗은 갓털 — 그림의 보송한 홀씨 공
-  for (let i = 0; i < 8; i++) {
-    const a = (i / 8) * Math.PI * 2;
-    const phi = 0.45 + (i % 2) * 0.5;
-    leafTip(m, {
-      x: Math.sin(phi) * Math.cos(a) * 0.055,
-      y: h + 0.07 + Math.cos(phi) * 0.055,
-      z: Math.sin(phi) * Math.sin(a) * 0.055,
-      dir: a,
-      out: Math.sin(phi) * 1.6,
-      len: 0.042,
-      wid: 0.032,
-      color: '#f6f3e9',
-    });
-  }
+  // 홀씨 공 — 가시 별이 아니라 자잘한 혹이 촘촘한 동글동글 보송한 공
+  blobSphere(m, {
+    y: h + 0.085,
+    rx: 0.085,
+    ry: 0.082,
+    seg: 7,
+    rings: 4,
+    color: '#f4f1e6',
+    wob: 0.07,
+    bumps: 6,
+    bumpAmt: 0.2,
+    seed: seed + 4,
+  });
   // 옆에 선 노란 꽃 한 송이
   const fh = h * 0.66;
   const fa = rng() * Math.PI * 2;
@@ -1160,34 +1436,93 @@ export function mushroom(seed = 1) {
   const m = mesh();
   const capColor = pick(rng, ['#e08a76', '#d9a05b', '#c98fb0', '#e8cf9a']);
   const s = rand(rng, 0.7, 1.2);
-  const stemH = 0.19 * s;
-  const capR = 0.115 * s;
-  cylinder(m, { r: 0.05 * s, r2: 0.042 * s, h: stemH, seg: 6, color: '#f2e7cf', cap: false });
+  const stemH = 0.2 * s;
+  // 갓은 지름이 높이의 세 배쯤 — 폭이 넓고 낮게 도톰한 돔
+  const capR = 0.17 * s;
+  const capH = 0.105 * s;
+  const seg = 7;
+  // 대는 밑동이 불룩하게 부풀었다가 위로 갈수록 홀쭉해진다
+  cylinder(m, { r: 0.062 * s, r2: 0.042 * s, h: stemH * 0.42, seg: 6, color: '#f2e7cf', cap: false });
+  cylinder(m, { y: stemH * 0.42, r: 0.042 * s, r2: 0.046 * s, h: stemH * 0.58, seg: 6, color: '#f2e7cf', cap: false });
   // 갓 밑면(주름) — 아래를 보는 원판
   const und = [];
-  for (let i = 0; i < 7; i++) {
-    const a = (i / 7) * Math.PI * 2;
+  for (let i = 0; i < seg; i++) {
+    const a = (i / seg) * Math.PI * 2;
     und.push([Math.cos(a) * capR, stemH, Math.sin(a) * capR]);
   }
   poly(m, und, '#e4d3b4');
-  cylinder(m, { y: stemH, r: capR, r2: capR * 0.9, h: 0.05 * s, seg: 7, color: capColor, cap: false });
-  cylinder(m, { y: stemH + 0.05 * s, r: capR * 0.9, r2: capR * 0.62, h: 0.06 * s, seg: 7, color: capColor, cap: false });
-  cone(m, { y: stemH + 0.11 * s, r: capR * 0.62, h: 0.055 * s, seg: 7, color: capColor });
-  // 갓 위 점무늬
-  for (let i = 0; i < 3; i++) {
-    const a = (i / 3) * Math.PI * 2 + rng();
-    const rr = capR * (0.24 + rng() * 0.26);
+  // 돔 — 위로 갈수록 급하게 좁아지는 세 단
+  cylinder(m, { y: stemH, r: capR, r2: capR * 0.91, h: capH * 0.3, seg, color: capColor, cap: false });
+  cylinder(m, { y: stemH + capH * 0.3, r: capR * 0.91, r2: capR * 0.7, h: capH * 0.34, seg, color: capColor, cap: false });
+  cylinder(m, {
+    y: stemH + capH * 0.64,
+    r: capR * 0.7,
+    r2: capR * 0.36,
+    h: capH * 0.36,
+    seg,
+    color: capColor,
+    cap: true,
+    capColor,
+  });
+  // 갓 위 동그란 점무늬 6개 — 그림처럼 큼직하게
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2 + rng() * 0.5;
+    const t = 0.3 + (i % 3) * 0.22;
+    const rr = capR * t;
+    const yy = stemH + capH * (t < 0.45 ? 0.99 : t < 0.7 ? 0.67 : 0.34) + 0.004 * s;
     disc(m, {
       x: Math.cos(a) * rr,
-      y: stemH + 0.085 * s,
+      y: yy,
       z: Math.sin(a) * rr,
-      r: 0.022 * s,
-      seg: 5,
+      r: 0.03 * s,
+      seg: 7,
       color: '#f6efdd',
       double: true,
     });
   }
   return finish(m, { radius: capR, kind: 'mushroom' });
+}
+
+/**
+ * 시트 2: 땅에 떨어져 납작하게 누운 단풍잎 — 손바닥처럼 갈라진 갈래 일곱 장.
+ * 갈래를 한 점에서 부챗살로 펼치고 y 를 아주 조금씩 어긋나게 쌓아
+ * 같은 높이에서 깜빡이지 않게 한다.
+ */
+export function fallenLeaf(seed = 1) {
+  const rng = makeRng(seed);
+  const m = mesh();
+  const color = pick(rng, [P.leafRust, P.leafGold, '#cf7a45', '#d8a24f', '#b8894a']);
+  const s = rand(rng, 0.85, 1.25);
+  const base = rng() * Math.PI * 2;
+  const spread = 2.6; // 갈래가 펼쳐진 각도
+  const lobes = [0.62, 0.8, 0.94, 1.0, 0.94, 0.8, 0.62];
+  const n = lobes.length;
+  for (let i = 0; i < n; i++) {
+    const a = base + (i / (n - 1) - 0.5) * spread + rand(rng, -0.07, 0.07);
+    flatLeaf(m, {
+      y: 0.012 * s + i * 0.0016,
+      len: 0.4 * s * lobes[i],
+      wid: 0.16 * s,
+      dir: a,
+      tilt: 0,
+      shape: 'lobe',
+      color,
+    });
+  }
+  // 잎자루 — 부챗살 반대쪽으로 짧게 뻗은 얇은 판
+  const pa = base + Math.PI;
+  const pw = 0.016 * s;
+  const pl = 0.17 * s;
+  quad(
+    m,
+    [-Math.sin(pa) * pw, 0.01 * s, Math.cos(pa) * pw],
+    [Math.sin(pa) * pw, 0.01 * s, -Math.cos(pa) * pw],
+    [Math.cos(pa) * pl + Math.sin(pa) * pw * 0.5, 0.01 * s, Math.sin(pa) * pl - Math.cos(pa) * pw * 0.5],
+    [Math.cos(pa) * pl - Math.sin(pa) * pw * 0.5, 0.01 * s, Math.sin(pa) * pl + Math.cos(pa) * pw * 0.5],
+    P.trunkDark,
+    { double: true }
+  );
+  return finish(m, { radius: 0.34 * s, sway: 0, kind: 'fallenLeaf' });
 }
 
 // ── 수집품 ────────────────────────────────────

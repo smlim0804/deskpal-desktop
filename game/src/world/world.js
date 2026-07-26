@@ -370,6 +370,18 @@ export function buildWorld(A) {
   prop(props, A.props.railFenceBroken[0], -14.6, -6.4, { rng, ry: 0.2 });
   prop(props, A.props.pennantPair[0], 2.6, 14.9, { rng, ry: 0 });
 
+  // 도르래 우물, 주막 간판, 등피 등잔 — 사람 손 닿는 자리
+  prop(props, A.props.openWell[0], 14.6, 3.2, { rng, ry: -0.35 });
+  prop(props, A.props.tavernSign[0], -5.4, -2.1, { rng, ry: 0.3 });
+  prop(props, A.props.hurricaneLantern[0], -2.0, 2.2, { rng, glow: 0.9, glowR: 2.4, noFade: true });
+  prop(props, A.props.hurricaneLantern[0], 13.9, 3.5, { rng, glow: 0.9, glowR: 2.4, noFade: true });
+  prop(props, A.props.plankBenchBacked[0], 4.4, 10.4, { rng, ry: -2.6 });
+  prop(props, A.props.plankBenchBacked[0], -1.4, 12.2, { rng, ry: 0.5 });
+  // 밭문과 널문 — 울타리 틈과 헛간 벽
+  prop(props, A.props.fieldGate[0], -12.6, 7.4, { rng, ry: 0 });
+  prop(props, A.props.plankDoor[0], -12.3, -5.5, { rng, ry: 0.45 });
+  prop(props, A.props.plankDoorway[0], -20.6, 10.4, { rng, ry: 0.15 });
+
   // 연못가 — 돌 테두리와 징검다리
   for (let i = 0; i < 7; i++) {
     const a = 0.6 + (i / 7) * Math.PI * 1.3;
@@ -536,7 +548,8 @@ export function buildWorld(A) {
     else if (roll < 0.78) sp = A.props.fern;
     else if (roll < 0.84) sp = A.props.dandelion;
     else if (roll < 0.9) sp = A.props.mushroom;
-    else if (roll < 0.96) sp = A.props.sapling;
+    else if (roll < 0.93) sp = A.props.sapling;
+    else if (roll < 0.97) sp = A.props.leaf;
     else sp = A.props.seedling;
     prop(props, sp, x, z, { rng, r: 0, shadow: 0.45, scale: rand(rng, 0.75, 1.35) });
   }
@@ -561,6 +574,21 @@ export function buildWorld(A) {
       decals.push(
         circleDecal(lx, lz, rand(rng, 0.1, 0.26), litterColors[randInt(rng, 0, 3)], null, 0.4, rng, 5)
       );
+    }
+  }
+  // 나무 밑 낙엽 — 얇은 잎사귀를 몇 장 실제로 깔아 준다
+  for (const b of bigProps) {
+    if (b.tag || b.h < 3.0 || rng() < 0.55) continue;
+    const n = randInt(rng, 2, 5);
+    for (let i = 0; i < n; i++) {
+      const a = rng() * Math.PI * 2;
+      const rr = b.r * rand(rng, 0.8, 2.4);
+      prop(props, A.props.leaf, b.x + Math.cos(a) * rr, b.z + Math.sin(a) * rr, {
+        rng,
+        r: 0,
+        shadow: 0.25,
+        scale: rand(rng, 0.8, 1.3),
+      });
     }
   }
 

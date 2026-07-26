@@ -192,13 +192,15 @@ export class Scene {
     const pTop = pp.y - player._sh;
     for (const e of list) {
       e.alpha = 1;
-      if (e === player || e.h < 1.6 || e.noFade) continue;
+      if (e === player || e.h < 1.6) continue;
       if (e.kind !== 'prop' && e.kind !== 'npc') continue;
-      // 카메라 코앞을 막아선 물체는 사라지듯 흐려진다(거대한 실루엣이 화면을 덮는 걸 방지)
-      if (e._sh > this.cam.h * 1.15) {
+      // 카메라 코앞을 막아선 물체는 사라지듯 흐려진다(거대한 실루엣이 화면을 덮는 걸 방지).
+      // 가로등처럼 noFade 인 것도 여기서는 예외가 아니다 — 안 그러면 화면 구석이 새까매진다.
+      if (e._sh > this.cam.h * 0.95) {
         e.alpha = 0;
         continue;
       }
+      if (e.noFade) continue;
       if (e._p.depth >= pp.depth - 0.35) continue;
       let left;
       let right;

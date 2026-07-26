@@ -183,14 +183,68 @@ function profileTube(m, o) {
   return m;
 }
 
+/**
+ * 밖으로 말린 나팔 주둥이 — 목 위에 얹혀 처마처럼 튀어나오고 테두리가 도톰하다.
+ * 그림 속 항아리 네 개가 전부 이 "오버행 립"으로 시작한다.
+ */
+function flaredLip(m, o) {
+  const { y = 0, rNeck = 0.1, rLip = 0.15, h = 0.055, seg = 8, color = CERAMIC, capColor = '#8f7f66' } = o;
+  // 아래로 처진 처마(목보다 넓게 벌어진다)
+  tube(m, { y, r: rNeck, r2: rLip, h: h * 0.4, seg, color, soft: false });
+  // 립 옆면 — 실루엣에서 한 마디 튀어나온다
+  tube(m, { y: y + h * 0.4, r: rLip, r2: rLip * 0.97, h: h * 0.44, seg, color, soft: false });
+  // 안으로 말린 테 + 어두운 아가리
+  tube(m, {
+    y: y + h * 0.84,
+    r: rLip * 0.97,
+    r2: rNeck * 0.9,
+    h: h * 0.16,
+    seg,
+    color,
+    soft: false,
+    cap: true,
+    capColor,
+  });
+  return m;
+}
+
+/**
+ * 어깨에서 흘러내린 유약 자국 — 아래 테두리가 마디마다 들쭉날쭉한 띠.
+ * 몸통보다 살짝 두껍게 띄워 붙여 "흘러내린 자국 선"을 만든다.
+ */
+function dripBand(m, o) {
+  const { y = 0, rTop = 0.18, rBot = 0.2, seg = 12, drop = 0.14, color = '#cbb492', seed = 1, proud = 0.014 } = o;
+  const rng = makeRng(seed);
+  const b = mesh();
+  // 마디마다 흘러내린 길이가 제각각이라 밋밋한 띠가 아니라 촛농처럼 보인다
+  const low = [];
+  for (let i = 0; i < seg; i++) low.push(-drop * rand(rng, 0.18, 1));
+  const rAt = (dy) => rTop + (rBot - rTop) * (dy / drop) + proud;
+  const at = (i, dy) => {
+    const a = (i / seg) * Math.PI * 2;
+    const rr = rAt(dy);
+    return [Math.cos(a) * rr, -dy, Math.sin(a) * rr];
+  };
+  for (let i = 0; i < seg; i++) {
+    const j = (i + 1) % seg;
+    quad(b, at(i, -low[i]), at(i, 0), at(j, 0), at(j, -low[j]), color, { soft: true, double: true });
+  }
+  merge(m, b, { ty: y });
+  return m;
+}
+
 /** 살 달린 바퀴 — 축이 x 축과 나란하도록 이미 눕혀서 돌려준다(원점 = 바퀴 중심). */
 function wheelMesh(o = {}) {
-  const { r = 0.3, t = 0.07, spokes = 6, seg = 9, tire = DARK, hub = WOOD } = o;
+  const { r = 0.3, t = 0.07, spokes = 6, seg = 9, tire = DARK, hub = WOOD, felloe = false } = o;
   const w = mesh();
-  tube(w, { y: -t / 2, r, h: t, seg, color: tire });
+  // 쇠테 — soft:false 라 마디마다 선이 생겨 나무 바퀴테로 읽힌다
+  tube(w, { y: -t / 2, r, h: t, seg, color: tire, soft: false });
+  // 바퀴테 안쪽 테(살이 박히는 자리) — 살이 테와 따로 보이게 한다
+  if (felloe) tube(w, { y: -t * 0.34, r: r * 0.8, h: t * 0.68, seg, color: hub, soft: false });
   for (let i = 0; i < spokes / 2; i++) {
     const s = mesh();
-    quad(s, [-r, 0, -0.022], [r, 0, -0.022], [r, 0, 0.022], [-r, 0, 0.022], hub, { double: true, soft: true });
+    const sr = felloe ? r * 0.83 : r;
+    quad(s, [-sr, 0, -0.024], [sr, 0, -0.024], [sr, 0, 0.024], [-sr, 0, 0.024], hub, { double: true, soft: true });
     merge(w, s, { ry: (i / (spokes / 2)) * Math.PI });
   }
   tube(w, { y: -t * 0.55, r: r * 0.17, h: t * 1.1, seg: 5, color: hub, cap: true, capColor: DARK });
@@ -502,32 +556,58 @@ export function sack(seed = 1, opt = {}) {
   return finish(m, { radius: rMax * 1.2, kind: 'sack' });
 }
 
-/** 입을 벌린 자루 — 안에 든 것(감자)이 보인다 */
+/**
+ * 입을 벌린 자루 — 주둥이가 밖으로 벌어져 도르르 말린 테를 이루고,
+ * 그 위로 둥근 알맹이가 봉긋이 쌓여 실루엣을 뚫고 올라온다.
+ */
 export function sackOpen(seed = 1, opt = {}) {
   const rng = makeRng(seed);
   const m = mesh();
   const s = opt.scale || rand(rng, 0.9, 1.1);
+  const seg = 7;
   const rMax = 0.25 * s;
-  tube(m, { r: rMax * 0.8, r2: rMax, h: 0.16 * s, seg: 8, color: SACK });
-  tube(m, { y: 0.16 * s, r: rMax, r2: rMax * 0.92, h: 0.16 * s, seg: 8, color: SACK });
-  // 말아 접힌 주둥이
-  tube(m, { y: 0.32 * s, r: rMax * 0.92, r2: rMax * 0.86, h: 0.08 * s, seg: 8, color: SACK_D });
-  tube(m, { y: 0.4 * s, r: rMax * 0.86, r2: rMax * 0.95, h: 0.06 * s, seg: 8, color: SACK });
-  // 내용물 — 봉긋한 감자 덩어리
-  blobSphere(m, {
-    y: 0.44 * s,
-    rx: rMax * 0.8,
-    ry: 0.1 * s,
-    rz: rMax * 0.8,
-    seg: 7,
-    rings: 2,
-    color: '#cbab74',
-    wob: 0.16,
-    bumps: 3,
-    bumpAmt: 0.22,
-    seed: seed + 5,
+  const mouthY = 0.34 * s;
+  // 배 — 아래가 넓고 위로 갈수록 살짝 좁아진다
+  tube(m, { r: rMax * 0.78, r2: rMax, h: 0.15 * s, seg, color: SACK });
+  tube(m, { y: 0.15 * s, r: rMax, r2: rMax * 0.86, h: 0.19 * s, seg, color: SACK });
+  // 밖으로 말려 내려온 테 — 밖으로 부풀었다가 다시 안으로 들어간다
+  profileTube(m, {
+    seg,
+    color: SACK_D,
+    soft: false,
+    pts: [
+      [mouthY, rMax * 0.86],
+      [mouthY + 0.04 * s, rMax * 1.08],
+      [mouthY + 0.09 * s, rMax * 0.9],
+      [mouthY + 0.105 * s, rMax * 0.72],
+    ],
   });
-  return finish(m, { radius: rMax * 1.2, kind: 'sack' });
+  // 안쪽 그늘 — 알맹이 사이로 보이는 자루 속
+  cylinder(m, { y: mouthY + 0.07 * s, r: rMax * 0.7, h: 0.01 * s, seg, color: '#b9a683', capColor: '#a89572' });
+  // 담긴 알맹이 4덩이 — 테 위로 솟아 실루엣을 깨뜨린다
+  const heap = [
+    [0.06, 0.16, 0.1, 0.108],
+    [0.78, -0.36, 0.02, 0.09],
+    [-0.74, -0.42, 0.015, 0.086],
+    [-0.1, 0.86, 0.025, 0.084],
+  ];
+  const cols = ['#cbab74', '#d7bb86', '#c19c68'];
+  for (let i = 0; i < heap.length; i++) {
+    const [hx, hz, hy, hr] = heap[i];
+    blobSphere(m, {
+      x: hx * rMax * 0.62,
+      z: hz * rMax * 0.62,
+      y: mouthY + (0.1 + hy) * s + hr * s * 0.55,
+      rx: hr * s,
+      ry: hr * s * 0.88,
+      seg: 6,
+      rings: 3,
+      color: cols[i % cols.length],
+      wob: 0.08,
+      seed: seed + 5 + i,
+    });
+  }
+  return finish(m, { radius: rMax * 1.25, kind: 'sack' });
 }
 
 // ══ Sheet 4 · 4행 : 양동이 ════════════════════
@@ -675,33 +755,99 @@ export function hangingLantern(seed = 1, opt = {}) {
   return finish(m, { radius: 0.32 * s, kind: 'lantern' });
 }
 
-/** 기름등 — 받침, 잘록한 대, 배가 부른 기름통, 심지 고리, 둥근 유리구 */
+const BRASS = '#c9a86a';
+
+/**
+ * 기름등 — 그림의 등불은 "작은 놋 받침 위에 얹힌 커다란 유리구"가 전부다.
+ * 그래서 유리구를 제일 큰 덩어리로 두고 받침·기름통은 그보다 확실히 좁게 깎았다.
+ */
 export function oilLamp(seed = 1, opt = {}) {
   const m = mesh();
   const s = opt.scale || 1;
-  const BRASS = '#c9a86a';
-  // 옆모습 실루엣: 작은 굽 → 가는 대 → 배 부른 기름통 → 버너 목 (맨 위 유리구가 제일 넓다)
+  const seg = 6;
+  // 옆모습: 넓은 굽 → 잘록한 대 → 배 부른 기름통 (전부 유리구보다 좁다)
   profileTube(m, {
-    seg: 7,
-    pts: [
-      [0, 0.058 * s],
-      [0.022 * s, 0.046 * s],
-      [0.032 * s, 0.024 * s],
-      [0.072 * s, 0.024 * s],
-      [0.084 * s, 0.05 * s],
-      [0.112 * s, 0.053 * s],
-      [0.145 * s, 0.034 * s],
-      [0.186 * s, 0.028 * s],
-      [0.206 * s, 0.024 * s],
-    ],
+    seg,
     color: BRASS,
-    soft: true,
+    pts: [
+      [0, 0.072 * s],
+      [0.03 * s, 0.03 * s],
+      [0.1 * s, 0.028 * s],
+      [0.135 * s, 0.062 * s],
+      [0.2 * s, 0.05 * s],
+    ],
   });
-  // 심지 조절 고리 — 살짝 굵고 각져서 선이 생긴다
-  tube(m, { y: 0.148 * s, r: 0.042 * s, h: 0.022 * s, seg: 7, color: IRON, soft: false });
-  // 둥근 유리구
-  blobSphere(m, { y: 0.25 * s, rx: 0.052 * s, ry: 0.058 * s, seg: 7, rings: 3, color: P.lanternGlow, wob: 0.02, seed: seed + 2 });
-  return finish(m, { radius: 0.09 * s, kind: 'lamp' });
+  // 심지 조절 고리 겸 유리구가 앉는 놋 테 — 각져서 선이 생긴다
+  tube(m, { y: 0.2 * s, r: 0.052 * s, r2: 0.06 * s, h: 0.032 * s, seg, color: IRON, soft: false });
+  // 배부른 유리구 — 이 등불의 주인공. 받침보다 확실히 넓고 크다
+  blobSphere(m, {
+    y: 0.345 * s,
+    rx: 0.105 * s,
+    ry: 0.125 * s,
+    seg: 8,
+    rings: 4,
+    color: P.lanternGlow,
+    wob: 0.015,
+    seed: seed + 2,
+  });
+  return finish(m, { radius: 0.12 * s, kind: 'lamp' });
+}
+
+/**
+ * 허리케인 랜턴 — 기름등에 철사 굴뚝 보호대를 씌운 형태.
+ * 세로로 휜 철사 3가닥이 유리구를 감싸고 위쪽 갓과 손잡이 고리로 이어진다.
+ */
+export function hurricaneLantern(seed = 1, opt = {}) {
+  const m = mesh();
+  const s = opt.scale || 1;
+  const seg = 6;
+  // 기름통 — 아래가 넓은 납작한 놋통
+  profileTube(m, {
+    seg,
+    color: BRASS,
+    pts: [
+      [0, 0.085 * s],
+      [0.035 * s, 0.092 * s],
+      [0.11 * s, 0.082 * s],
+      [0.15 * s, 0.055 * s],
+    ],
+  });
+  // 심지 조절 고리 겸 유리구 받침 테
+  tube(m, { y: 0.15 * s, r: 0.058 * s, r2: 0.066 * s, h: 0.03 * s, seg, color: IRON, soft: false });
+  // 유리구 — 여기서도 제일 큰 덩어리
+  blobSphere(m, {
+    y: 0.295 * s,
+    rx: 0.105 * s,
+    ry: 0.12 * s,
+    seg: 8,
+    rings: 4,
+    color: P.lanternGlow,
+    wob: 0.015,
+    seed: seed + 4,
+  });
+  // 위쪽 갓(굴뚝)
+  tube(m, { y: 0.4 * s, r: 0.05 * s, r2: 0.088 * s, h: 0.045 * s, seg, color: IRON, soft: false });
+  tube(m, { y: 0.445 * s, r: 0.088 * s, r2: 0.048 * s, h: 0.04 * s, seg, color: IRON, cap: true, capColor: IRON_D });
+  // 철사 굴뚝 보호대 — 유리구 옆구리를 감싸고 갓까지 올라가는 세로 철사 3가닥
+  const guardR = 0.128 * s;
+  const y0 = 0.165 * s;
+  const y1 = 0.42 * s;
+  for (let i = 0; i < 3; i++) {
+    ribbonArc(m, {
+      y: (y0 + y1) / 2,
+      r: guardR,
+      ry2: (y1 - y0) / 2,
+      w: 0.018 * s,
+      seg: 4,
+      a0: -Math.PI / 2,
+      a1: Math.PI / 2,
+      color: IRON_D,
+      ry: (i / 3) * Math.PI * 2,
+    });
+  }
+  // 손잡이 고리
+  ribbonArc(m, { y: 0.485 * s, r: 0.055 * s, ry2: 0.062 * s, w: 0.018 * s, seg: 4, color: IRON_D });
+  return finish(m, { radius: 0.15 * s, kind: 'lantern' });
 }
 
 // ══ Sheet 4 · 3행 : 우편함 · 새집 ═════════════
@@ -817,19 +963,25 @@ export function stool(seed = 1, opt = {}) {
   return finish(m, { radius: 0.2, kind: 'stool' });
 }
 
-/** 통나무 벤치 — 위를 평평하게 켠 반쪽 통나무 + 벌어진 통나무 다리 4개 */
+/**
+ * 통나무 벤치 — 위는 평평하게 켜고 아래는 둥근 반쪽 통나무.
+ * 켠 마구리에는 나이테를 반원 원판 두 겹으로 새겨 "잘린 통나무"로 읽히게 한다.
+ * 다리는 아래로 갈수록 가늘어지는 나무못 4개.
+ */
 export function logBench(seed = 1, opt = {}) {
   const rng = makeRng(seed);
   const m = mesh();
   const len = opt.len || rand(rng, 1.6, 2.0);
-  const r = 0.21;
-  const legH = 0.32;
+  const r = 0.22;
+  const legH = 0.34;
+  const seatY = legH + r;
+  const seg = 9;
   // 반쪽 통나무 (아래가 둥글고 위는 평평)
   halfTube(m, {
-    y: legH + r,
+    y: seatY,
     len,
     r,
-    seg: 6,
+    seg,
     a0: Math.PI,
     a1: Math.PI * 2,
     color: P.trunk,
@@ -837,36 +989,68 @@ export function logBench(seed = 1, opt = {}) {
     lid: true,
     lidColor: TOPW,
   });
-  // 앉는 면 널 이음매
-  slat(m, { y: legH + r + 0.003, w: len * 0.94, h: 0.05, color: '#c19a6b', rx: Math.PI / 2 });
+  // 마구리 나이테 — 반원 원판을 마구리 바깥으로 살짝 띄우면 테두리가 선으로 남는다
+  for (const sx of [-1, 1]) {
+    for (const k of [0.62, 0.32]) {
+      const ring = [];
+      for (let i = 0; i <= seg; i++) {
+        const a = Math.PI + Math.PI * (i / seg);
+        ring.push([0, Math.sin(a) * r * k, Math.cos(a) * r * k]);
+      }
+      const disc = mesh();
+      poly(disc, sx > 0 ? ring.slice().reverse() : ring, k > 0.5 ? '#d7b285' : '#e6c79c');
+      merge(m, disc, { tx: sx * (len / 2 + 0.004), ty: seatY });
+    }
+  }
+  // 앉는 면 결
+  slat(m, { y: seatY + 0.003, w: len * 0.94, h: 0.055, color: '#c19a6b', rx: Math.PI / 2 });
+  // 아래로 가늘어지는 나무못 다리 4개
   for (const sx of [-1, 1]) {
     for (const sz of [-1, 1]) {
       const leg = mesh();
-      cylinder(leg, { r: 0.045, h: legH + 0.06, seg: 4, color: P.trunk, cap: false });
-      merge(m, leg, { rz: -sx * 0.16, rx: sz * 0.2, tx: sx * (len / 2 - 0.24), tz: sz * 0.09 });
+      cylinder(leg, { r: 0.03, r2: 0.058, h: legH + 0.09, seg: 5, color: P.trunk, cap: false });
+      merge(m, leg, { rz: sx * 0.17, rx: -sz * 0.22, tx: sx * (len / 2 - 0.26), tz: sz * 0.09 });
     }
   }
   return finish(m, { radius: len * 0.4, kind: 'bench' });
 }
 
-/** 등받이 있는 널빤지 벤치 */
+/**
+ * 널빤지 벤치 — 그림의 벤치는 등받이가 없다.
+ * 널 두 장을 나란히 얹고 양끝에서 벌어진 다리 한 쌍씩이 받친다.
+ */
 export function plankBench(seed = 1, opt = {}) {
   const rng = makeRng(seed);
   const m = mesh();
   const len = opt.len || rand(rng, 1.6, 1.9);
   const seatY = 0.42;
+  // 벌어진 다리 두 쌍
   for (const sx of [-1, 1]) {
     for (const sz of [-1, 1]) {
       const leg = mesh();
-      cylinder(leg, { r: 0.04, h: seatY, seg: 4, color: DARK, cap: false });
-      merge(m, leg, { rz: -sx * 0.14, rx: sz * 0.18, tx: sx * (len / 2 - 0.22), tz: sz * 0.13 });
+      cylinder(leg, { r: 0.045, r2: 0.032, h: seatY + 0.02, seg: 4, color: DARK, cap: false });
+      merge(m, leg, { rz: -sx * 0.16, rx: sz * 0.22, tx: sx * (len / 2 - 0.22), tz: sz * 0.11 });
     }
   }
-  box(m, { y: seatY, w: len, d: 0.4, h: 0.09, color: WOOD, top: TOPW });
-  slat(m, { y: seatY + 0.092, w: len * 0.96, h: 0.04, color: DARK, rx: Math.PI / 2 });
-  // 등받이 기둥 2개 + 널 2장
+  // 다리 쌍을 묶는 가로 받침목
   for (const sx of [-1, 1]) {
-    box(m, { x: sx * (len / 2 - 0.2), z: -0.16, y: seatY + 0.09, w: 0.07, d: 0.06, h: 0.42, color: DARK });
+    box(m, { x: sx * (len / 2 - 0.24), y: seatY - 0.06, w: 0.07, d: 0.42, h: 0.06, color: DARK });
+  }
+  // 앉는 널 두 장 — 사이를 살짝 띄워 두 장으로 읽히게 한다
+  for (const sz of [-1, 1]) {
+    box(m, { z: sz * 0.105, y: seatY, w: len, d: 0.19, h: 0.075, color: WOOD, top: TOPW });
+  }
+  return finish(m, { radius: len * 0.4, kind: 'bench' });
+}
+
+/** 등받이 벤치 — 널 벤치와 같은 다리에 뒤쪽 기둥 2개와 등널 2장을 세운 변형 */
+export function plankBenchBacked(seed = 1, opt = {}) {
+  const rng = makeRng(seed);
+  const m = plankBench(seed, opt);
+  const len = opt.len || rand(makeRng(seed), 1.6, 1.9);
+  const seatY = 0.42;
+  for (const sx of [-1, 1]) {
+    box(m, { x: sx * (len / 2 - 0.2), z: -0.16, y: seatY + 0.075, w: 0.07, d: 0.06, h: 0.42, color: DARK });
   }
   for (let i = 0; i < 2; i++) {
     box(m, { z: -0.16, y: seatY + 0.2 + i * 0.14, w: len - 0.3, d: 0.045, h: 0.1, color: WOOD, top: TOPW });
@@ -976,22 +1160,49 @@ export function cookingFire(seed = 1, opt = {}) {
 }
 
 // ══ Sheet 4 · 4행 : 연장 ══════════════════════
-/** 삽 — D 자 손잡이 + 긴 자루 + 뾰족한 날 */
+/**
+ * 삽 — 자루 굵기의 3배쯤 되는 넓고 납작한 날, 둥근 끝, 소켓 자리의 어깨 턱,
+ * 그리고 멀리서도 날이 먼저 읽히도록 짧게 줄인 자루.
+ */
 export function toolShovel(seed = 1, opt = {}) {
   const m = mesh();
   const s = mesh();
-  const H = 0.86;
-  // 날 — 삼각 촉 + 사각 몸 + 목
-  tri(s, [-0.085, 0.11, 0.018], [0.085, 0.11, 0.018], [0, 0, 0.018], IRON, { double: true });
-  quad(s, [-0.085, 0.11, -0.018], [-0.085, 0.11, 0.018], [0, 0, 0.018], [0, 0, -0.018], IRON);
-  quad(s, [0.085, 0.11, 0.018], [0.085, 0.11, -0.018], [0, 0, -0.018], [0, 0, 0.018], IRON);
-  box(s, { y: 0.11, w: 0.17, d: 0.036, h: 0.15, color: IRON, top: IRON_D });
-  cylinder(s, { y: 0.26, r: 0.034, r2: 0.026, h: 0.07, seg: 5, color: IRON, cap: false });
-  cylinder(s, { y: 0.3, r: 0.026, h: H, seg: 5, color: WOOD, cap: false });
+  const shaftR = 0.027;
+  const H = 0.58; // 자루 — 날이 죽지 않게 짧게
+  const BW = 0.098; // 날 반폭 (자루 지름의 3.6배 폭)
+  const BH = 0.3; // 날 길이
+  const t = 0.012; // 날 두께 — 아주 납작하다
+  // 날 옆모습(위 어깨 → 둥근 끝) — 한 장의 얇은 판이라 실루엣이 그림의 삽날 그대로다
+  const out = [
+    [-BW, BH],
+    [-BW, BH * 0.42],
+    [-BW * 0.88, BH * 0.24],
+    [-BW * 0.56, BH * 0.075],
+    [0, 0],
+    [BW * 0.56, BH * 0.075],
+    [BW * 0.88, BH * 0.24],
+    [BW, BH * 0.42],
+    [BW, BH],
+  ];
+  const front = out.map((p) => [p[0], p[1], t]);
+  const back = out.map((p) => [p[0], p[1], -t]);
+  poly(s, front, IRON);
+  poly(s, back.slice().reverse(), '#9a958a');
+  for (let i = 0; i < out.length; i++) {
+    const j = (i + 1) % out.length;
+    quad(s, back[i], back[j], front[j], front[i], IRON, { soft: true });
+  }
+  // 날 가운데 도랑(퍼는 면) — 얇은 판을 살짝 띄워 붙여 선으로 보인다
+  slat(s, { y: BH * 0.4, z: t + 0.004, w: BW * 0.5, h: BH * 0.62, color: '#c9c4b8' });
+  // 소켓 어깨 턱 — 날 폭에서 자루 굵기로 한 단 꺾인다
+  box(s, { y: BH - 0.005, w: BW * 1.15, d: t * 3.4, h: 0.045, color: IRON_D, top: IRON });
+  cylinder(s, { y: BH + 0.04, r: 0.042, r2: shaftR * 1.25, h: 0.075, seg: 6, color: IRON, cap: false });
+  // 자루
+  cylinder(s, { y: BH + 0.1, r: shaftR, h: H, seg: 5, color: WOOD, cap: false });
   // D 자 손잡이
-  box(s, { y: 0.3 + H, w: 0.03, d: 0.03, h: 0.1, color: WOOD });
-  ribbonArc(s, { y: 0.3 + H + 0.07, r: 0.06, ry2: 0.11, w: 0.028, seg: 4, color: WOOD });
-  merge(m, s, { rz: 0.09, ty: 0.012 });
+  box(s, { y: BH + 0.1 + H, w: 0.032, d: 0.032, h: 0.09, color: WOOD });
+  ribbonArc(s, { y: BH + 0.1 + H + 0.06, r: 0.062, ry2: 0.105, w: 0.03, seg: 4, color: WOOD });
+  merge(m, s, { rz: 0.07, ty: 0.01 });
   return finish(m, { radius: 0.16, kind: 'tool' });
 }
 
@@ -1166,41 +1377,124 @@ export function basketWide(seed = 1, opt = {}) {
 }
 
 // ══ Sheet 4 · 6행 : 항아리 ════════════════════
-/** 항아리·꽃병 — 시트의 네 가지 형태(넓은 단지 / 뚜껑 단지 / 긴 병 / 큰 독) */
+// 그림에는 네 가지 그릇이 나란히 있다 — 흘림유약 단지 / 뚜껑·귀 달린 작은 단지 /
+// 굽이 벌어진 긴 암포라 / 배 부른 흘림유약 독. 넷 다 "잘록한 목 + 밖으로 말린 입술"이 공통.
+const GLAZE = '#d5bd93';
+
+/** 항아리 — 잘록한 목, 처마처럼 튀어나온 나팔 입술, 6할 높이의 배, 어깨의 흘림유약 */
 export function potVase(seed = 1, opt = {}) {
   const rng = makeRng(seed);
   const m = mesh();
-  const shape = opt.shape != null ? opt.shape : randInt(rng, 0, 3);
-  const s = opt.scale || rand(rng, 0.9, 1.15);
-  const seg = 9;
-  if (shape === 0) {
-    // 넓은 단지 — 배가 부르고 목이 짧다
-    tube(m, { r: 0.13 * s, r2: 0.2 * s, h: 0.2 * s, seg, color: CERAMIC });
-    tube(m, { y: 0.2 * s, r: 0.2 * s, r2: 0.15 * s, h: 0.22 * s, seg, color: CERAMIC });
-    tube(m, { y: 0.42 * s, r: 0.15 * s, r2: 0.15 * s, h: 0.04 * s, seg, color: CERAMIC });
-    tube(m, { y: 0.46 * s, r: 0.19 * s, r2: 0.17 * s, h: 0.055 * s, seg, color: '#cbb492', cap: true, capColor: '#8f7f66' });
-  } else if (shape === 1) {
-    // 뚜껑과 귀 달린 작은 단지
-    tube(m, { r: 0.11 * s, r2: 0.16 * s, h: 0.14 * s, seg, color: CERAMIC });
-    tube(m, { y: 0.14 * s, r: 0.16 * s, r2: 0.13 * s, h: 0.12 * s, seg, color: CERAMIC });
-    tube(m, { y: 0.26 * s, r: 0.15 * s, r2: 0.14 * s, h: 0.04 * s, seg, color: '#cbb492' });
-    tube(m, { y: 0.3 * s, r: 0.13 * s, r2: 0.1 * s, h: 0.035 * s, seg, color: '#cbb492', cap: true, capColor: '#b7a181' });
-    tube(m, { y: 0.335 * s, r: 0.022 * s, h: 0.045 * s, seg: 5, color: '#cbb492', cap: true, capColor: '#b7a181' });
-    for (const sx of [-1, 1]) ribbonArc(m, { x: sx * 0.155 * s, y: 0.2 * s, r: 0.055 * s, w: 0.03 * s, seg: 4, color: CERAMIC, ry: Math.PI / 2 });
-  } else if (shape === 2) {
-    // 긴 병 — 어깨가 좁고 목이 길다
-    tube(m, { r: 0.1 * s, r2: 0.17 * s, h: 0.24 * s, seg, color: CERAMIC });
-    tube(m, { y: 0.24 * s, r: 0.17 * s, r2: 0.1 * s, h: 0.26 * s, seg, color: CERAMIC });
-    tube(m, { y: 0.5 * s, r: 0.1 * s, r2: 0.095 * s, h: 0.1 * s, seg, color: CERAMIC });
-    tube(m, { y: 0.6 * s, r: 0.13 * s, r2: 0.12 * s, h: 0.045 * s, seg, color: '#cbb492', cap: true, capColor: '#8f7f66' });
-  } else {
-    // 큰 독 — 아래가 좁고 어깨가 넓다
-    tube(m, { r: 0.13 * s, r2: 0.24 * s, h: 0.26 * s, seg, color: CERAMIC });
-    tube(m, { y: 0.26 * s, r: 0.24 * s, r2: 0.17 * s, h: 0.24 * s, seg, color: CERAMIC });
-    tube(m, { y: 0.5 * s, r: 0.17 * s, h: 0.04 * s, seg, color: CERAMIC });
-    tube(m, { y: 0.54 * s, r: 0.22 * s, r2: 0.2 * s, h: 0.06 * s, seg, color: '#cbb492', cap: true, capColor: '#8f7f66' });
+  const s = opt.scale || rand(rng, 0.92, 1.12);
+  const seg = 8;
+  // 옆모습 — 배가 0.30/0.50 ≈ 6할 높이에서 제일 부르고 거기서 목까지 급히 좁아진다
+  profileTube(m, {
+    seg,
+    color: CERAMIC,
+    pts: [
+      [0, 0.115 * s],
+      [0.03 * s, 0.14 * s],
+      [0.12 * s, 0.175 * s],
+      [0.3 * s, 0.2 * s],
+      [0.42 * s, 0.172 * s],
+      [0.48 * s, 0.12 * s],
+      [0.53 * s, 0.098 * s],
+      [0.585 * s, 0.097 * s],
+    ],
+  });
+  // 어깨에서 흘러내린 유약
+  dripBand(m, { y: 0.42 * s, rTop: 0.172 * s, rBot: 0.198 * s, drop: 0.17 * s, seg: 12, color: GLAZE, seed: seed + 3 });
+  flaredLip(m, { y: 0.585 * s, rNeck: 0.097 * s, rLip: 0.152 * s, h: 0.055 * s, seg });
+  return finish(m, { radius: 0.24 * s, kind: 'pot' });
+}
+
+/** 뚜껑·귀 달린 작은 단지 — 꼭지 달린 뚜껑과 옆으로 붙은 고리 손잡이 두 개 */
+export function potLidded(seed = 1, opt = {}) {
+  const rng = makeRng(seed);
+  const m = mesh();
+  const s = opt.scale || rand(rng, 0.92, 1.12);
+  const seg = 8;
+  profileTube(m, {
+    seg,
+    color: CERAMIC,
+    pts: [
+      [0, 0.09 * s],
+      [0.035 * s, 0.12 * s],
+      [0.11 * s, 0.152 * s],
+      [0.18 * s, 0.155 * s],
+      [0.245 * s, 0.128 * s],
+      [0.275 * s, 0.115 * s],
+    ],
+  });
+  // 뚜껑이 얹히는 턱
+  tube(m, { y: 0.275 * s, r: 0.118 * s, r2: 0.128 * s, h: 0.032 * s, seg, color: CERAMIC, soft: false });
+  // 뚜껑 — 살짝 처마가 지고 가운데에 꼭지
+  tube(m, { y: 0.307 * s, r: 0.138 * s, r2: 0.1 * s, h: 0.05 * s, seg, color: GLAZE, soft: false, cap: true, capColor: '#b7a181' });
+  tube(m, { y: 0.357 * s, r: 0.02 * s, h: 0.05 * s, seg: 5, color: GLAZE, cap: true, capColor: '#b7a181' });
+  // 옆으로 붙은 C 자 귀 — 몸통 표면에서 밖으로 부풀었다 돌아온다
+  for (const sx of [-1, 1]) {
+    ribbonArc(m, {
+      x: sx * 0.142 * s,
+      y: 0.16 * s,
+      r: 0.048 * s,
+      ry2: 0.055 * s,
+      w: 0.03 * s,
+      seg: 4,
+      a0: -Math.PI / 2,
+      a1: Math.PI / 2,
+      color: CERAMIC,
+      ry: sx > 0 ? 0 : Math.PI,
+    });
   }
-  return finish(m, { radius: 0.26 * s, kind: 'pot' });
+  return finish(m, { radius: 0.2 * s, kind: 'pot' });
+}
+
+/** 긴 암포라 — 밖으로 벌어진 굽, 잘록한 허리, 높이 올라앉은 배, 긴 목과 나팔 입술 */
+export function potAmphora(seed = 1, opt = {}) {
+  const rng = makeRng(seed);
+  const m = mesh();
+  const s = opt.scale || rand(rng, 0.92, 1.12);
+  const seg = 8;
+  profileTube(m, {
+    seg,
+    color: CERAMIC,
+    pts: [
+      [0, 0.108 * s], // 벌어진 굽
+      [0.038 * s, 0.106 * s],
+      [0.068 * s, 0.062 * s], // 굽 위 잘록한 데
+      [0.2 * s, 0.115 * s],
+      [0.4 * s, 0.155 * s], // 배
+      [0.56 * s, 0.125 * s],
+      [0.68 * s, 0.072 * s],
+      [0.78 * s, 0.07 * s],
+    ],
+  });
+  flaredLip(m, { y: 0.78 * s, rNeck: 0.07 * s, rLip: 0.118 * s, h: 0.05 * s, seg });
+  return finish(m, { radius: 0.2 * s, kind: 'pot' });
+}
+
+/** 배 부른 흘림유약 독 — 넓게 말린 입술과 어깨에서 길게 흘러내린 유약 */
+export function potUrn(seed = 1, opt = {}) {
+  const rng = makeRng(seed);
+  const m = mesh();
+  const s = opt.scale || rand(rng, 0.92, 1.12);
+  const seg = 8;
+  profileTube(m, {
+    seg,
+    color: CERAMIC,
+    pts: [
+      [0, 0.115 * s],
+      [0.04 * s, 0.155 * s],
+      [0.15 * s, 0.212 * s],
+      [0.28 * s, 0.238 * s],
+      [0.4 * s, 0.216 * s],
+      [0.48 * s, 0.155 * s],
+      [0.53 * s, 0.118 * s],
+    ],
+  });
+  dripBand(m, { y: 0.4 * s, rTop: 0.216 * s, rBot: 0.238 * s, drop: 0.22 * s, seg: 12, color: GLAZE, seed: seed + 5 });
+  flaredLip(m, { y: 0.53 * s, rNeck: 0.118 * s, rLip: 0.2 * s, h: 0.062 * s, seg });
+  return finish(m, { radius: 0.27 * s, kind: 'pot' });
 }
 
 // ══ Sheet 4 · 6행 : 수레 ══════════════════════
@@ -1231,62 +1525,86 @@ export function wheelbarrow(seed = 1, opt = {}) {
   return finish(m, { radius: 0.5, kind: 'wheelbarrow' });
 }
 
-/** 두 바퀴 손수레 — 널판 짐칸, 모서리 기둥 4개, 큰 살바퀴 2개, 끌채 2개 */
+/**
+ * 두 바퀴 손수레 — 널판 짐칸 하나, 짐칸 한가운데 축에 끼운 큰 살바퀴 2개(몸통 바깥),
+ * 앞으로 나란히 뻗은 끌채 2개, 세워 둘 때 받치는 짧은 버팀다리 1개.
+ * (그림의 손수레에는 벌어진 다리가 없다 — 바퀴 두 개와 끌채로만 선다)
+ */
 export function handCart(seed = 1, opt = {}) {
   const m = mesh();
   const W = 0.78;
-  const D = 1.16;
-  const bedY = 0.44;
-  const wr = 0.36;
-  box(m, { y: bedY, w: W, d: D, h: 0.08, color: WOOD, top: TOPW });
-  // 옆판 — 살짝 벌어지게
+  const D = 1.1;
+  const wr = 0.46;
+  const bedY = wr + 0.04; // 짐칸이 축 바로 위에 얹힌다 — 바퀴가 몸통만큼 커 보인다
+  // 짐칸 바닥
+  box(m, { y: bedY, w: W, d: D, h: 0.08, color: WOOD, top: '#a98b62' });
+  // 옆판 — 살짝 벌어지고 널 이음매 2줄
   for (const sx of [-1, 1]) {
     const wall = mesh();
-    box(wall, { w: 0.05, d: D, h: 0.34, color: WOOD });
+    box(wall, { w: 0.05, d: D, h: 0.36, color: WOOD });
     merge(m, wall, { rz: sx * 0.1, tx: sx * W * 0.5, ty: bedY + 0.08 });
-    slat(m, { x: sx * (W * 0.5 + 0.06), y: bedY + 0.24, w: D * 0.95, h: 0.04, color: DARK, ry: Math.PI / 2 });
-  }
-
-  for (const sz of [-1, 1]) {
-    const wall = mesh();
-    box(wall, { w: W, d: 0.05, h: 0.34, color: WOOD });
-    merge(m, wall, { rx: -sz * 0.1, tz: sz * D * 0.5, ty: bedY + 0.08 });
-  }
-  // 모서리 기둥 4개 (짐칸 위로 솟는다)
-  for (const sx of [-1, 1]) {
-    for (const sz of [-1, 1]) {
-      box(m, { x: sx * (W / 2 + 0.02), z: sz * (D / 2 - 0.05), y: bedY, w: 0.06, d: 0.06, h: 0.5, color: DARK });
+    for (const k of [0.12, 0.26]) {
+      slat(m, { x: sx * (W * 0.5 + 0.07), y: bedY + 0.08 + k, w: D * 0.95, h: 0.04, color: DARK, ry: Math.PI / 2 });
     }
   }
-  for (const sx of [-1, 1]) {
-    merge(m, wheelMesh({ r: wr, t: 0.07, spokes: 6, seg: 8 }), { tx: sx * (W / 2 + 0.09), ty: wr, tz: -0.05 });
+  // 앞뒤 마구리 판
+  for (const sz of [-1, 1]) {
+    const wall = mesh();
+    box(wall, { w: W, d: 0.05, h: 0.36, color: WOOD });
+    merge(m, wall, { rx: -sz * 0.1, tz: sz * D * 0.5, ty: bedY + 0.08 });
   }
-  // 끌채 2개 — 앞으로 뻗어 땅에 닿는다
+  // 마구리 위로 조금 솟은 손잡이 기둥 2개(앞쪽만)
+  for (const sx of [-1, 1]) {
+    box(m, { x: sx * (W / 2 - 0.03), z: D / 2 - 0.04, y: bedY + 0.08, w: 0.06, d: 0.06, h: 0.5, color: DARK });
+  }
+  // 축 — 짐칸 한가운데를 가로지른다
+  const axle = mesh();
+  cylinder(axle, { y: -(W + 0.34) / 2, r: 0.035, h: W + 0.34, seg: 5, color: DARK, capColor: TOPW });
+  merge(m, axle, { rz: Math.PI / 2, ty: wr });
+  // 큰 살바퀴 2개 — 몸통 바깥에 붙어 실루엣을 뚫고 나온다
+  for (const sx of [-1, 1]) {
+    merge(m, wheelMesh({ r: wr, t: 0.08, spokes: 8, seg: 9, felloe: true }), { tx: sx * (W / 2 + 0.13), ty: wr });
+  }
+  // 끌채 2개 — 옆판 높이에서 앞으로 거의 수평으로 뻗는다(다리가 아니라 채로 읽히게)
   for (const sx of [-1, 1]) {
     const shaft = mesh();
-    box(shaft, { w: 0.05, d: 0.05, h: 0.7, color: DARK, top: TOPW });
-    merge(m, shaft, { rx: 2.05, tx: sx * (W / 2 - 0.06), ty: bedY, tz: D / 2 - 0.02 });
+    box(shaft, { w: 0.055, d: 0.055, h: 0.98, color: DARK, top: TOPW });
+    merge(m, shaft, { rx: 1.6, tx: sx * (W / 2 + 0.01), ty: bedY + 0.2, tz: D / 2 - 0.06 });
+    // 끝 손잡이
+    box(m, { x: sx * (W / 2 + 0.01), y: bedY + 0.16, z: D / 2 + 0.9, w: 0.05, d: 0.16, h: 0.05, color: WOOD, top: TOPW });
   }
-  return finish(m, { radius: 0.75, kind: 'cart' });
+  // 버팀다리 1개 — 앞쪽 가운데에서 곧게 내려간다
+  box(m, { z: D / 2 - 0.12, w: 0.07, d: 0.07, h: bedY, color: DARK });
+  return finish(m, { radius: 0.8, kind: 'cart' });
 }
 
-/** 포장마차 — 널판 짐칸 + 아치 살대 5개에 씌운 천 + 앞뒤 살바퀴 + 끌채 */
+/**
+ * 포장마차 — 바퀴 위로 높이 올라앉은 짐칸 + 아치 살대 5개에 씌운 천 +
+ * 몸통 바깥으로 나온 큰 살바퀴(뒤가 크고 앞이 작다) + 앞쪽 널판 마부석 + 앞으로 뻗은 끌채.
+ */
 export function coveredWagon(seed = 1, opt = {}) {
   const m = mesh();
   const W = 0.96;
   const D = 1.9;
-  const bedY = 0.5;
+  const wrRear = 0.46;
+  const wrFront = 0.34;
+  const boxH = 0.44;
+  const bedY = wrRear + 0.16; // 섀시를 바퀴 위로 들어올린다
   const R = 0.62;
-  box(m, { y: bedY, w: W, d: D, h: 0.34, color: WOOD, top: '#a98b62' });
+  // 밑에 깔린 대들보 2개 — 짐칸이 공중에 뜨지 않게 축과 이어준다
   for (const sx of [-1, 1]) {
-    slat(m, { x: sx * (W / 2 + 0.015), y: bedY + 0.1, w: D * 0.96, h: 0.035, color: DARK, ry: Math.PI / 2 });
-    slat(m, { x: sx * (W / 2 + 0.015), y: bedY + 0.24, w: D * 0.96, h: 0.035, color: DARK, ry: Math.PI / 2 });
+    box(m, { x: sx * (W / 2 - 0.08), y: bedY - 0.09, w: 0.08, d: D * 0.92, h: 0.09, color: DARK });
+  }
+  box(m, { y: bedY, w: W, d: D, h: boxH, color: WOOD, top: '#a98b62' });
+  for (const sx of [-1, 1]) {
+    slat(m, { x: sx * (W / 2 + 0.015), y: bedY + 0.13, w: D * 0.96, h: 0.035, color: DARK, ry: Math.PI / 2 });
+    slat(m, { x: sx * (W / 2 + 0.015), y: bedY + 0.31, w: D * 0.96, h: 0.035, color: DARK, ry: Math.PI / 2 });
   }
   // 천막 — 마디마다 살짝 배가 나온 반원 통(축 = z)
-  const canopyY = bedY + 0.34;
-  const sects = 6;
+  const canopyY = bedY + boxH;
+  const sects = 5;
   const cv = mesh();
-  const seg = 7;
+  const seg = 6;
   const rings = [];
   for (let i = 0; i <= sects; i++) {
     const t = i / sects;
@@ -1318,23 +1636,40 @@ export function coveredWagon(seed = 1, opt = {}) {
       r: R * 0.86 * taper + 0.022,
       ry2: R * taper + 0.022,
       w: 0.075,
-      seg: 7,
+      seg: 5,
       color: '#cdb48c',
     });
   }
   // 뒤쪽 나무 문틀
   box(m, { z: -D / 2 - 0.02, y: canopyY, w: 0.07, d: 0.06, h: R * 0.6, color: DARK });
   box(m, { z: -D / 2 - 0.02, y: canopyY + R * 0.6, w: W * 0.66, d: 0.06, h: 0.07, color: DARK });
-  // 바퀴 — 뒤가 크고 앞이 작다
+  // 마부석 — 짐칸 앞으로 내민 널판 의자. 앞을 막은 발판 널이 좌석을 받쳐 준다
+  const benchY = bedY + boxH * 0.55;
+  box(m, { z: D / 2 + 0.31, y: bedY - 0.05, w: W * 0.92, d: 0.06, h: benchY - bedY + 0.05, color: WOOD, top: TOPW });
+  box(m, { z: D / 2 + 0.17, y: benchY, w: W * 0.94, d: 0.34, h: 0.07, color: WOOD, top: TOPW });
+  slat(m, { z: D / 2 + 0.17, y: benchY + 0.072, w: W * 0.9, h: 0.04, color: DARK, rx: Math.PI / 2 });
+  box(m, { z: D / 2 + 0.01, y: benchY + 0.07, w: W * 0.94, d: 0.05, h: 0.17, color: WOOD, top: TOPW });
+  // 바퀴 — 뒤가 크고 앞이 작다. 둘 다 몸통 옆면 바깥에 서서 살과 테가 다 보인다
   for (const sx of [-1, 1]) {
-    merge(m, wheelMesh({ r: 0.38, t: 0.08, spokes: 6, seg: 9 }), { tx: sx * (W / 2 + 0.1), ty: 0.38, tz: -D * 0.28 });
-    merge(m, wheelMesh({ r: 0.27, t: 0.07, spokes: 6, seg: 8 }), { tx: sx * (W / 2 + 0.1), ty: 0.27, tz: D * 0.3 });
+    merge(m, wheelMesh({ r: wrRear, t: 0.09, spokes: 8, seg: 8, felloe: true }), {
+      tx: sx * (W / 2 + 0.13),
+      ty: wrRear,
+      tz: -D * 0.26,
+    });
+    merge(m, wheelMesh({ r: wrFront, t: 0.08, spokes: 6, seg: 8 }), {
+      tx: sx * (W / 2 + 0.13),
+      ty: wrFront,
+      tz: D * 0.3,
+    });
   }
-  // 끌채
-  const shaft = mesh();
-  box(shaft, { w: 0.07, d: 0.07, h: 0.95, color: DARK, top: TOPW });
-  merge(m, shaft, { rx: 1.72, ty: 0.42, tz: D / 2 });
-  return finish(m, { radius: 1.0, kind: 'wagon' });
+  // 앞차축 받침목 — 앞바퀴 두 짝을 잇고 끌채가 여기서 뻗어 나간다
+  box(m, { z: D * 0.3, y: wrFront - 0.05, w: W + 0.34, d: 0.11, h: 0.1, color: DARK });
+  // 끌채 — 앞으로 길게 뻗은 채. 끝에 멍에 가로대가 달린다
+  const tongue = mesh();
+  box(tongue, { w: 0.08, d: 0.08, h: 1.2, color: DARK, top: TOPW });
+  merge(m, tongue, { rx: 1.62, ty: wrFront + 0.02, tz: D * 0.3 });
+  box(m, { z: D * 0.3 + 1.13, y: wrFront - 0.05, w: 0.46, d: 0.06, h: 0.06, color: DARK, top: TOPW });
+  return finish(m, { radius: 1.1, kind: 'wagon' });
 }
 
 // ══ Sheet 4 · 6행 : 장터 좌판 · 간판 ══════════
@@ -1405,31 +1740,158 @@ export function marketStall(seed = 1, opt = {}) {
   return finish(m, { radius: 1.05, kind: 'stall' });
 }
 
-/** 세워 놓은 간판 — 두루마리 상단, 널판 판면, 벌어진 다리 2개, 병 그림 */
+/**
+ * 세워 놓은 간판 — 그림의 간판은 세로가 아니라 가로로 넓다.
+ * 널 두 장을 위아래로 붙인 판면 뒤에 가새 널 두 장을 대고, 벌어진 다리 2개로 세운다.
+ * (board:true 로 넘기면 판면만 만들어 다른 간판이 재사용한다)
+ */
+function signBoardPlanks(m, o) {
+  const { y = 0, w = 1.0, h = 0.5, gap = 0.018 } = o;
+  const ph = (h - gap) / 2;
+  // 가로 널 2장 — 사이가 벌어져 "두 장"으로 읽힌다
+  box(m, { y, w, d: 0.055, h: ph, color: WOOD, top: TOPW });
+  box(m, { y: y + ph + gap, w, d: 0.055, h: ph, color: WOOD, top: TOPW });
+  // 뒤에 댄 가새 널 2장 (두 널을 붙잡는 나무)
+  for (const sx of [-1, 1]) {
+    box(m, { x: sx * w * 0.32, y: y - 0.025, z: -0.05, w: 0.075, d: 0.045, h: h + 0.05, color: DARK });
+  }
+  // 못자국
+  for (const sx of [-1, 1]) {
+    for (const py of [y + ph * 0.5, y + ph * 1.5 + gap]) {
+      slat(m, { x: sx * w * 0.32, y: py, z: 0.03, w: 0.03, h: 0.03, color: IRON_D });
+    }
+  }
+  return m;
+}
+
+/** 세워 놓은 간판 — 가로로 넓은 두 장 널 판면 + 벌어진 다리 2개 */
 export function standingSign(seed = 1, opt = {}) {
   const m = mesh();
-  const W = 0.68;
-  const H = 0.82;
-  const baseY = 0.52;
-  // 다리 2개
+  const W = opt.w || 0.98;
+  const H = opt.h || 0.46;
+  const baseY = 0.62;
+  // 벌어진 다리 2개
   for (const sx of [-1, 1]) {
     const leg = mesh();
-    box(leg, { w: 0.06, d: 0.06, h: baseY + 0.1, color: DARK });
-    merge(m, leg, { rz: -sx * 0.1, rx: 0.12, tx: sx * (W / 2 - 0.09) });
+    box(leg, { w: 0.07, d: 0.07, h: baseY + 0.12, color: DARK });
+    merge(m, leg, { rz: -sx * 0.12, rx: 0.1, tx: sx * (W / 2 - 0.16) });
   }
-  box(m, { y: baseY, w: W, d: 0.07, h: H, color: WOOD, top: TOPW });
-  // 위아래 두루마리 봉
-  for (const y of [baseY, baseY + H]) {
+  signBoardPlanks(m, { y: baseY, w: W, h: H });
+  // 위아래 테두리 봉
+  for (const y of [baseY - 0.03, baseY + H - 0.02]) {
     const roll = mesh();
-    cylinder(roll, { y: -(W + 0.09) / 2, r: 0.045, h: W + 0.09, seg: 6, color: DARK, capColor: TOPW });
+    cylinder(roll, { y: -(W + 0.08) / 2, r: 0.035, h: W + 0.08, seg: 5, color: DARK, capColor: TOPW });
     merge(m, roll, { rz: Math.PI / 2, ty: y });
   }
-  // 판면 널 이음매 2줄
-  for (const sx of [-0.19, 0.19]) slat(m, { x: sx, z: 0.038, y: baseY + H / 2, w: 0.025, h: H * 0.88, color: DARK });
-  // 병 그림 — 얇은 판 두 장으로 실루엣을 그린다
-  slat(m, { z: 0.045, y: baseY + H * 0.36, w: 0.2, h: 0.3, color: '#cfa878' });
-  slat(m, { z: 0.045, y: baseY + H * 0.66, w: 0.075, h: 0.18, color: '#cfa878' });
-  return finish(m, { radius: 0.4, kind: 'sign' });
+  return finish(m, { radius: W * 0.55, kind: 'sign' });
+}
+
+/**
+ * 선술집 간판 — 같은 가로 널판 간판에 병 그림 패널을 덧댄 변형.
+ * 그림은 전부 아래 널 안쪽에 들어가게 배치한다. 화가 알고리즘은 "위에 있는 면"을
+ * 나중에 그리기 때문에, 그림이 위 널 높이까지 올라가면 널에 덮여 사라진다.
+ */
+export function tavernSign(seed = 1, opt = {}) {
+  const m = mesh();
+  const W = 1.0;
+  const H = 0.86;
+  const baseY = 0.58;
+  const ph = (H - 0.018) / 2; // 널 한 장 높이
+  for (const sx of [-1, 1]) {
+    const leg = mesh();
+    box(leg, { w: 0.07, d: 0.07, h: baseY + 0.12, color: DARK });
+    merge(m, leg, { rz: -sx * 0.12, rx: 0.1, tx: sx * (W / 2 - 0.16) });
+  }
+  signBoardPlanks(m, { y: baseY, w: W, h: H });
+  // 그림판 — 아래 널에 덧댄 밝은 바탕널
+  const py = baseY + 0.035;
+  const pH = ph - 0.07;
+  box(m, { y: py, z: 0.038, w: W * 0.5, d: 0.03, h: pH, color: '#f2e7cf' });
+  // 병 그림 — 바탕널보다 한 겹 더 앞에 붙인 얇은 판 네 장(몸통 / 어깨 / 목 / 마개)
+  slat(m, { z: 0.09, y: py + pH * 0.3, w: 0.2, h: pH * 0.56, color: '#8f7a5c' });
+  slat(m, { z: 0.09, y: py + pH * 0.62, w: 0.13, h: pH * 0.18, color: '#8f7a5c' });
+  slat(m, { z: 0.09, y: py + pH * 0.79, w: 0.065, h: pH * 0.24, color: '#8f7a5c' });
+  slat(m, { z: 0.095, y: py + pH * 0.92, w: 0.088, h: pH * 0.1, color: '#6f5d45' });
+  // 옆으로 튀어나온 매다는 팔 (그림처럼 판 위로 꺾여 나온다)
+  box(m, { x: W / 2 + 0.03, y: baseY + H - 0.06, w: 0.18, d: 0.055, h: 0.07, color: DARK, top: TOPW });
+  return finish(m, { radius: W * 0.55, kind: 'sign' });
+}
+
+/**
+ * 뚜껑 없는 우물 — 시트 6행의 지붕 없는 우물.
+ * 두 켜로 쌓은 돌 테, 양옆에 세운 기둥과 가로대, 가로대에 매단 도르래,
+ * 도르래를 넘어간 밧줄, 그리고 우물 위에 대롱대롱 매달린 두레박.
+ */
+export function openWell(seed = 1, opt = {}) {
+  const rng = makeRng(seed);
+  const m = mesh();
+  const R = 0.64;
+  const n = 9;
+  const courseH = 0.24;
+  // 돌 테 두 켜 — 블록의 긴 쪽(d)이 원을 따라 눕고, 켜마다 반 칸씩 어긋나게 쌓는다
+  for (let c = 0; c < 2; c++) {
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2 + (c % 2 ? Math.PI / n : 0);
+      box(m, {
+        x: Math.cos(a) * R,
+        z: Math.sin(a) * R,
+        y: c * courseH,
+        w: rand(rng, 0.26, 0.32), // 안팎 두께
+        d: (2 * Math.PI * R) / n + 0.04, // 원둘레를 따라가는 길이
+        h: courseH + (c === 1 ? 0.02 : 0),
+        color: c % 2 ? STONE : STONE_D,
+        top: '#e2ddcf',
+        ry: -a,
+      });
+    }
+  }
+  const rimY = courseH * 2 + 0.02;
+  // 우물 안쪽 어둠
+  tube(m, { y: rimY - 0.36, r: R - 0.15, h: 0.36, seg: 10, color: '#6b6459', cap: false });
+  cylinder(m, { y: rimY - 0.36, r: R - 0.16, h: 0.01, seg: 10, color: '#3f3a33', capColor: '#4a4038' });
+  // 기둥 2개 + 가로대 — 돌 테 바로 바깥 땅에 박혀 선다
+  const postH = 1.72;
+  for (const sx of [-1, 1]) {
+    box(m, { x: sx * (R + 0.1), w: 0.11, d: 0.11, h: postH, color: DARK, top: TOPW });
+    // 기둥을 잡아 주는 빗댐목
+    slat(m, { x: sx * (R - 0.02), y: rimY + 0.24, w: 0.055, h: 0.36, color: DARK, rz: sx * 0.62 });
+  }
+  const barY = postH;
+  const bar = mesh();
+  cylinder(bar, { y: -(R * 2 + 0.48) / 2, r: 0.05, h: R * 2 + 0.48, seg: 5, color: DARK, capColor: TOPW });
+  merge(m, bar, { rz: Math.PI / 2, ty: barY });
+  // 도르래 — 가로대에 매단 작은 바퀴(축은 x). 밧줄은 바퀴 양쪽(±z)으로 갈라진다
+  const pr = 0.09;
+  const pulleyY = barY - 0.19;
+  for (const cr of [0, Math.PI / 2]) slat(m, { y: barY - 0.05, w: 0.03, h: 0.14, color: IRON_D, ry: cr });
+  const pulley = mesh();
+  tube(pulley, { y: -0.022, r: pr, h: 0.044, seg: 7, color: DARK, soft: false });
+  cylinder(pulley, { y: -0.032, r: pr * 0.7, h: 0.064, seg: 7, color: WOOD, capColor: TOPW });
+  merge(m, pulley, { rz: Math.PI / 2, ty: pulleyY });
+  // 밧줄 — 한 가닥은 두레박으로, 다른 가닥은 반대편으로 늘어진다
+  const bucketTop = rimY + 0.4;
+  const tailY = rimY + 0.62;
+  for (const cr of [0, Math.PI / 2]) {
+    slat(m, { z: pr, y: (pulleyY + bucketTop) / 2, w: 0.026, h: pulleyY - bucketTop, color: ROPE, ry: cr });
+    slat(m, { z: -pr, y: (pulleyY + tailY) / 2, w: 0.024, h: pulleyY - tailY, color: ROPE, ry: cr });
+  }
+  // 자유롭게 매달린 두레박 — 손잡이 고리 + 나무살 통
+  const bkH = 0.27;
+  const bk = mesh();
+  ribbonArc(bk, { y: bkH, r: 0.115, ry2: 0.125, w: 0.026, seg: 5, color: IRON_D });
+  staved(bk, {
+    h: bkH,
+    rAt: (t) => 0.1 + 0.032 * t,
+    seg: 8,
+    sections: 2,
+    color: WOOD,
+    hoops: [0.12, 0.85],
+    hoopW: 0.04,
+    proud: 0.014,
+  });
+  tube(bk, { r: 0.101, h: 0.014, seg: 8, color: WOOD, cap: true, capColor: '#a98b62' });
+  merge(m, bk, { ty: bucketTop - bkH - 0.02, tz: pr });
+  return finish(m, { radius: R + 0.24, kind: 'well' });
 }
 
 /** 도끼 박힌 그루터기 + 장작 (시트 1행 옆 작업터) */

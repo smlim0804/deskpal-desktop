@@ -38,6 +38,8 @@ const IMPOSTOR_KEYS = [
   'planterStone', 'planter', 'bollardRope', 'bollard', 'bunting', 'banner', 'pennantPair',
   'boulder', 'boulderCluster', 'standingStones', 'monolith', 'rockmound', 'grassMound', 'mound',
   'cave', 'cliffChunk', 'steppingStone', 'pondRimRocks',
+  'openWell', 'hurricaneLantern', 'plankBenchBacked', 'tavernSign', 'fieldGate', 'plankDoor',
+  'plankDoorway',
 ];
 
 function imp(models, ppu = 30) {
@@ -133,6 +135,7 @@ export async function bakeAll(onProgress = () => {}) {
     A.props.splitStump = pool(N3.splitStump, 2, 11201);
     A.props.log = pool(N3.log, 2, 12001);
     A.props.branch = pool(N3.branchProp, 2, 12201);
+    A.props.leaf = pool(N3.fallenLeaf, 3, 12301);
   });
 
   // ── 건물 시트 ────────────────────────────
@@ -179,6 +182,7 @@ export async function bakeAll(onProgress = () => {}) {
     A.props.signArrows = [PR.signArrows(40421)];
     A.props.hangingLantern = [PR.hangingLantern(40501)];
     A.props.oilLamp = [PR.oilLamp(40521)];
+    A.props.hurricaneLantern = [PR.hurricaneLantern(40541)];
     A.props.mailbox = [PR.mailbox(40601)];
     A.props.birdhouse = [PR.birdhouse(40621)];
     A.props.table = [PR.table(40701)];
@@ -186,6 +190,7 @@ export async function bakeAll(onProgress = () => {}) {
     A.props.stool = [PR.stool(40741)];
     A.props.bench = pool(PR.logBench, 2, 40801);
     A.props.plankBench = pool(PR.plankBench, 2, 40851);
+    A.props.plankBenchBacked = [PR.plankBenchBacked(40871)];
     A.props.campfireStones = [PR.campfireStones(40901)];
     A.props.campfireLogs = [PR.campfireLogs(40921)];
     A.props.cookingFire = [PR.cookingFire(40941)];
@@ -196,12 +201,14 @@ export async function bakeAll(onProgress = () => {}) {
     A.props.chestOpen = [PR.chestOpen(41121)];
     A.props.basket = pool(PR.basket, 2, 41201);
     A.props.basketWide = [PR.basketWide(41251)];
-    A.props.pot = pool(PR.potVase, 3, 41301);
+    A.props.pot = [PR.potVase(41301), PR.potLidded(41311), PR.potAmphora(41321), PR.potUrn(41331)];
     A.props.wheelbarrow = [PR.wheelbarrow(41401)];
     A.props.handCart = [PR.handCart(41421)];
     A.props.wagon = [PR.coveredWagon(41441)];
     A.props.marketStall = [PR.marketStall(41501)];
+    A.props.openWell = [PR.openWell(41481)];
     A.props.standingSign = [PR.standingSign(41521)];
+    A.props.tavernSign = [PR.tavernSign(41541)];
     A.props.block = [PR.choppingBlock(41601)];
   });
 
@@ -217,6 +224,9 @@ export async function bakeAll(onProgress = () => {}) {
     A.props.stoneWallCorner = [DE.stoneWallCorner(50281)];
     A.props.rubblePile = pool(DE.rubblePile, 2, 50301);
     A.props.woodgate = [DE.woodGate(50401)];
+    A.props.fieldGate = [DE.fieldGate(50411)];
+    A.props.plankDoor = [DE.plankDoor(50415)];
+    A.props.plankDoorway = [DE.plankDoorway(50417)];
     A.props.archGate = [DE.archGate(50421)];
     A.props.stonearch = [DE.stoneArch(50441)];
     A.props.lampPostA = pool(DE.lampPostA, 2, 50501);
