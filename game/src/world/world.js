@@ -248,7 +248,7 @@ export function buildWorld(A) {
   // ── 레퍼런스 Sheet 4 · 7 소품 배치 ────────
   // 광장 주변
   prop(props, A.props.fountain[0], -3.4, -1.9, { rng, ry: 0.2, tag: 'fountain' });
-  prop(props, A.props.notice[0], 1.9, 8.6, { rng, ry: -0.35 });
+  prop(props, A.props.notice[0], 3.1, 9.4, { rng, ry: -0.7 });
   prop(props, A.props.statue[0], 3.6, 11.6, { rng, ry: -0.4 });
   for (let i = 0; i < 4; i++) {
     const a = -0.9 + i * 0.6;
@@ -316,6 +316,94 @@ export function buildWorld(A) {
     prop(props, rng() < 0.5 ? A.props.rockmound : A.props.mound, x, z, { rng });
   }
 
+  // ── 새 레퍼런스 반영: 건물 · 살림살이 · 경계 · 지형지물 ──
+  // 삐뚜름한 2층집과 마을 뒤 작은 성
+  prop(props, A.props.crooked, -12.2, 4.6, { rng, ry: 1.7 });
+  prop(props, A.props.crooked, 6.4, -9.8, { rng, ry: -0.35 });
+  prop(props, A.props.castle[0], -3.5, -27.5, { rng, ry: 0.15, tag: 'castle' });
+  prop(props, A.props.archGate[0], 0.2, -18.5, { rng, ry: 0 });
+
+  // 장터 — 좌판, 물건, 걸상
+  prop(props, A.props.marketStall[0], -2.2, -6.6, { rng, ry: 0.15 });
+  prop(props, A.props.standingSign[0], -1.9, -3.6, { rng, ry: -0.5 });
+  prop(props, A.props.crateOpen[0], -3.6, -6.1, { rng, ry: 0.4 });
+  prop(props, A.props.plankStack[0], -7.1, -6.1, { rng, ry: 0.2 });
+  prop(props, A.props.barrelTap[0], -5.9, -6.5, { rng, ry: 0.8 });
+  prop(props, A.props.barrelCradle[0], -7.4, -4.6, { rng, ry: -0.4 });
+  prop(props, A.props.sackOpen[0], -4.3, -2.5, { rng, ry: 0.6 });
+  prop(props, A.props.basketWide[0], -5.0, -3.9, { rng, ry: -0.3 });
+  prop(props, A.props.tubBucket[0], 2.9, 1.4, { rng, ry: 0.3 });
+  prop(props, A.props.stool[0], -2.1, -4.9, { rng, ry: 0.9 });
+  prop(props, A.props.plankBench, 1.4, 6.9, { rng, ry: Math.PI });
+  prop(props, A.props.plankBench, -3.0, 8.4, { rng, ry: 0.4 });
+  prop(props, A.props.handCart[0], 4.9, -1.9, { rng, ry: 1.1 });
+  prop(props, A.props.chestOpen[0], -6.9, -5.9, { rng, ry: -0.2 });
+
+  // 모닥불 자리와 연장
+  prop(props, A.props.cookingFire[0], -1.6, 2.9, { rng, ry: 0.3, glow: 1, glowR: 3.0 });
+  prop(props, A.props.campfireStones[0], 8.6, 6.4, { rng, glow: 0.8, glowR: 2.6 });
+  prop(props, A.props.campfireLogs[0], -16.4, 8.2, { rng, glow: 0.8, glowR: 2.6 });
+  prop(props, A.props.toolAxe[0], -11.4, -3.2, { rng, ry: 0.5 });
+  prop(props, A.props.toolShovel[0], -8.2, -7.4, { rng, ry: -0.6 });
+  prop(props, A.props.toolPickaxe[0], -12.6, -0.2, { rng, ry: 0.9 });
+
+  // 가로등 · 표지 · 게시물
+  prop(props, A.props.lampPostA, -5.2, 5.2, { rng, glow: 1, glowR: 3.2, noFade: true });
+  prop(props, A.props.lampPostA, 5.6, 5.0, { rng, glow: 1, glowR: 3.2, noFade: true });
+  prop(props, A.props.lampPostB[0], 3.0, -3.6, { rng, glow: 1, glowR: 3.2, noFade: true });
+  prop(props, A.props.globeLamp[0], -6.4, 0.6, { rng, glow: 1, glowR: 3.0, noFade: true });
+  prop(props, A.props.swanNeckLamp[0], 4.2, 9.6, { rng, glow: 1, glowR: 3.0, noFade: true });
+  prop(props, A.props.hangingSign[0], -3.9, -3.4, { rng, ry: 0.3 });
+  prop(props, A.props.signArrowPost[0], -2.6, 10.9, { rng, ry: -0.4 });
+  prop(props, A.props.signBoard[0], 8.2, 3.4, { rng, ry: 1.2 });
+  prop(props, A.props.mailPost[0], 9.4, -6.4, { rng, ry: -0.4 });
+
+  // 화단 · 난간
+  prop(props, A.props.planterTrough[0], 2.4, -5.4, { rng, ry: 0.2 });
+  prop(props, A.props.planterStone[0], -8.6, 2.2, { rng, ry: -0.5 });
+  prop(props, A.props.fountainLow[0], 10.4, 5.8, { rng });
+  for (let i = 0; i < 3; i++) prop(props, A.props.bollardRope, -3.2 - i * 1.7, 4.9, { rng, ry: 0.1 });
+  for (let i = 0; i < 3; i++) prop(props, A.props.chainFence[0], 6.6, -1.2 + i * 1.9, { rng, ry: Math.PI / 2 });
+  for (let i = 0; i < 4; i++) prop(props, A.props.picketFence, -10.6 + i * 1.9, 7.4, { rng, ry: 0 });
+  for (let i = 0; i < 3; i++) prop(props, A.props.stoneWallCoursed, 9.4, -3.2 + i * 2.0, { rng, ry: Math.PI / 2 });
+  prop(props, A.props.stoneWallCorner[0], 9.4, -5.0, { rng, ry: 0 });
+  prop(props, A.props.railFenceBroken[0], -14.6, -6.4, { rng, ry: 0.2 });
+  prop(props, A.props.pennantPair[0], 2.6, 14.9, { rng, ry: 0 });
+
+  // 연못가 — 돌 테두리와 징검다리
+  for (let i = 0; i < 7; i++) {
+    const a = 0.6 + (i / 7) * Math.PI * 1.3;
+    prop(props, A.props.pondRimRocks, POND.x + Math.cos(a) * (POND.r + 0.4), POND.z + Math.sin(a) * (POND.r + 0.4), {
+      rng,
+      ry: -a,
+    });
+  }
+  for (let i = 0; i < 5; i++) {
+    prop(props, A.props.steppingStone, POND.x - 3.4 + i * 1.5, POND.z + 4.6 - i * 0.5, { rng, shadow: 0.4 });
+  }
+
+  // 지형지물 — 바위 무리, 선돌, 흙언덕, 절개면
+  for (let i = 0; i < 14; i++) {
+    const a = rng() * Math.PI * 2;
+    const r = rand(rng, 13, 36);
+    const x = Math.cos(a) * r;
+    const z = Math.sin(a) * r;
+    if (tooClose(props, x, z, 3.4)) continue;
+    const table = [
+      A.props.boulder,
+      A.props.boulderCluster,
+      A.props.rubblePile,
+      A.props.grassMound,
+      A.props.mound,
+      A.props.rockmound,
+      A.props.cliffChunk,
+    ];
+    prop(props, pick(rng, table), x, z, { rng });
+  }
+  prop(props, A.props.standingStones, -24.5, -6.5, { rng });
+  prop(props, A.props.standingStones, 17.5, -19.5, { rng });
+  prop(props, A.props.monolith, -7.5, -25.5, { rng });
+
   // 건물 밑동 잡초 — 벽과 땅이 만나는 선을 흐린다
   for (const b of props.slice(0, 22)) {
     if (!b.r || b.r < 0.6) continue;
@@ -355,14 +443,28 @@ export function buildWorld(A) {
   for (let i = 0; i < 4; i++) prop(props, A.props.fence, 12.0, -4.0 + i * 1.9, { rng, ry: Math.PI / 2 });
 
   // ── 숲 ──────────────────────────────────
-  const treeKinds = [A.trees.pine, A.trees.blob, A.trees.willow, A.trees.bare, A.trees.autumn];
+  const treeKinds = [
+    A.trees.pine,
+    A.trees.fir,
+    A.trees.cypress,
+    A.trees.blob,
+    A.trees.cloud,
+    A.trees.columnar,
+    A.trees.leafy,
+    A.trees.leaning,
+    A.trees.willow,
+    A.trees.bare,
+    A.trees.dead,
+    A.trees.autumn,
+  ];
+  const conifers = [A.trees.pine, A.trees.fir, A.trees.cypress];
   // 바깥 숲 링 (월드 경계 느낌)
   for (let i = 0; i < 190; i++) {
     const a = rng() * Math.PI * 2;
     const r = rand(rng, 25, WORLD_RADIUS);
     const x = Math.cos(a) * r;
     const z = Math.sin(a) * r;
-    const kind = rng() < 0.45 ? A.trees.pine : pick(rng, treeKinds);
+    const kind = rng() < 0.45 ? pick(rng, conifers) : pick(rng, treeKinds);
     prop(props, kind, x, z, { rng, scale: rand(rng, 0.82, 1.22) });
   }
   // 마을 안쪽 나무 (건물 피해서)
@@ -385,7 +487,19 @@ export function buildWorld(A) {
     const x = Math.cos(a) * r;
     const z = Math.sin(a) * r;
     if (tooClose(props, x, z, 2.0)) continue;
-    const table = [A.props.bush, A.props.bush, A.props.rock, A.props.stump, A.props.log, A.props.berryBush];
+    const table = [
+      A.props.bush,
+      A.props.bush,
+      A.props.shrub,
+      A.props.rock,
+      A.props.stump,
+      A.props.splitStump,
+      A.props.log,
+      A.props.branch,
+      A.props.berryBush,
+      A.props.boulder,
+      A.props.fern,
+    ];
     const o = prop(props, pick(rng, table), x, z, { rng, scale: rand(rng, 0.85, 1.2) });
     if (rng() < 0.8) dress(props, A, rng, x, z, o.r * 1.4 + 0.5, { count: randInt(rng, 2, 4) });
   }
@@ -416,10 +530,14 @@ export function buildWorld(A) {
     if (Math.abs(x) < 1.5 && z > -1 && z < 19) continue;
     const roll = rng();
     let sp;
-    if (roll < 0.66) sp = A.props.grass;
-    else if (roll < 0.82) sp = A.props.flower;
-    else if (roll < 0.88) sp = A.props.mushroom;
-    else sp = A.props.sapling;
+    if (roll < 0.5) sp = A.props.grass;
+    else if (roll < 0.62) sp = A.props.flower;
+    else if (roll < 0.7) sp = A.props.clover;
+    else if (roll < 0.78) sp = A.props.fern;
+    else if (roll < 0.84) sp = A.props.dandelion;
+    else if (roll < 0.9) sp = A.props.mushroom;
+    else if (roll < 0.96) sp = A.props.sapling;
+    else sp = A.props.seedling;
     prop(props, sp, x, z, { rng, r: 0, shadow: 0.45, scale: rand(rng, 0.75, 1.35) });
   }
   // 연못가 부들
@@ -578,6 +696,33 @@ export function buildWorld(A) {
   cAdd('worm', 5.2, -1.8, { speed: 0.15, wander: 1.2 });
   cAdd('ghost', -20.2, 5.4, { speed: 0.6, wander: 3, hover: 0.5 });
   cAdd('robot', 16.4, -9.6, { speed: 0.7, wander: 2.4 });
+
+  // 서로 파고든 소품 정리 — 나중에 놓인 쪽을 뺀다(건물·태그가 붙은 것은 남긴다)
+  {
+    const keep = [];
+    const solid = [];
+    for (const e of props) {
+      if (!e.r || e.r < 0.22 || e.tag || e.h > 2.6) {
+        keep.push(e);
+        if (e.r > 0.22) solid.push(e);
+        continue;
+      }
+      let clash = false;
+      for (const o of solid) {
+        const d = Math.hypot(o.x - e.x, o.z - e.z);
+        if (d < (o.r + e.r) * 0.78) {
+          clash = true;
+          break;
+        }
+      }
+      if (!clash) {
+        keep.push(e);
+        solid.push(e);
+      }
+    }
+    props.length = 0;
+    for (const e of keep) props.push(e);
+  }
 
   return {
     props,

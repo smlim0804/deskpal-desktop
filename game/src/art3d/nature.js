@@ -102,15 +102,98 @@ function arcBlade(m, { x = 0, y = 0, z = 0, dir = 0, len = 0.6, wid = 0.09, bend
   return m;
 }
 
-/** 밑동에서 방사형으로 뻗은 뿌리 판 — 땅에 꽂힌 막대가 아니라 "자란 나무"로 보이게 한다. */
-function rootFlares(m, { x = 0, z = 0, r = 0.3, n = 4, len = 0.4, color = P.trunkDark, seed = 1, rise = 0.01 }) {
+/**
+ * 밑동에서 방사형으로 뻗은 뿌리 버팀 — 줄기 표면에 딱 붙는 "천막" 두 장(면 2개).
+ * 원기둥 속을 파고드는 덩어리를 쓰면 관통선이 지저분하게 남아서, 표면에 얹는 쪽이 깔끔하다.
+ */
+function rootFlares(m, { x = 0, z = 0, r = 0.3, rt = null, up = null, n = 4, len = 0.2, color = P.trunkDark, seed = 1 }) {
   const rnd = makeRng(seed);
+  const rtop = rt == null ? r * 0.9 : rt;
   for (let i = 0; i < n; i++) {
-    const a = (i / n) * Math.PI * 2 + rnd() * 0.6;
+    const a = (i / n) * Math.PI * 2 + (rnd() - 0.5) * 0.7;
+    const uy = (up == null ? len * 0.9 : up) * (0.8 + rnd() * 0.4);
+    const out = r * 1.02 + len * (0.55 + rnd() * 0.4);
+    const tw = r * (0.34 + rnd() * 0.18);
+    const A = [rtop * 0.72, uy, 0];
+    const B = [r * 0.74, 0.004, -tw];
+    const C = [r * 0.74, 0.004, tw];
+    const D = [out, 0.004, 0];
     const t = mesh();
-    cone(t, { r: r * (0.3 + rnd() * 0.14), h: len * (0.8 + rnd() * 0.5), seg: 3, color });
-    merge(m, t, { rz: 1.3 + rnd() * 0.14, ry: -a, tx: x + Math.cos(a) * r * 0.6, tz: z + Math.sin(a) * r * 0.6, ty: rise });
+    tri(t, A, C, D, color);
+    tri(t, A, D, B, color);
+    merge(m, t, { ry: -a, tx: x, tz: z });
   }
+  return m;
+}
+
+/**
+ * 스캘럽(둥근 혹이 사슬처럼 이어진) 잎덩어리 — 그림의 "구름 나무" 캐노피.
+ * 공을 여러 개 겹치면 속에 실루엣 선이 남으므로, 닫힌 면 하나의 반지름을 방향별로
+ * 울퉁불퉁하게 조절해서 혹을 만든다. core(<1) 덕분에 혹과 혹 사이가 움푹 들어간다.
+ */
+function cloudBlob(m, o) {
+  const {
+    x = 0, y = 0, z = 0, rx = 1, ry = null, rz = null,
+    seg = 15, rings = 6, color = P.leaf,
+    lobes = 8, amt = 0.48, sharp = 10, core = 0.68, top = 2,
+    wob = 0.02, seed = 1, yaw = 0,
+  } = o;
+  const ryy = ry == null ? rx : ry;
+  const rzz = rz == null ? rx : rz;
+  const rnd = makeRng(seed);
+  const dirs = [];
+  for (let i = 0; i < lobes; i++) {
+    const t = (i / lobes) * Math.PI * 2 + (rnd() - 0.5) * 0.35;
+    const u = [-0.38, 0.06, 0.4][i % 3] + (rnd() - 0.5) * 0.16;
+    const s = Math.sqrt(Math.max(0, 1 - u * u));
+    dirs.push([Math.cos(t) * s, u, Math.sin(t) * s, amt * (0.85 + rnd() * 0.35)]);
+  }
+  for (let i = 0; i < top; i++) {
+    const t = (i / Math.max(1, top)) * Math.PI * 2 + rnd();
+    const u = 0.58 + rnd() * 0.16;
+    const s = Math.sqrt(Math.max(0, 1 - u * u));
+    dirs.push([Math.cos(t) * s, u, Math.sin(t) * s, amt * (0.5 + rnd() * 0.2)]);
+  }
+  const kAt = (dx, dy, dz, jit) => {
+    let k = core + jit;
+    for (let i = 0; i < dirs.length; i++) {
+      const d = dirs[i];
+      const dot = dx * d[0] + dy * d[1] + dz * d[2];
+      if (dot > 0) k += d[3] * Math.pow(dot, sharp);
+    }
+    return k;
+  };
+  const b = mesh();
+  const grid = [];
+  for (let i = 0; i <= rings; i++) {
+    const row = [];
+    const phi = (i / rings) * Math.PI;
+    const pole = i === 0 || i === rings;
+    // 극점은 모든 j 가 같은 자리여야 정점이 용접된다
+    const pj = pole ? (rnd() - 0.5) * 2 * wob : 0;
+    for (let j = 0; j < seg; j++) {
+      const th = (j / seg) * Math.PI * 2;
+      const dx = Math.sin(phi) * Math.cos(th);
+      const dy = Math.cos(phi);
+      const dz = Math.sin(phi) * Math.sin(th);
+      const k = kAt(dx, dy, dz, pole ? pj : (rnd() - 0.5) * 2 * wob);
+      row.push([dx * rx * k, dy * ryy * k, dz * rzz * k]);
+    }
+    grid.push(row);
+  }
+  for (let i = 0; i < rings; i++) {
+    for (let j = 0; j < seg; j++) {
+      const j2 = (j + 1) % seg;
+      const a = grid[i][j];
+      const bb = grid[i][j2];
+      const c = grid[i + 1][j2];
+      const d = grid[i + 1][j];
+      if (i === 0) tri(b, a, c, d, color, { soft: true });
+      else if (i === rings - 1) tri(b, a, bb, c, color, { soft: true });
+      else quad(b, a, bb, c, d, color, { soft: true });
+    }
+  }
+  merge(m, b, { tx: x, ty: y, tz: z, ry: yaw });
   return m;
 }
 
@@ -118,7 +201,18 @@ function rootFlares(m, { x = 0, z = 0, r = 0.3, n = 4, len = 0.4, color = P.trun
 function trunk(m, { x = 0, z = 0, h = 1.6, r = 0.22, top = 0.14, color = P.trunk, seg = 6, roots = 4, seed = 1, flare = 0.4 }) {
   cylinder(m, { x, z, r, r2: top, h, seg, color, cap: false });
   if (flare > 0) cylinder(m, { x, z, r: r * (1 + flare), r2: r, h: h * 0.16, seg, color, cap: false });
-  if (roots > 0) rootFlares(m, { x, z, r: r * (1 + flare), n: roots, len: r * 2.1, color, seed: seed * 31 + 7 });
+  if (roots > 0) {
+    rootFlares(m, {
+      x, z,
+      r: r * (1 + flare),
+      rt: r * (1 + flare * 0.45),
+      up: h * 0.12,
+      n: roots,
+      len: r * 0.38,
+      color,
+      seed: seed * 31 + 7,
+    });
+  }
   return m;
 }
 
@@ -131,7 +225,7 @@ function jaggedTop(m, { x = 0, y = 0, z = 0, r = 0.3, seg = 7, spike = 0.18, col
     const up = (i % 2 ? spike : spike * 0.22) * (0.6 + rnd() * 0.8);
     ring.push([x + Math.cos(a) * r, y + up, z + Math.sin(a) * r]);
   }
-  const c = [x, y + spike * 0.3, z];
+  const c = [x, y + spike * 0.08, z];
   for (let i = 0; i < seg; i++) {
     // (c, j, i) 순서라야 노멀이 위를 본다
     tri(m, c, ring[(i + 1) % seg], ring[i], color);
@@ -216,32 +310,36 @@ export function leafyTree(seed = 1, opt = {}) {
     cylinder(t, { r: 0.1, r2: 0.05, h: h * 0.2, seg: 4, color: P.trunk, cap: false });
     merge(m, t, { rz: s * 0.5, tx: s * 0.06, ty: h * 0.28 });
   }
-  const cy = h * 0.62;
-  const rx = h * 0.29;
-  const ry = h * 0.34;
-  blobSphere(m, { y: cy, rx, ry, seg: 8, rings: 4, color, wob: 0.06, bumps: 4, bumpAmt: 0.28, seed: seed + 4 });
-  // 겉면에 뾰족한 잎끝을 심어 불꽃 실루엣을 만든다(위로 갈수록 길고 곧게)
+  const cy = h * 0.6;
+  const rx = h * 0.26;
+  const ry = h * 0.33;
+  blobSphere(m, { y: cy, rx, ry, seg: 9, rings: 4, color, wob: 0.06, bumps: 4, bumpAmt: 0.24, seed: seed + 4 });
+  // 겉면에 길고 뾰족한 잎을 심어 불꽃 실루엣을 만든다(위로 갈수록 길고 곧게 선다)
   const rows = [
-    [1.4, 8, 0.16, 0.9],
-    [1.0, 7, 0.18, 0.6],
-    [0.62, 5, 0.2, 0.35],
-    [0.2, 3, 0.24, 0.15],
+    [1.55, 9, 0.52, 1.0],
+    [1.15, 8, 0.58, 0.7],
+    [0.8, 6, 0.62, 0.42],
+    [0.42, 4, 0.72, 0.2],
+    [0.1, 2, 0.86, 0.08],
   ];
   for (let k = 0; k < rows.length; k++) {
-    const [phi, n, lenF, out] = rows[k];
+    const phi = rows[k][0];
+    const n = rows[k][1];
+    const lenF = rows[k][2];
+    const out = rows[k][3];
     for (let i = 0; i < n; i++) {
-      const a = (i / n) * Math.PI * 2 + k * 0.5;
+      const a = (i / n) * Math.PI * 2 + k * 0.55;
       const dx = Math.sin(phi) * Math.cos(a);
       const dy = Math.cos(phi);
       const dz = Math.sin(phi) * Math.sin(a);
       leafTip(m, {
-        x: dx * rx * 0.92,
-        y: cy + dy * ry * 0.92,
-        z: dz * rx * 0.92,
+        x: dx * rx * 0.9,
+        y: cy + dy * ry * 0.9,
+        z: dz * rx * 0.9,
         dir: a,
         out,
-        len: h * lenF * 0.5,
-        wid: h * 0.07,
+        len: rx * lenF,
+        wid: rx * 0.3,
         color: k % 2 ? tipColor : color,
       });
     }
@@ -261,16 +359,17 @@ export function blobTree(seed = 1, opt = {}) {
     cylinder(t, { r: 0.09, r2: 0.05, h: h * 0.2, seg: 4, color: P.trunk, cap: false });
     merge(m, t, { rz: s * 0.58, tx: s * 0.06, ty: h * 0.42 });
   }
-  blobSphere(m, {
+  cloudBlob(m, {
     y: h * 0.64,
-    rx: h * 0.33,
-    ry: h * 0.28,
-    seg: 10,
-    rings: 5,
+    rx: h * 0.36,
+    ry: h * 0.33,
+    seg: 15,
+    rings: 6,
     color,
-    wob: 0.04,
-    bumps: 8,
-    bumpAmt: 0.42,
+    lobes: 8,
+    amt: 0.48,
+    sharp: 10,
+    core: 0.68,
     seed: seed + 3,
   });
   return finish(m, { radius: 0.6, sway: 0.6, kind: 'blob' });
@@ -283,16 +382,18 @@ export function cloudTree(seed = 1, opt = {}) {
   const color = opt.color || pick(rng, [P.leaf, '#9fc97f', P.leafBlue]);
   const h = rand(rng, 2.8, 3.7);
   trunk(m, { h: h * 0.36, r: 0.17, top: 0.11, seed, roots: 3, seg: 5 });
-  blobSphere(m, {
+  cloudBlob(m, {
     y: h * 0.66,
-    rx: h * 0.36,
-    ry: h * 0.31,
-    seg: 9,
+    rx: h * 0.42,
+    ry: h * 0.36,
+    seg: 13,
     rings: 5,
     color,
-    wob: 0.03,
-    bumps: 9,
-    bumpAmt: 0.5,
+    lobes: 7,
+    amt: 0.44,
+    sharp: 9,
+    core: 0.72,
+    top: 1,
     seed: seed + 6,
   });
   return finish(m, { radius: 0.55, sway: 0.7, kind: 'cloudTree' });
@@ -306,16 +407,18 @@ export function columnarTree(seed = 1, opt = {}) {
   const h = rand(rng, 3.6, 4.6);
   // 그림에선 줄기 선이 캐노피를 뚫고 꼭대기까지 이어진다
   trunk(m, { h: h * 0.94, r: 0.12, top: 0.03, color: P.trunkDark, seg: 5, roots: 3, seed, flare: 0.5 });
-  blobSphere(m, {
+  cloudBlob(m, {
     y: h * 0.56,
-    rx: h * 0.155,
-    ry: h * 0.42,
-    seg: 8,
+    rx: h * 0.2,
+    ry: h * 0.5,
+    seg: 12,
     rings: 6,
     color,
-    wob: 0.04,
-    bumps: 7,
-    bumpAmt: 0.34,
+    lobes: 6,
+    amt: 0.4,
+    sharp: 8,
+    core: 0.74,
+    top: 1,
     seed: seed + 9,
   });
   return finish(m, { radius: 0.35, sway: 0.8, kind: 'columnar' });
@@ -348,25 +451,26 @@ export function leaningTree(seed = 1, opt = {}) {
     merge(m, c, { rz: -path[i][2], tx: cxo + path[i][0], ty: path[i][1] });
   }
   cylinder(m, { x: cxo, r: 0.36, r2: 0.26, h: h * 0.08, seg: 6, color: P.trunk, cap: false });
-  rootFlares(m, { x: cxo, r: 0.32, n: 4, len: 0.5, color: P.trunkDark, seed: seed + 21 });
+  rootFlares(m, { x: cxo, r: 0.36, rt: 0.3, up: 0.3, n: 4, len: 0.13, color: P.trunkDark, seed: seed + 21 });
   // 줄기 끝에서 두 갈래가 캐노피 속으로 더 뻗는다
   for (const s of [-0.35, 0.3]) {
     const t = mesh();
     cylinder(t, { r: 0.08, r2: 0.04, h: h * 0.22, seg: 4, color: P.trunk, cap: false });
     merge(m, t, { rz: -(tilt + s), tx: cxo + px, ty: py });
   }
-  blobSphere(m, {
+  cloudBlob(m, {
     x: cxo + px + h * 0.08,
-    y: py + h * 0.1,
+    y: py + h * 0.08,
     z: 0,
-    rx: h * 0.38,
-    ry: h * 0.24,
-    seg: 10,
-    rings: 5,
+    rx: h * 0.46,
+    ry: h * 0.3,
+    seg: 14,
+    rings: 6,
     color,
-    wob: 0.04,
-    bumps: 8,
-    bumpAmt: 0.44,
+    lobes: 8,
+    amt: 0.46,
+    sharp: 10,
+    core: 0.7,
     seed: seed + 12,
   });
   return finish(m, { radius: 0.7, sway: 0.75, kind: 'leaning' });
@@ -384,10 +488,10 @@ export function cypress(seed = 1) {
   const bodyH = h * 0.86;
   cone(m, { y: bodyY, r: bodyR, h: bodyH, seg: 7, color });
   // 나선으로 잎다발을 붙여 실루엣을 거칠게
-  const n = 11;
+  const n = 16;
   for (let i = 0; i < n; i++) {
     const t = i / n;
-    const a = t * Math.PI * 5.2 + 0.4;
+    const a = t * Math.PI * 7.4 + 0.4;
     const y = bodyY + bodyH * (0.08 + t * 0.78);
     const rr = bodyR * (1 - (y - bodyY) / bodyH) * 0.9;
     leafTip(m, {
@@ -395,9 +499,9 @@ export function cypress(seed = 1) {
       y,
       z: Math.sin(a) * rr,
       dir: a,
-      out: 0.75,
-      len: h * 0.11,
-      wid: h * 0.05,
+      out: 0.85,
+      len: h * 0.15,
+      wid: h * 0.045,
       color: i % 2 ? color : P.leafDark,
     });
   }
@@ -437,7 +541,7 @@ export function willowTree(seed = 1) {
   trunk(m, { h: h * 0.48, r: 0.26, top: 0.16, seed, roots: 4 });
   const cy = h * 0.7;
   const rx = h * 0.36;
-  blobSphere(m, { y: cy, rx, ry: rx * 0.6, seg: 10, rings: 4, color, wob: 0.04, bumps: 6, bumpAmt: 0.32, seed: seed + 5 });
+  cloudBlob(m, { y: cy, rx, ry: rx * 0.88, seg: 13, rings: 5, color, lobes: 6, amt: 0.42, sharp: 9, core: 0.74, top: 1, seed: seed + 5 });
   // 늘어지는 잎가닥 — 끝이 뾰족한 삼각형(양면)
   const n = 10;
   for (let i = 0; i < n; i++) {
@@ -465,7 +569,7 @@ export function deadTrunk(seed = 1) {
   const r = rand(rng, 0.3, 0.4);
   cylinder(m, { r: r * 1.5, r2: r * 1.12, h: h * 0.14, seg: 7, color: P.trunkDark, cap: false });
   cylinder(m, { y: h * 0.14, r: r * 1.12, r2: r * 0.68, h: h * 0.86, seg: 7, color: P.trunk, cap: false });
-  rootFlares(m, { r: r * 1.4, n: 5, len: r * 1.6, color: P.trunkDark, seed: seed + 11 });
+  rootFlares(m, { r: r * 1.48, rt: r * 1.26, up: h * 0.13, n: 5, len: r * 0.34, color: P.trunkDark, seed: seed + 11 });
   // 꼭대기는 톱니처럼 부러진 파단면
   jaggedTop(m, { y: h, r: r * 0.68, seg: 7, spike: h * 0.14, color: P.wood, seed: seed + 3 });
   // 부러진 가지 그루 3개 — 끝도 삐죽하게 부러져 있다
@@ -543,7 +647,7 @@ export function stump(seed = 1) {
   const h = 0.56 * s;
   cylinder(m, { r: r * 1.3, r2: r * 1.06, h: h * 0.26, seg: 8, color: P.trunkDark, cap: false });
   cylinder(m, { y: h * 0.26, r: r * 1.06, r2: r, h: h * 0.74, seg: 8, color: P.trunk, cap: true, capColor: P.wood });
-  rootFlares(m, { r: r * 1.25, n: 5, len: r * 1.5, color: P.trunkDark, seed: seed + 7, rise: 0.02 });
+  rootFlares(m, { r: r * 1.3, rt: r * 1.14, up: h * 0.5, n: 5, len: r * 0.26, color: P.trunkDark, seed: seed + 7 });
   // 잘린 면의 나이테 — 얇게 도드라진 동심원 두 겹
   cylinder(m, { y: h, r: r * 0.62, h: 0.022 * s, seg: 7, color: '#e0c193', capColor: P.wood });
   cylinder(m, { y: h + 0.022 * s, r: r * 0.3, h: 0.018 * s, seg: 6, color: '#e0c193', capColor: '#e8d3ad' });
@@ -554,24 +658,27 @@ export function stump(seed = 1) {
   return finish(m, { radius: r * 1.3, kind: 'stump' });
 }
 
-/** 시트 3-⑯: 세로로 쪼개져 삐죽하게 부러진 그루터기. */
+/** 시트 3-⑯: 위쪽이 세로로 쪼개져 뾰족한 조각이 남은 그루터기. */
 export function splitStump(seed = 1) {
   const rng = makeRng(seed);
   const m = mesh();
   const s = rand(rng, 0.85, 1.2);
   const r = 0.34 * s;
-  cylinder(m, { r: r * 1.2, r2: r, h: 0.3 * s, seg: 7, color: P.trunk, cap: false });
-  jaggedTop(m, { y: 0.3 * s, r, seg: 7, spike: 0.14 * s, color: P.wood, seed: seed + 2 });
-  rootFlares(m, { r: r * 1.15, n: 4, len: r * 1.3, color: P.trunkDark, seed: seed + 5 });
-  // 위로 남은 두 조각 — 높이가 서로 다르고 끝이 부러져 있다
-  const shards = [[0.9, 0.62], [3.9, 0.44]];
+  const bodyH = 0.34 * s;
+  cylinder(m, { r: r * 1.22, r2: r, h: bodyH, seg: 8, color: P.trunk, cap: true, capColor: '#a9855c' });
+  rootFlares(m, { r: r * 1.22, rt: r * 1.1, up: bodyH * 0.62, n: 4, len: r * 0.26, color: P.trunkDark, seed: seed + 5 });
+  // 쪼개져 남은 뾰족한 조각 4개 — 높이가 제각각이라 부러진 티가 난다
+  const shards = [0.42, 0.26, 0.34, 0.2];
   for (let i = 0; i < shards.length; i++) {
-    const a = shards[i][0];
-    const ln = shards[i][1] * s;
+    const a = (i / shards.length) * Math.PI * 2 + rand(rng, -0.3, 0.3);
+    const rr = r * 0.5;
     const sh = mesh();
-    cylinder(sh, { r: r * 0.44, r2: r * 0.3, h: ln, seg: 4, color: P.trunk, cap: false });
-    jaggedTop(sh, { y: ln, r: r * 0.3, seg: 4, spike: 0.12 * s, color: P.wood, seed: seed + 30 + i });
-    merge(m, sh, { rz: -0.12 + i * 0.2, tx: Math.cos(a) * r * 0.42, ty: 0.24 * s, tz: Math.sin(a) * r * 0.42 });
+    cone(sh, { r: r * 0.38, h: shards[i] * s, seg: 4, color: P.wood, ry: a });
+    merge(m, sh, { rz: rand(rng, -0.12, 0.12), tx: Math.cos(a) * rr, ty: bodyH - 0.01, tz: Math.sin(a) * rr });
+  }
+  // 세로로 갈라진 결
+  for (let i = 0; i < 3; i++) {
+    barkLine(m, { r: r * 1.14, a: 0.5 + i * 2.1, y0: bodyH * 0.12, y1: bodyH * 0.96, w: 0.05 * s, color: P.trunkDark });
   }
   return finish(m, { radius: r * 1.2, kind: 'splitStump' });
 }
@@ -682,20 +789,20 @@ export function bush(seed = 1, opt = {}) {
   const s = rand(rng, 0.8, 1.15);
   const rx = 0.62 * s;
   const ry = 0.4 * s;
-  blobSphere(m, { y: 0.47 * s, rx, ry, seg: 9, rings: 4, color, wob: 0.05, bumps: 5, bumpAmt: 0.34, seed: seed + 2 });
+  cloudBlob(m, { y: 0.33 * s, rx, ry, seg: 12, rings: 4, color, lobes: 6, amt: 0.4, sharp: 8, core: 0.74, top: 1, seed: seed + 2 });
   // 위쪽 실루엣을 삐죽하게 만드는 잎끝 8장
-  for (let i = 0; i < 8; i++) {
-    const a = (i / 8) * Math.PI * 2 + rng() * 0.3;
-    const phi = 0.5 + rng() * 0.6;
+  for (let i = 0; i < 9; i++) {
+    const a = (i / 9) * Math.PI * 2 + rng() * 0.25;
+    const phi = 0.82 + rng() * 0.5;
     leafTip(m, {
       x: Math.sin(phi) * Math.cos(a) * rx * 0.85,
-      y: 0.47 * s + Math.cos(phi) * ry * 0.9,
+      y: 0.33 * s + Math.cos(phi) * ry * 0.9,
       z: Math.sin(phi) * Math.sin(a) * rx * 0.85,
       dir: a,
-      out: 0.35,
-      len: 0.34 * s,
-      wid: 0.16 * s,
-      color: i % 2 ? color : P.leafDark,
+      out: 1.15,
+      len: 0.22 * s,
+      wid: 0.13 * s,
+      color: i % 3 ? color : P.leafDark,
     });
   }
   if (opt.berries) {
@@ -705,7 +812,7 @@ export function bush(seed = 1, opt = {}) {
       const phi = 0.6 + rng() * 0.5;
       disc(m, {
         x: Math.sin(phi) * Math.cos(a) * rx * 0.95,
-        y: 0.47 * s + Math.cos(phi) * ry * 1.0,
+        y: 0.33 * s + Math.cos(phi) * ry * 1.0,
         z: Math.sin(phi) * Math.sin(a) * rx * 0.95,
         r: 0.06 * s,
         seg: 6,
@@ -725,33 +832,20 @@ export function shrubMound(seed = 1, opt = {}) {
   const s = rand(rng, 0.85, 1.3);
   const rx = 0.9 * s;
   const ry = 0.36 * s;
-  blobSphere(m, { y: 0.42 * s, rx, rz: rx * 0.72, ry, seg: 9, rings: 4, color, wob: 0.05, bumps: 6, bumpAmt: 0.32, seed: seed + 8 });
+  cloudBlob(m, { y: 0.28 * s, rx, rz: rx * 0.72, ry, seg: 12, rings: 4, color, lobes: 7, amt: 0.4, sharp: 9, core: 0.74, top: 1, seed: seed + 8 });
   // 윗면에 자잘한 뾰족 잎
   for (let i = 0; i < 7; i++) {
     const a = (i / 7) * Math.PI * 2 + rng() * 0.4;
-    const rr = rx * (0.2 + rng() * 0.5);
+    const rr = rx * (0.5 + rng() * 0.3);
     leafTip(m, {
       x: Math.cos(a) * rr,
-      y: 0.42 * s + ry * 0.82,
+      y: 0.28 * s + ry * 0.66,
       z: Math.sin(a) * rr * 0.72,
       dir: a,
-      out: 0.3,
+      out: 1.1,
       len: 0.24 * s,
-      wid: 0.13 * s,
-      color: i % 2 ? P.leafDark : color,
-    });
-  }
-  // 밑동에 삐져나온 풀 몇 장
-  for (let i = 0; i < 3; i++) {
-    const a = rng() * Math.PI * 2;
-    arcBlade(m, {
-      x: Math.cos(a) * rx * 0.85,
-      z: Math.sin(a) * rx * 0.6,
-      dir: a,
-      len: 0.3 * s,
-      wid: 0.07,
-      bend: 0.5,
-      color: P.grassDeep,
+      wid: 0.12 * s,
+      color: i % 3 ? color : P.leafDark,
     });
   }
   return finish(m, { radius: rx * 0.85, sway: 1.0, kind: 'shrubMound' });
@@ -837,8 +931,8 @@ export function cattail(seed = 1) {
     const x = stems[i][0];
     const sh = stems[i][1];
     cylinder(m, { x, r: 0.016, h: sh, seg: 3, color: P.grassDeep, cap: false });
-    cylinder(m, { x, y: sh - 0.3, r: 0.055, h: 0.26, seg: 5, color: P.trunkDark, cap: false });
-    cone(m, { x, y: sh - 0.04, r: 0.055, h: 0.07, seg: 5, color: P.trunkDark });
+    cylinder(m, { x, y: sh - 0.32, r: 0.075, h: 0.28, seg: 5, color: P.trunkDark, cap: false });
+    cone(m, { x, y: sh - 0.04, r: 0.075, h: 0.08, seg: 5, color: P.trunkDark });
     cylinder(m, { x, y: sh + 0.03, r: 0.012, h: 0.14, seg: 3, color: P.grassDeep, cap: false });
   }
   return finish(m, { radius: 0, sway: 1.6, kind: 'cattail' });
@@ -954,14 +1048,33 @@ export function dandelion(seed = 1) {
   // 홀씨 줄기
   const h = rand(rng, 0.42, 0.56);
   cylinder(m, { r: 0.012, h, seg: 3, color: P.grassDeep, cap: false });
-  blobSphere(m, { y: h + 0.07, rx: 0.09, ry: 0.085, seg: 6, rings: 3, color: '#f4f1e6', wob: 0.14, seed: seed + 4 });
+  blobSphere(m, { y: h + 0.07, rx: 0.062, ry: 0.06, seg: 6, rings: 3, color: '#f4f1e6', wob: 0.12, seed: seed + 4 });
+  // 사방으로 뻗은 갓털 — 그림의 보송한 홀씨 공
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * Math.PI * 2;
+    const phi = 0.45 + (i % 2) * 0.5;
+    leafTip(m, {
+      x: Math.sin(phi) * Math.cos(a) * 0.055,
+      y: h + 0.07 + Math.cos(phi) * 0.055,
+      z: Math.sin(phi) * Math.sin(a) * 0.055,
+      dir: a,
+      out: Math.sin(phi) * 1.6,
+      len: 0.042,
+      wid: 0.032,
+      color: '#f6f3e9',
+    });
+  }
   // 옆에 선 노란 꽃 한 송이
   const fh = h * 0.66;
   const fa = rng() * Math.PI * 2;
   const fx = Math.cos(fa) * 0.1;
   const fz = Math.sin(fa) * 0.1;
   cylinder(m, { x: fx, z: fz, r: 0.011, h: fh, seg: 3, color: P.grassDeep, cap: false });
-  cylinder(m, { x: fx, z: fz, y: fh, r: 0.055, r2: 0.07, h: 0.035, seg: 6, color: P.leafGold, capColor: '#f2cf74' });
+  for (let i = 0; i < 5; i++) {
+    const pa = (i / 5) * Math.PI * 2 + fa;
+    flatLeaf(m, { x: fx, y: fh, z: fz, len: 0.06, wid: 0.045, dir: pa, tilt: 0.3, shape: 'round', color: P.leafGold });
+  }
+  disc(m, { x: fx, y: fh + 0.016, z: fz, r: 0.022, seg: 6, color: '#e0a63f', double: true });
   return finish(m, { radius: 0.3, sway: 1.9, kind: 'dandelion' });
 }
 
@@ -997,7 +1110,7 @@ export function cloverPatch(seed = 1) {
   // 작은 흰 꽃 한 송이
   const fh = 0.24;
   cylinder(m, { x: 0.02, z: -0.04, r: 0.008, h: fh, seg: 3, color: P.grassDeep, cap: false });
-  blobSphere(m, { x: 0.02, z: -0.04, y: fh + 0.035, rx: 0.045, ry: 0.04, seg: 5, rings: 2, color: '#f3efe1', wob: 0.16, seed: seed + 6 });
+  blobSphere(m, { x: 0.02, z: -0.04, y: fh + 0.035, rx: 0.042, ry: 0.038, seg: 6, rings: 3, color: '#f3efe1', wob: 0.14, seed: seed + 6 });
   return finish(m, { radius: 0.2, sway: 2.0, kind: 'clover' });
 }
 
@@ -1047,9 +1160,9 @@ export function mushroom(seed = 1) {
   const m = mesh();
   const capColor = pick(rng, ['#e08a76', '#d9a05b', '#c98fb0', '#e8cf9a']);
   const s = rand(rng, 0.7, 1.2);
-  const stemH = 0.2 * s;
-  const capR = 0.17 * s;
-  cylinder(m, { r: 0.042 * s, r2: 0.05 * s, h: stemH, seg: 6, color: '#f2e7cf', cap: false });
+  const stemH = 0.19 * s;
+  const capR = 0.115 * s;
+  cylinder(m, { r: 0.05 * s, r2: 0.042 * s, h: stemH, seg: 6, color: '#f2e7cf', cap: false });
   // 갓 밑면(주름) — 아래를 보는 원판
   const und = [];
   for (let i = 0; i < 7; i++) {
@@ -1057,17 +1170,18 @@ export function mushroom(seed = 1) {
     und.push([Math.cos(a) * capR, stemH, Math.sin(a) * capR]);
   }
   poly(m, und, '#e4d3b4');
-  cylinder(m, { y: stemH, r: capR, r2: capR * 0.72, h: 0.06 * s, seg: 7, color: capColor, cap: false });
-  cone(m, { y: stemH + 0.06 * s, r: capR * 0.72, h: 0.085 * s, seg: 7, color: capColor });
+  cylinder(m, { y: stemH, r: capR, r2: capR * 0.9, h: 0.05 * s, seg: 7, color: capColor, cap: false });
+  cylinder(m, { y: stemH + 0.05 * s, r: capR * 0.9, r2: capR * 0.62, h: 0.06 * s, seg: 7, color: capColor, cap: false });
+  cone(m, { y: stemH + 0.11 * s, r: capR * 0.62, h: 0.055 * s, seg: 7, color: capColor });
   // 갓 위 점무늬
   for (let i = 0; i < 3; i++) {
     const a = (i / 3) * Math.PI * 2 + rng();
-    const rr = capR * (0.3 + rng() * 0.3);
+    const rr = capR * (0.24 + rng() * 0.26);
     disc(m, {
       x: Math.cos(a) * rr,
-      y: stemH + 0.075 * s,
+      y: stemH + 0.085 * s,
       z: Math.sin(a) * rr,
-      r: 0.03 * s,
+      r: 0.022 * s,
       seg: 5,
       color: '#f6efdd',
       double: true,

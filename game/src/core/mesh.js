@@ -169,7 +169,8 @@ export function cylinder(m, o) {
   }
   for (let i = 0; i < seg; i++) {
     const j = (i + 1) % seg;
-    quad(b, lower[i], lower[j], upper[j], upper[i], color, { soft });
+    // 바깥에서 봤을 때 반시계가 되어야 노멀이 바깥을 향한다
+    quad(b, lower[j], lower[i], upper[i], upper[j], color, { soft });
   }
   if (cap && rt > 0.001) poly(b, upper.slice().reverse(), capColor || color);
   merge(m, b, { tx: x, ty: y, tz: z, ry });
@@ -188,7 +189,7 @@ export function cone(m, o) {
   const apex = [0, h, 0];
   for (let i = 0; i < seg; i++) {
     const j = (i + 1) % seg;
-    tri(b, ring[i], ring[j], apex, color, { soft });
+    tri(b, ring[j], ring[i], apex, color, { soft });
   }
   merge(m, b, { tx: x, ty: y, tz: z, ry });
   return m;
@@ -279,7 +280,7 @@ export function extrude(m, o) {
   const top = pts.map((p) => [p[0] * topScale + topOffset[0], h, p[1] * topScale + topOffset[1]]);
   for (let i = 0; i < pts.length; i++) {
     const j = (i + 1) % pts.length;
-    quad(b, bot[i], bot[j], top[j], top[i], color, { soft });
+    quad(b, bot[j], bot[i], top[i], top[j], color, { soft });
   }
   poly(b, top.slice().reverse(), topColor || color);
   merge(m, b, { tx: x, ty: y, tz: z });
