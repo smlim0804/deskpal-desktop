@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Bean Hollow — 모델 대조 갤러리</title>
+    <link rel="stylesheet" href="./style.css" />
+    <style>
+      body { overflow: auto; background: #f6f1e4; }
+      #frame { display: block; height: auto; place-items: start; }
+      #sheet { display: block; margin: 0 auto; background: #fdfbf4; }
+      #bar {
+        position: sticky; top: 0; z-index: 10; display: flex; gap: 10px; align-items: center;
+        padding: 10px 16px; background: #f0ead8; border-bottom: 2px solid #33302b;
+      }
+      #bar h1 { font-size: 20px; margin: 0 12px 0 0; }
+    </style>
+  </head>
+  <body>
+    <div id="bar">
+      <h1>모델 대조 갤러리</h1>
+      <button class="style-btn is-on" type="button" data-style="color">컬러</button>
+      <button class="style-btn" type="button" data-style="ink">기본 (선화)</button>
+      <span id="count" style="opacity: 0.6"></span>
+    </div>
+    <canvas id="sheet" width="1600" height="900"></canvas>
+    <script type="module" src="./src/gallery.js"></script>
+  </body>
+</html>
